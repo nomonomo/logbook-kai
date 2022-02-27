@@ -51,8 +51,10 @@ import logbook.bean.SlotItemCollection;
 import logbook.internal.Audios;
 import logbook.internal.BouyomiChanUtils;
 import logbook.internal.BouyomiChanUtils.Type;
+import logbook.internal.Items;
 import logbook.internal.LoggerHolder;
 import logbook.internal.Ships;
+import logbook.internal.SlotItemType;
 import logbook.internal.Tuple;
 import logbook.internal.proxy.ProxyHolder;
 import logbook.plugin.PluginServices;
@@ -253,9 +255,12 @@ public class MainController extends WindowController {
      */
     private void button() {
         // 装備
-        Integer slotitem = SlotItemCollection.get()
+        Integer slotitem = (int) SlotItemCollection.get()
                 .getSlotitemMap()
-                .size();
+                .values()
+                .stream()
+                .filter(e -> !Items.slotitemMst(e).get().is(SlotItemType. 戦闘糧食,SlotItemType.補給物資,SlotItemType.応急修理要員))
+                .count();
         Integer maxSlotitem = Basic.get()
                 .getMaxSlotitem();
         this.item.setText(MessageFormat.format(this.itemFormat, slotitem, maxSlotitem));
