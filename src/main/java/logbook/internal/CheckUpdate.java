@@ -23,7 +23,9 @@ import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
-import javafx.application.Platform;
+
+import org.controlsfx.tools.Platform;
+
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
@@ -38,7 +40,7 @@ import logbook.internal.gui.Tools;
 public class CheckUpdate {
 
     /** GitHub リポジトリのパス */
-    public static final String REPOSITORY_PATH = "Sdk0815/logbook-kai";
+    public static final String REPOSITORY_PATH = "nomonomo/logbook-kai";
 
     /** 更新確認先 Github tags API */
     private static final String TAGS = "https://api.github.com/repos/" + REPOSITORY_PATH + "/tags";
