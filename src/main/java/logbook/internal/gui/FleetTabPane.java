@@ -415,6 +415,10 @@ public class FleetTabPane extends ScrollPane {
             long cut = AppCondition.get().getCondUpdateTime();
             // 疲労抜け想定時刻(エポック秒)
             long end = cut + (-Math.floorDiv(49 - minCond, -3) * 180);
+            // 疲労回復タイミングは3の倍数+2
+            int calc = ZonedDateTime.ofInstant(Instant.ofEpochSecond(end), ZoneId.systemDefault()).getMinute();
+            calc = (calc + 1) % 3;
+            end = end - ( 60 * calc);
 
             // 現在時刻
             ZonedDateTime now = ZonedDateTime.now(ZoneId.systemDefault());
