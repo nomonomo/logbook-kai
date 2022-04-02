@@ -25,12 +25,13 @@ jobs:
       with:
         java-version: '8'
         distribution: 'liberica'
+        java-package: jdk+fx
         server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
         settings-path: ${{ github.workspace }} # location for the settings.xml file
         cache: 'maven'
 
     - name: Build with Maven
-      run: mvn -e -X -B package --file pom.xml
+      run: mvn -e -B package --file pom.xml
 
     - name: Create release
       id: create_release
