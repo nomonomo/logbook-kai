@@ -39,7 +39,7 @@ jobs:
       with:
         draft: true
         prerelease: false
-        files: logbook-kai_${{ env.RELEASE_VERSION }}.zip
+        files: target/logbook-kai_${{ env.RELEASE_VERSION }}.zip
         name: v${{ env.RELEASE_VERSION }}
         tag_name: v${{ env.RELEASE_VERSION }}
         token: ${{ secrets.GITHUB_TOKEN }}
