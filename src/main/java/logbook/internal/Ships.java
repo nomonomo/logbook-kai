@@ -273,6 +273,7 @@ public class Ships {
      * @return 撃沈状態の場合true
      */
     public static boolean isLost(Chara chara) {
+        if (chara.getNowhp() == null)return false;
         return chara.getNowhp() <= 0;
     }
 
@@ -1079,6 +1080,7 @@ public class Ships {
      * @return HP割合
      */
     private static double hpPer(Chara chara) {
+        if (chara.getMaxhp() == null)return 0;
         return (double) chara.getNowhp() / (double) chara.getMaxhp();
     }
 

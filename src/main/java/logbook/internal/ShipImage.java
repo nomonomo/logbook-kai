@@ -191,7 +191,8 @@ class ShipImage {
     static Image get(Chara chara, boolean addItem, boolean applyState,
             Map<Integer, SlotItem> itemMap, Set<Integer> escape) {
         boolean visibleExpGauge = AppConfig.get().isVisibleExpGauge();
-        return get(chara, addItem, applyState, true, true, true, visibleExpGauge, itemMap, escape);
+        boolean visibleHpGauge = chara.getMaxhp() == null ? false : true;
+        return get(chara, addItem, applyState, true, true, visibleHpGauge, visibleExpGauge, itemMap, escape);
     }
 
     /**
