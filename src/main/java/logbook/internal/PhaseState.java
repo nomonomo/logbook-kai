@@ -750,7 +750,7 @@ public class PhaseState {
             }
         }
         for (int i = 0, s = b.getEMaxhps().size(); i < s; i++) {
-            if (b.getEMaxhps().get(i) == -1) {
+            if (b.getEMaxhps().get(i) != null && b.getEMaxhps().get(i) == -1) {
                 continue;
             }
             if (this.afterEnemy.get(i) != null) {
@@ -921,7 +921,9 @@ public class PhaseState {
     public double enemyTotalHp() {
         return Stream.concat(this.afterEnemy.stream(), this.afterEnemyCombined.stream())
                 .filter(Objects::nonNull)
-                .mapToInt(Chara::getNowhp)
+                .map(Chara::getNowhp)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
                 .map(hp -> Math.max(hp, 0))
                 .sum();
     }
@@ -947,7 +949,9 @@ public class PhaseState {
     public int enemydAliveCount() {
         return (int) Stream.concat(this.afterEnemy.stream(), this.afterEnemyCombined.stream())
                 .filter(Objects::nonNull)
-                .mapToInt(Chara::getNowhp)
+                .map(Chara::getNowhp)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
                 .filter(hp -> hp > 0)
                 .count();
     }

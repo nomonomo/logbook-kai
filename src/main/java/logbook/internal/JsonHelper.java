@@ -41,7 +41,8 @@ public final class JsonHelper {
     }
 
     /**
-     * JsonValueをIntegerに変換します
+     * JsonValueをIntegerに変換します<br>
+     * 値が"N/A"の場合、nullを設定します
      *
      * @see JsonNumber#intValue()
      * @see BigDecimal#intValue()
@@ -51,6 +52,9 @@ public final class JsonHelper {
     public static Integer toInteger(JsonValue val) {
         if (val instanceof JsonNumber) {
             return ((JsonNumber) val).intValue();
+        }
+        if (val instanceof JsonString) {
+            if(((JsonString) val).getString().equals("N/A"))return null;
         }
         return new BigDecimal(toString(val)).intValue();
     }
@@ -615,6 +619,7 @@ public final class JsonHelper {
         public <T extends JsonArray> Bind setIntegerList(String key, Consumer<List<Integer>> consumer) {
             return this.set(key, consumer, JsonHelper::toIntegerList);
         }
+
 
         /**
          * keyで取得したJsonValueをList<Long>に変換したものをconsumerへ設定します<br>
