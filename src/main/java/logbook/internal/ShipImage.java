@@ -53,7 +53,7 @@ class ShipImage {
     private static final String[] STANDING_DAMAGED = { "19.png", "19.jpg" };
 
     /** 小破バナーアイコン */
-    private static final String MC_BANNER_ICON0 = "common_misc/common_misc_110.png";
+    private static final String MC_BANNER_ICON0 = "common_misc/common_misc_112.png";
 
     /** 中破バナーアイコン */
     private static final String MC_BANNER_ICON1 = "common_misc/common_misc_104.png";
@@ -65,13 +65,13 @@ class ShipImage {
     private static final String MC_BANNER_ICON3 = "common_misc/common_misc_107.png";
 
     /** 修復バナーアイコン */
-    private static final String MC_BANNER_ICON4 = "common_misc/common_misc_113.png";
+    private static final String MC_BANNER_ICON4 = "common_misc/common_misc_115.png";
 
     /** 遠征バナーアイコン */
     private static final String MC_BANNER_ICON5 = "common_misc/common_misc_105.png";
 
     /** 退避バナーアイコン */
-    private static final String MC_BANNER_ICON10 = "common_misc/common_misc_115.png";
+    private static final String MC_BANNER_ICON10 = "common_misc/common_misc_117.png";
 
     /** 小破汚れ */
     private static final String MC_BANNER_SMOKE_IMG0 = "common_misc/common_misc_101.png";
@@ -86,13 +86,13 @@ class ShipImage {
     private static final String COMMON_MISC_39 = "common_misc/common_misc_39.png";
 
     /** 疲労オレンジ顔 */
-    private static final String COMMON_MISC_117 = "common_misc/common_misc_117.png";
+    private static final String COMMON_MISC_117 = "common_misc/common_misc_119.png";
 
     /** 疲労赤背景 */
     private static final String COMMON_MISC_40 = "common_misc/common_misc_40.png";
 
     /** 疲労赤顔 */
-    private static final String COMMON_MISC_118 = "common_misc/common_misc_118.png";
+    private static final String COMMON_MISC_118 = "common_misc/common_misc_120.png";
 
     /** 小破バッチ */
     private static final Layer SLIGHT_DAMAGE_BADGE = new Layer(0, 0, Paths.get("common", MC_BANNER_ICON0));
@@ -191,7 +191,10 @@ class ShipImage {
     static Image get(Chara chara, boolean addItem, boolean applyState,
             Map<Integer, SlotItem> itemMap, Set<Integer> escape) {
         boolean visibleExpGauge = AppConfig.get().isVisibleExpGauge();
-        boolean visibleHpGauge = chara.getMaxhp() == null ? false : true;
+        boolean visibleHpGauge = true;
+        if(chara != null) {
+            if(chara.getMaxhp() == null)visibleHpGauge = false;
+        }
         return get(chara, addItem, applyState, true, true, visibleHpGauge, visibleExpGauge, itemMap, escape);
     }
 
