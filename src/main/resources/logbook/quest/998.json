@@ -1,0 +1,22 @@
+/* [998]改装白露型精鋭駆逐艦「時雨改三」出撃す！" */
+{
+    "type" : "出撃",
+    "resetType" : "単発",
+    "filter" : {
+        "area": ["2-5", "7-4", "4-5", "5-5", "6-4"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["時雨改三"]},
+                {"name": ["白露", "有明", "夕暮"], "count": 1, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["2-5"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["7-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["4-5"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-5"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["6-4"], "rank": ["S"], "count": 1}
+    ]
+}

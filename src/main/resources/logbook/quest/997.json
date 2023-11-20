@@ -1,0 +1,22 @@
+/* [997]【海上護衛作戦】海上補給線を確保せよ！ */
+{
+    "type" : "出撃",
+    "resetType" : "単発",
+    "filter" : {
+        "area": ["1-3", "1-5", "1-6", "2-2"],
+        "fleet": {
+            "operator": "OR",
+            "conditions": [
+                {"stype": ["駆逐艦"], "count": 4, "operator": "GE"},
+                {"stype": ["海防艦"], "count": 3, "operator": "GE"},
+                {"stype": ["水上機母艦"], "count": 2, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["1-3"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["1-5"], "rank": ["S"], "count": 2},
+        {"area": ["1-6"], "rank": ["S", "A", "B", "C", "D", "E"], "cells": ["B", "D"], "count": 2},
+        {"boss": true, "area": ["2-2"], "rank": ["S"], "count": 2}
+    ]
+}

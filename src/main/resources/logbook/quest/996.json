@@ -1,0 +1,24 @@
+/* [996]改金剛型高速戦艦「榛名改二乙/丙」、抜錨！ */
+{
+    "type" : "出撃",
+    "resetType" : "単発",
+    "filter" : {
+        "area": ["2-2", "2-4", "7-5-3", "4-3", "5-3", "5-4"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["榛名改二乙","榛名改二丙"], "count": 1, "operator": "GE"},
+                {"name": ["金剛改二丙"]},
+                {"stype": ["駆逐艦"], "count": 2, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["2-2"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["7-5"], "cell": "T", "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["4-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-4"], "rank": ["S"], "count": 1}
+    ]
+}
