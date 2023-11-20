@@ -1,0 +1,22 @@
+/* [955]【梅雨限定月間任務】南方ソロモン方面漸減作戦 */
+{
+    "type" : "出撃",
+    "resetType" : "マンスリー",
+    "filter" : {
+        "area": ["5-1", "5-2", "5-3", "5-4", "5-5"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"stype": ["戦艦", "航空戦艦"], "count": 2, "operator": "GE"},
+                {"name": ["阿賀野", "能代", "矢矧", "酒匂", "大淀"], "count": 1, "operator": "EQ"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["5-1"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-2"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-5"], "rank": ["S"], "count": 1}
+    ]
+}

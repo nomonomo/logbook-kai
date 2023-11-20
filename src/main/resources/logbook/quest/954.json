@@ -1,0 +1,19 @@
+/* [954]【梅雨拡張任務】雨の重巡作戦！ */
+{
+    "type" : "出撃",
+    "resetType" : "ウィークリー",
+    "filter" : {
+        "area": ["7-3", "7-4"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"stype": ["重巡洋艦", "航空巡洋艦"], "order": 1},
+                {"stype": ["重巡洋艦", "航空巡洋艦"], "count": 2, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["7-3"], "cell": "P", "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["7-4"], "rank": ["S"], "count": 2}
+    ]
+}
