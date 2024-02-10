@@ -106,7 +106,7 @@ public class ImageListener implements ContentListenerSpi {
         ShipMst shipMst = ShipMstCollection.get()
                 .getShipMap()
                 .get(Integer.parseInt(shipid));
-        if (response.getResponseBody().isPresent()) {
+        if (shipMst != null && response.getResponseBody().isPresent()) {
             // 画像ファイルを再圧縮するオプション
             InputStream is;
             if (AppConfig.get().isShipImageCompress()) {
