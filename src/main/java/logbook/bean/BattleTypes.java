@@ -1119,13 +1119,13 @@ public class BattleTypes {
     @Data
     public static class Raigeki implements Serializable {
 
-        private static final long serialVersionUID = 4769524848250854584L;
+        private static final long serialVersionUID = 4735044801240586034L;
 
-        /** api_frai */
-        private List<Integer> frai;
+        /** api_frai_list_items */
+        private List<List<Integer>> frai;
 
-        /** api_erai */
-        private List<Integer> erai;
+        /** api_erai_list_items */
+        private List<List<Integer>> erai;
 
         /** api_fdam */
         private List<Double> fdam;
@@ -1133,17 +1133,17 @@ public class BattleTypes {
         /** api_edam */
         private List<Double> edam;
 
-        /** api_fydam */
-        private List<Double> fydam;
+        /** api_fydam_list_items */
+        private List<List<Double>> fydam;
 
-        /** api_eydam */
-        private List<Double> eydam;
+        /** api_eydam_list_items */
+        private List<List<Double>> eydam;
 
-        /** api_fcl */
-        private List<Integer> fcl;
+        /** api_fcl_list_items */
+        private List<List<Integer>> fcl;
 
-        /** api_ecl */
-        private List<Integer> ecl;
+        /** api_ecl_list_items */
+        private List<List<Integer>>ecl;
 
         /**
          * JsonObjectから{@link Raigeki}を構築します
@@ -1154,14 +1154,14 @@ public class BattleTypes {
         public static Raigeki toRaigeki(JsonObject json) {
             Raigeki bean = new Raigeki();
             JsonHelper.bind(json)
-                    .setIntegerList("api_frai", bean::setFrai)
-                    .setIntegerList("api_erai", bean::setErai)
+                    .set("api_frai_list_items", bean::setFrai,JsonHelper.toList(JsonHelper::toIntegerList))
+                    .set("api_erai_list_items", bean::setErai,JsonHelper.toList(JsonHelper::toIntegerList))
                     .setDoubleList("api_fdam", bean::setFdam)
                     .setDoubleList("api_edam", bean::setEdam)
-                    .setDoubleList("api_fydam", bean::setFydam)
-                    .setDoubleList("api_eydam", bean::setEydam)
-                    .setIntegerList("api_fcl", bean::setFcl)
-                    .setIntegerList("api_ecl", bean::setEcl);
+                    .set("api_fydam_list_items", bean::setFydam,JsonHelper.toList(JsonHelper::toDoubleList))
+                    .set("api_eydam_list_items", bean::setEydam,JsonHelper.toList(JsonHelper::toDoubleList))
+                    .set("api_fcl_list_items", bean::setFcl,JsonHelper.toList(JsonHelper::toIntegerList))
+                    .set("api_ecl_list_items", bean::setEcl,JsonHelper.toList(JsonHelper::toIntegerList));
             return bean;
         }
     }

@@ -2,7 +2,6 @@ package logbook.internal;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -855,7 +854,7 @@ public class PhaseState {
      */
     private void addDetailRaigeki0(List<? extends Chara> attackerFleet, List<? extends Chara> attackerFleetCombined,
             List<? extends Chara> defenderFleet, List<? extends Chara> defenderFleetCombined,
-            List<Integer> index, List<Double> ydam, List<Integer> critical) {
+            List<List<Integer>> index, List<List<Double>> ydam, List<List<Integer>> critical) {
 
         if (defenderFleet != null)
             defenderFleet = defenderFleet.stream()
@@ -865,20 +864,51 @@ public class PhaseState {
             defenderFleetCombined = defenderFleetCombined.stream()
                     .map(c -> c != null ? c.clone() : null)
                     .collect(Collectors.toList());
-        for (int i = 0; i < index.size(); i++) {
-            if (index.get(i) >= 0) {
-                Chara attacker = Math.max(attackerFleet.size(), 6) > i
-                        ? attackerFleet.get(i)
-                        : attackerFleetCombined.get(i - 6);
-                Chara defender = Math.max(defenderFleet.size(), 6) > index.get(i)
-                        ? defenderFleet.get(index.get(i))
-                        : defenderFleetCombined.get(index.get(i) - 6);
-                int damage = (int) ydam.get(i).doubleValue();
+        for (int i = 0;i < index.size(); i++) {
+            // 攻撃側インデックス
+            int at = i;
+            // 攻撃種別
+//            AtType atType;
+            Map<Integer, List<Integer>> dfMap = new LinkedHashMap<>();
+            Map<Integer, List<Integer>> clMap = new LinkedHashMap<>();
+            List<Integer> dfList = index.get(i);
+            List<Double> damageList = ydam.get(i);
+            List<Integer> clList = critical.get(i);
+            if(dfList != null) {
+                for (int j = 0; j < dfList.size(); j++) {
+                    int damage = Math.max(damageList.get(j).intValue(), 0);
+                    int cri = clList.get(j).intValue();
+                    // ダメージ
+                    List<Integer> df = dfMap.computeIfAbsent(dfList.get(j), (k) -> new ArrayList<>());
+                    df.add(damage);
+                    // クリティカル
+                    List<Integer> cl = clMap.computeIfAbsent(dfList.get(j), (k) -> new ArrayList<>());
+                    cl.add(cri);
+                }
 
-                defender.setNowhp(defender.getNowhp() - damage);
+                for (Entry<Integer, List<Integer>> dfDamage : dfMap.entrySet()) {
+                    // 防御側インデックス
+                    int df = dfDamage.getKey();
+                    // ダメージ
+                    int damage = dfDamage.getValue().stream()
+                            .mapToInt(Integer::intValue)
+                            .filter(d -> d > 0)
+                            .sum();
+                    List<Integer> damages = dfDamage.getValue();
+                    List<Integer> criticals = clMap.get(dfDamage.getKey());
+                    Chara attacker = null;
+                    Chara defender = null;
 
-                this.addDetail(attacker, defender, damage, Collections.singletonList(damage), Collections.singletonList(critical.get(i)),
-                        SortieAtTypeRaigeki.通常雷撃);
+                    attacker = Math.max(attackerFleet.size(), 6) > at
+                            ? attackerFleet.get(at)
+                            : attackerFleetCombined.get(at - 6);
+                    defender = Math.max(defenderFleet.size(), 6) > df
+                            ? defenderFleet.get(df)
+                            : defenderFleetCombined.get(df - 6);
+
+                    defender.setNowhp(defender.getNowhp() - damage);
+                    this.addDetail(attacker, defender, damage, damages, criticals, SortieAtTypeRaigeki.通常雷撃);
+                }
             }
         }
     }
