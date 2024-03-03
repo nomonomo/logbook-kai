@@ -25,7 +25,7 @@ import lombok.Data;
 public class CombinedBattleEcNightToDay implements ICombinedBattle, ICombinedEcBattle, IFormation,
         INightToDayBattle, IAirBaseAttack, IKouku, ISortieHougeki, INSupport, ISupport, Serializable {
 
-    private static final long serialVersionUID = -364877629377359534L;
+    private static final long serialVersionUID = 4403492126959970269L;
 
     /** api_dock_id/api_deck_id */
     private Integer dockId;
@@ -142,7 +142,7 @@ public class CombinedBattleEcNightToDay implements ICombinedBattle, ICombinedEcB
     private Boolean openingFlag;
 
     /** api_opening_atack */
-    private BattleTypes.Raigeki openingAtack;
+    private BattleTypes.OpeningRaigeki openingAtack;
 
     /** api_hourai_flag */
     private List<Integer> houraiFlag;
@@ -211,7 +211,7 @@ public class CombinedBattleEcNightToDay implements ICombinedBattle, ICombinedEcB
                 .setBoolean("api_opening_taisen_flag", bean::setOpeningTaisenFlag)
                 .set("api_opening_taisen", bean::setOpeningTaisen, BattleTypes.Hougeki::toHougeki)
                 .setBoolean("api_opening_flag", bean::setOpeningFlag)
-                .set("api_opening_atack", bean::setOpeningAtack, BattleTypes.Raigeki::toRaigeki)
+                .set("api_opening_atack", bean::setOpeningAtack, BattleTypes.OpeningRaigeki::toOpeningRaigeki)
                 .setIntegerList("api_hourai_flag", bean::setHouraiFlag)
                 .set("api_hougeki1", bean::setHougeki1, BattleTypes.Hougeki::toHougeki)
                 .set("api_hougeki2", bean::setHougeki2, BattleTypes.Hougeki::toHougeki)

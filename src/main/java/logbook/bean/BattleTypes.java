@@ -394,7 +394,7 @@ public class BattleTypes {
          * api_opening_atackを取得します。
          * @return api_opening_atack
          */
-        BattleTypes.Raigeki getOpeningAtack();
+        BattleTypes.OpeningRaigeki getOpeningAtack();
 
         /**
          * api_opening_taisen_flagを取得します。
@@ -1114,10 +1114,10 @@ public class BattleTypes {
     }
 
     /**
-     * 雷撃
+     * 開幕雷撃
      */
     @Data
-    public static class Raigeki implements Serializable {
+    public static class OpeningRaigeki implements Serializable {
 
         private static final long serialVersionUID = 4735044801240586034L;
 
@@ -1146,13 +1146,13 @@ public class BattleTypes {
         private List<List<Integer>>ecl;
 
         /**
-         * JsonObjectから{@link Raigeki}を構築します
+         * JsonObjectから{@link OpeningRaigeki}を構築します
          *
          * @param json JsonObject
-         * @return {@link Raigeki}
+         * @return {@link OpeningRaigeki}
          */
-        public static Raigeki toRaigeki(JsonObject json) {
-            Raigeki bean = new Raigeki();
+        public static OpeningRaigeki toOpeningRaigeki(JsonObject json) {
+            OpeningRaigeki bean = new OpeningRaigeki();
             JsonHelper.bind(json)
                     .set("api_frai_list_items", bean::setFrai,JsonHelper.toList(JsonHelper::toIntegerList))
                     .set("api_erai_list_items", bean::setErai,JsonHelper.toList(JsonHelper::toIntegerList))
@@ -1162,6 +1162,59 @@ public class BattleTypes {
                     .set("api_eydam_list_items", bean::setEydam,JsonHelper.toList(JsonHelper::toDoubleList))
                     .set("api_fcl_list_items", bean::setFcl,JsonHelper.toList(JsonHelper::toIntegerList))
                     .set("api_ecl_list_items", bean::setEcl,JsonHelper.toList(JsonHelper::toIntegerList));
+            return bean;
+        }
+    }
+
+    /**
+     * 雷撃
+     */
+    @Data
+    public static class Raigeki implements Serializable {
+
+        private static final long serialVersionUID = 4769524848250854584L;
+
+        /** api_frai */
+        private List<Integer> frai;
+
+        /** api_erai */
+        private List<Integer> erai;
+
+        /** api_fdam */
+        private List<Double> fdam;
+
+        /** api_edam */
+        private List<Double> edam;
+
+        /** api_fydam */
+        private List<Double> fydam;
+
+        /** api_eydam */
+        private List<Double> eydam;
+
+        /** api_fcl */
+        private List<Integer> fcl;
+
+        /** api_ecl */
+        private List<Integer> ecl;
+
+        /**
+         * JsonObjectから{@link Raigeki}を構築します
+         *
+         * @param json JsonObject
+         * @return {@link Raigeki}
+         */
+        public static Raigeki toRaigeki(JsonObject json) {
+            Raigeki bean = new Raigeki();
+            JsonHelper.bind(json)
+                    .setIntegerList("api_frai", bean::setFrai)
+                    .setIntegerList("api_erai", bean::setErai)
+                    .setDoubleList("api_fdam", bean::setFdam)
+                    .setDoubleList("api_edam", bean::setEdam)
+                    .setDoubleList("api_fydam", bean::setFydam)
+                    .setDoubleList("api_eydam", bean::setEydam)
+                    .setIntegerList("api_fcl", bean::setFcl)
+                    .setIntegerList("api_ecl", bean::setEcl);
             return bean;
         }
     }
@@ -1659,7 +1712,8 @@ public class BattleTypes {
      *
      */
     public enum SortieAtTypeRaigeki implements AtType {
-        通常雷撃;
+        通常雷撃,
+        開幕雷撃;
     }
 
     /**
