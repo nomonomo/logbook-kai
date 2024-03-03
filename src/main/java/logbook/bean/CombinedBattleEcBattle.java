@@ -23,7 +23,7 @@ import lombok.Data;
 public class CombinedBattleEcBattle implements ICombinedEcBattle, ISortieBattle, ISortieHougeki,
         IFormation, IKouku, ISupport, IAirBaseAttack, Serializable {
 
-    private static final long serialVersionUID = 9219457270531289491L;
+    private static final long serialVersionUID = -8678626104981521664L;
 
     /** api_air_base_injection */
     private BattleTypes.AirBaseAttack airBaseInjection;
@@ -110,7 +110,7 @@ public class CombinedBattleEcBattle implements ICombinedEcBattle, ISortieBattle,
     private Boolean openingFlag;
 
     /** api_opening_atack */
-    private BattleTypes.Raigeki openingAtack;
+    private BattleTypes.OpeningRaigeki openingAtack;
 
     /** api_opening_taisen_flag */
     private Boolean openingTaisenFlag;
@@ -173,7 +173,7 @@ public class CombinedBattleEcBattle implements ICombinedEcBattle, ISortieBattle,
                 .setInteger("api_support_flag", bean::setSupportFlag)
                 .set("api_support_info", bean::setSupportInfo, BattleTypes.SupportInfo::toSupportInfo)
                 .setBoolean("api_opening_flag", bean::setOpeningFlag)
-                .set("api_opening_atack", bean::setOpeningAtack, BattleTypes.Raigeki::toRaigeki)
+                .set("api_opening_atack", bean::setOpeningAtack, BattleTypes.OpeningRaigeki::toOpeningRaigeki)
                 .setBoolean("api_opening_taisen_flag", bean::setOpeningTaisenFlag)
                 .set("api_opening_taisen", bean::setOpeningTaisen, BattleTypes.Hougeki::toHougeki)
                 .setIntegerList("api_hourai_flag", bean::setHouraiFlag)

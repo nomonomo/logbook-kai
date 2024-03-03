@@ -5,8 +5,11 @@
          "type": "艦隊", "count_type": "旗艦レベル＋キラキラ"
     },
     "conditions": [
+        {"type": "艦隊", "count_type": "レベル", "value": 300},
         {"type": "艦隊", "count_type": "火力", "value": 500},
+        {"type": "艦隊", "count_type": "対空", "value": 280},
         {"type": "艦隊", "count_type": "対潜", "value": 280},
+        {"type": "艦隊", "count_type": "索敵", "value": 170},
         {
             "operator": "AND",
             "conditions": [

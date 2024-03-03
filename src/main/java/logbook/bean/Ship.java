@@ -19,7 +19,7 @@ import lombok.Data;
 @Data
 public class Ship implements Chara, Serializable, Cloneable {
 
-    private static final long serialVersionUID = 3598977177423429679L;
+    private static final long serialVersionUID = 1824670290941099475L;
 
     /** ID */
     private Integer id;
@@ -116,6 +116,9 @@ public class Ship implements Chara, Serializable, Cloneable {
 
     /** 出撃海域 */
     private Integer sallyArea = 0;
+
+    /** 特殊効果アイテム */
+    private List<SpEffectItem> spEffectItems;
 
     @Override
     public Ship clone() {
@@ -219,7 +222,47 @@ public class Ship implements Chara, Serializable, Cloneable {
                 .setIntegerList("api_lucky", bean::setLucky)
                 .setBoolean("api_locked", bean::setLocked)
                 .setBoolean("api_locked_equip", bean::setLockedEquip)
+                .set("api_sp_effect_items", bean::setSpEffectItems, JsonHelper.toList(SpEffectItem::toSpEffectItem))
                 .setInteger("api_sally_area", bean::setSallyArea);
         return bean;
+    }
+
+
+    @Data
+    public static class SpEffectItem implements Serializable {
+
+        private static final long serialVersionUID = -1430429039139415315L;
+
+        /** 青リボン */
+        public static final int KIND_BLUE_RIBBON = 1;
+
+        /** 白タスキ */
+        public static final int KIND_WHITE_TASUKI = 2;
+
+        /** 種別 */
+        private Integer kind;
+
+        /** 砲撃 */
+        private Integer houg;
+
+        /** 雷撃 */
+        private Integer raig;
+
+        /** 装甲 */
+        private Integer souk;
+
+        /** 回避 */
+        private Integer kaih;
+
+        public static SpEffectItem toSpEffectItem(JsonObject json) {
+            SpEffectItem bean = new SpEffectItem();
+            JsonHelper.bind(json)
+            .setInteger("api_kind", bean::setKind)
+            .setInteger("api_houg", bean::setHoug)
+            .setInteger("api_raig", bean::setRaig)
+            .setInteger("api_souk", bean::setSouk)
+            .setInteger("api_kaih", bean::setKaih);
+            return bean;
+        }
     }
 }

@@ -1,0 +1,21 @@
+/* [1001]主力オブ主力「清霜改二」、出撃せよ！ */
+{
+    "type" : "出撃",
+    "resetType" : "単発",
+    "filter" : {
+        "area": ["2-2", "2-3", "2-4", "7-4"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["清霜改二","清霜改二丁"], "count": 1, "operator": "GE"},
+                {"name": ["霞","朝霜","大淀","足柄"], "count": 2, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["2-2"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["7-4"], "rank": ["S"], "count": 1}
+    ]
+}

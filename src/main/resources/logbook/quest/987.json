@@ -1,0 +1,21 @@
+/* [987]【限定週間任務】10周年秋南瓜祭りおかわり！ */
+{
+    "type" : "出撃",
+    "resetType" : "ウィークリー",
+    "filter" : {
+        "area": ["6-1", "6-2", "6-3"],
+        "fleet": {
+            "operator": "OR",
+            "conditions": [
+                {"name": ["阿武隈","伊201"], "count": 2, "operator": "GE"},
+                {"name": ["鵜来","稲木"], "count": 2, "operator": "GE"},
+                {"name": ["瑞穂","Brooklyn","Johnston"], "count": 3, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["6-1"], "rank": ["S", "A"], "count": 1},
+        {"boss": true, "area": ["6-2"], "rank": ["S", "A"], "count": 1},
+        {"boss": true, "area": ["6-3"], "rank": ["S", "A"], "count": 1}
+    ]
+}

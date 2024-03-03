@@ -394,7 +394,7 @@ public class BattleTypes {
          * api_opening_atackを取得します。
          * @return api_opening_atack
          */
-        BattleTypes.Raigeki getOpeningAtack();
+        BattleTypes.OpeningRaigeki getOpeningAtack();
 
         /**
          * api_opening_taisen_flagを取得します。
@@ -1114,6 +1114,59 @@ public class BattleTypes {
     }
 
     /**
+     * 開幕雷撃
+     */
+    @Data
+    public static class OpeningRaigeki implements Serializable {
+
+        private static final long serialVersionUID = 4735044801240586034L;
+
+        /** api_frai_list_items */
+        private List<List<Integer>> frai;
+
+        /** api_erai_list_items */
+        private List<List<Integer>> erai;
+
+        /** api_fdam */
+        private List<Double> fdam;
+
+        /** api_edam */
+        private List<Double> edam;
+
+        /** api_fydam_list_items */
+        private List<List<Double>> fydam;
+
+        /** api_eydam_list_items */
+        private List<List<Double>> eydam;
+
+        /** api_fcl_list_items */
+        private List<List<Integer>> fcl;
+
+        /** api_ecl_list_items */
+        private List<List<Integer>>ecl;
+
+        /**
+         * JsonObjectから{@link OpeningRaigeki}を構築します
+         *
+         * @param json JsonObject
+         * @return {@link OpeningRaigeki}
+         */
+        public static OpeningRaigeki toOpeningRaigeki(JsonObject json) {
+            OpeningRaigeki bean = new OpeningRaigeki();
+            JsonHelper.bind(json)
+                    .set("api_frai_list_items", bean::setFrai,JsonHelper.toList(JsonHelper::toIntegerList))
+                    .set("api_erai_list_items", bean::setErai,JsonHelper.toList(JsonHelper::toIntegerList))
+                    .setDoubleList("api_fdam", bean::setFdam)
+                    .setDoubleList("api_edam", bean::setEdam)
+                    .set("api_fydam_list_items", bean::setFydam,JsonHelper.toList(JsonHelper::toDoubleList))
+                    .set("api_eydam_list_items", bean::setEydam,JsonHelper.toList(JsonHelper::toDoubleList))
+                    .set("api_fcl_list_items", bean::setFcl,JsonHelper.toList(JsonHelper::toIntegerList))
+                    .set("api_ecl_list_items", bean::setEcl,JsonHelper.toList(JsonHelper::toIntegerList));
+            return bean;
+        }
+    }
+
+    /**
      * 雷撃
      */
     @Data
@@ -1592,7 +1645,12 @@ public class BattleTypes {
         胸熱CI("一斉射かッ…胸が熱いな！"),
         陸奥タッチ("長門、いい？ いくわよ！ 主砲一斉射ッ！"),
         ColoradoTouch("特殊攻撃(Colorado)"),
-        僚艦夜戦突撃("僚艦夜戦突撃");   // 夜戦専用だが念のため
+        僚艦夜戦突撃("僚艦夜戦突撃"),   // 夜戦専用だが念のため
+        瑞雲立体攻撃("瑞雲立体攻撃"),
+        海空立体攻撃("海空立体攻撃"),
+        潜水艦隊攻撃("潜水艦隊攻撃"),
+        大和改二特殊砲撃_3隻("大和改二特殊砲撃(3隻)"),
+        大和改二特殊砲撃_2隻("大和改二特殊砲撃(2隻)");
 
         private String name;
 
@@ -1633,6 +1691,16 @@ public class BattleTypes {
                 return ColoradoTouch;
             case 104:
                 return 僚艦夜戦突撃;
+            case 200:
+                return 瑞雲立体攻撃;
+            case 201:
+                return 海空立体攻撃;
+            case 300:
+                return 潜水艦隊攻撃;
+            case 400:
+                return 大和改二特殊砲撃_3隻;
+            case 401:
+                return 大和改二特殊砲撃_2隻;
             default:
                 return 通常攻撃;
             }
@@ -1644,7 +1712,8 @@ public class BattleTypes {
      *
      */
     public enum SortieAtTypeRaigeki implements AtType {
-        通常雷撃;
+        通常雷撃,
+        開幕雷撃;
     }
 
     /**
@@ -1661,11 +1730,23 @@ public class BattleTypes {
         夜襲CI("夜襲CI"),
         主砲魚雷電探CI("主砲魚雷電探CI"),
         魚雷見張員電探CI("魚雷見張員電探CI"),
+        魚雷魚雷見張員CI("魚雷魚雷見張員CI"),
+        ドラム缶CI("ドラム缶CI"),
+        主砲電探魚雷CI2("主砲電探魚雷CI(2回判定)"),
+        魚雷見張員電探CI2("魚雷見張員電探CI(2回判定)"),
+        魚雷魚雷CI2("魚雷魚雷CI(2回判定)"),
+        CI_14("夜戦CI(14種)"),
+        CI_15("夜戦CI(15種)"),
         NelsonTouch("NelsonTouch"),
         胸熱CI("一斉射かッ…胸が熱いな！"),
         陸奥タッチ("長門、いい？ いくわよ！ 主砲一斉射ッ！"),
         ColoradoTouch("特殊攻撃(Colorado)"),
-        僚艦夜戦突撃("僚艦夜戦突撃");
+        僚艦夜戦突撃("僚艦夜戦突撃"),
+        夜間瑞雲CI("夜間瑞雲CI"),   // ID: 200 瑞雲立体攻撃と同じID
+        海空立体攻撃("海空立体攻撃"),   // 夜戦では発動しないと思われるが念のため
+        潜水艦隊攻撃("潜水艦隊攻撃"),
+        大和改二特殊砲撃_3隻("大和改二特殊砲撃(3隻)"),
+        大和改二特殊砲撃_2隻("大和改二特殊砲撃(2隻)");
 
         private String name;
 
@@ -1698,6 +1779,20 @@ public class BattleTypes {
                 return 主砲魚雷電探CI;
             case 8:
                 return 魚雷見張員電探CI;
+            case 9:
+                return 魚雷魚雷見張員CI;
+            case 10:
+                return ドラム缶CI;
+            case 11:
+                return 主砲電探魚雷CI2;
+            case 12:
+                return 魚雷見張員電探CI2;
+            case 13:
+                return 魚雷魚雷CI2;
+            case 14:
+                return CI_14;
+            case 15:
+                return CI_15;
             case 100:
                 return NelsonTouch;
             case 101:
@@ -1708,6 +1803,16 @@ public class BattleTypes {
                 return ColoradoTouch;
             case 104:
                 return 僚艦夜戦突撃;
+            case 200:
+                return 夜間瑞雲CI;
+            case 201:
+                return 海空立体攻撃;
+            case 300:
+                return 潜水艦隊攻撃;
+            case 400:
+                return 大和改二特殊砲撃_3隻;
+            case 401:
+                return 大和改二特殊砲撃_2隻;
             default:
                 return 通常攻撃;
             }
