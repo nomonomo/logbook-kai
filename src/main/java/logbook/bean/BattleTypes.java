@@ -1646,6 +1646,7 @@ public class BattleTypes {
         陸奥タッチ("長門、いい？ いくわよ！ 主砲一斉射ッ！"),
         ColoradoTouch("特殊攻撃(Colorado)"),
         僚艦夜戦突撃("僚艦夜戦突撃"),   // 夜戦専用だが念のため
+        RicheliueTouch("Richelieuよ！圧倒しなさいっ！"),
         瑞雲立体攻撃("瑞雲立体攻撃"),
         海空立体攻撃("海空立体攻撃"),
         潜水艦隊攻撃("潜水艦隊攻撃"),
@@ -1691,6 +1692,8 @@ public class BattleTypes {
                 return ColoradoTouch;
             case 104:
                 return 僚艦夜戦突撃;
+            case 105:
+                return RicheliueTouch;
             case 200:
                 return 瑞雲立体攻撃;
             case 201:
@@ -1742,6 +1745,7 @@ public class BattleTypes {
         陸奥タッチ("長門、いい？ いくわよ！ 主砲一斉射ッ！"),
         ColoradoTouch("特殊攻撃(Colorado)"),
         僚艦夜戦突撃("僚艦夜戦突撃"),
+        RicheliueTouch("Richelieuよ！圧倒しなさいっ！"),
         夜間瑞雲CI("夜間瑞雲CI"),   // ID: 200 瑞雲立体攻撃と同じID
         海空立体攻撃("海空立体攻撃"),   // 夜戦では発動しないと思われるが念のため
         潜水艦隊攻撃("潜水艦隊攻撃"),
@@ -1803,6 +1807,8 @@ public class BattleTypes {
                 return ColoradoTouch;
             case 104:
                 return 僚艦夜戦突撃;
+            case 105:
+                return RicheliueTouch;
             case 200:
                 return 夜間瑞雲CI;
             case 201:
