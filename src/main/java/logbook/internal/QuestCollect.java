@@ -122,17 +122,18 @@ public class QuestCollect {
                 }
                 if (filter.getFleet() != null) {
                     battleLog = BattleLogs.read(log.getDateString());
-                    p = new PhaseState(battleLog);
+                    if(battleLog != null) {
+                        p = new PhaseState(battleLog);
+                        List<ShipMst> ships = p.getAfterFriend().stream()
+                                .filter(Objects::nonNull)
+                                .map(Ships::shipMst)
+                                .map(s -> s.orElse(null))
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toList());
 
-                    List<ShipMst> ships = p.getAfterFriend().stream()
-                            .filter(Objects::nonNull)
-                            .map(Ships::shipMst)
-                            .map(s -> s.orElse(null))
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toList());
-
-                    if (!filter.getFleet().test(ships)) {
-                        continue;
+                        if (!filter.getFleet().test(ships)) {
+                            continue;
+                        }
                     }
                 }
             }
