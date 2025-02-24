@@ -19,11 +19,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.json.Json;
-import javax.json.JsonArray;
-import javax.json.JsonObject;
-import javax.json.JsonReader;
-
+import jakarta.json.Json;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
@@ -65,7 +64,7 @@ public class CheckUpdate {
         run(isStartUp, null);
     }
 
-    private static void run(boolean isStartUp, Stage stage) {
+    public static void run(boolean isStartUp, Stage stage) {
         Version remoteVersion = remoteVersion();
 
         if (!Version.UNKNOWN.equals(remoteVersion) && Version.getCurrent().compareTo(remoteVersion) < 0) {
@@ -229,8 +228,8 @@ public class CheckUpdate {
                 if (Boolean.getBoolean(USE_PRERELEASE)) {
                     args.add("-Duse_prerelease=true");
                 }
-                if ("11".equals(System.getProperty("java.specification.version"))) {
-                    args.add("-Dtarget_java_version=11");
+                if ("21".equals(System.getProperty("java.specification.version"))) {
+                    args.add("-Dtarget_java_version=21");
                 }
                 new ProcessBuilder(args)
                                 .inheritIO()

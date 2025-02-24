@@ -1,6 +1,7 @@
 package logbook.internal;
 
 import logbook.bean.AppConfig;
+import logbook.internal.gui.Main;
 import logbook.plugin.lifecycle.StartUp;
 
 /**
@@ -15,6 +16,6 @@ public class CheckUpdateStartUp implements StartUp {
             return;
         }
 
-        CheckUpdate.run(true);
+        CheckUpdate.run(true,Main.getPrimaryStage());
     }
 }

@@ -18,6 +18,9 @@ import logbook.internal.Version;
  */
 public class Main extends Application {
 
+    //初期ウィンドウ
+    private static Stage primaryStage;
+    
     @Override
     public void start(Stage stage) throws Exception {
         String fxmlName = "main";
@@ -60,6 +63,8 @@ public class Main extends Application {
         });
         Tools.Windows.defaultOpenAction(controller, null);
 
+        setPrimaryStage(stage);
+        
         stage.show();
     }
 
@@ -72,5 +77,13 @@ public class Main extends Application {
         // Bitmapped font should not be sub-pixel rendered.
         System.setProperty("prism.lcdtext", "false"); //$NON-NLS-1$ //$NON-NLS-2$
         launch(args);
+    }
+
+    public static Stage getPrimaryStage() {
+        return primaryStage;
+    }
+
+    public static void setPrimaryStage(Stage primaryStage) {
+        Main.primaryStage = primaryStage;
     }
 }
