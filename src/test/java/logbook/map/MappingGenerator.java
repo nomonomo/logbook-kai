@@ -5,7 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
@@ -22,7 +22,7 @@ public class MappingGenerator {
     @SuppressWarnings("unchecked")
     public static void main(String[] args) throws JsonParseException, JsonMappingException, MalformedURLException, IOException {
         ObjectMapper mapper = new ObjectMapper();
-        Map<String, Map<String, List<String>>> json = mapper.readValue(new URL(SOURCE_URL), Map.class);
+        Map<String, Map<String, List<String>>> json = mapper.readValue(URI.create(SOURCE_URL).toURL(), Map.class);
         try (FileOutputStream fos = new FileOutputStream(new File("src/main/resources/logbook/map/mapping.json"));
                 PrintWriter pw = new PrintWriter(fos)) {
             // generate the JSON on our own to keep the order in the original JSON file

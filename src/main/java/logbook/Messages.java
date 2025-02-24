@@ -29,8 +29,7 @@ public class Messages {
     private static final ResourceBundle RESOURCE_BUNDLE = ResourceBundle.getBundle(
             BUNDLE_NAME,
             Locale.getDefault(),
-            PluginServices.getClassLoader(),
-            new UTF8Control());
+            PluginServices.getClassLoader());
 
     private Messages() {
     }
