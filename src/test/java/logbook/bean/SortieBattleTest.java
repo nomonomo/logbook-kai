@@ -6,16 +6,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import javax.json.Json;
-import javax.json.JsonObject;
-import javax.json.JsonReader;
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
 
 import org.junit.Test;
 
 public class SortieBattleTest {
 
     /**
-     * {@link logbook.bean.SortieBattle#toBattle(javax.json.JsonObject)} のためのテスト・メソッド。
+     * {@link logbook.bean.SortieBattle#toBattle(jakarta.json.JsonObject)} のためのテスト・メソッド。
      * @throws IOException
      */
     @Test

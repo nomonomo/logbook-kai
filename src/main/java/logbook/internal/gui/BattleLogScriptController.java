@@ -27,13 +27,13 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import jdk.nashorn.api.scripting.JSObject;
 import logbook.bean.BattleLog;
 import logbook.bean.BattleLogScriptCollection;
 import logbook.bean.BattleLogScriptCollection.BattleLogScript;
 import logbook.internal.BattleLogs;
 import logbook.internal.LoggerHolder;
 import logbook.plugin.PluginServices;
+import netscape.javascript.JSObject;
 
 /**
  * 高度な集計
