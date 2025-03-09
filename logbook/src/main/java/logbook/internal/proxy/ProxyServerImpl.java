@@ -4,12 +4,13 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.BindException;
 
-import org.eclipse.jetty.proxy.ConnectHandler;
-import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -19,6 +20,7 @@ import logbook.Messages;
 import logbook.bean.AppConfig;
 import logbook.internal.LoggerHolder;
 import logbook.internal.gui.InternalFXMLLoader;
+import logbook.internal.gui.Main;
 import logbook.proxy.ProxyServerSpi;
 
 /**
@@ -38,23 +40,42 @@ public final class ProxyServerImpl implements ProxyServerSpi {
             boolean allowLocalOnly = AppConfig.get()
                     .isAllowOnlyFromLocalhost();
 
-            ServerConnector connector = new ServerConnector(this.server);
+            // The HTTP configuration object.
+            HttpConfiguration httpConfig = new HttpConfiguration();
+
+            // SecureRequestCustomizer(false) -> sniHostCheck
+            // Add the SecureRequestCustomizer because TLS is used.
+            httpConfig.addCustomizer(new SecureRequestCustomizer(false));
+
+            // The ConnectionFactory for HTTP/1.1.
+            HttpConnectionFactory http11 = new HttpConnectionFactory(httpConfig);
+
+            ServerConnector connector = new ServerConnector(server, http11);            
+
             connector.setPort(AppConfig.get().getListenPort());
             if (allowLocalOnly) {
                 connector.setHost("localhost");
             }
-            this.server.setConnectors(new Connector[] { connector });
+            this.server.addConnector(connector);
 
             // httpsをプロキシできるようにConnectHandlerを設定
-            ConnectHandler proxy = new ConnectHandler();
+            ReverseConnectHandler proxy = new ReverseConnectHandler();
             this.server.setHandler(proxy);
-
+            
             // httpはこっちのハンドラでプロキシ
-            ServletContextHandler context = new ServletContextHandler(proxy, "/", ServletContextHandler.SESSIONS);
-            ServletHolder holder = new ServletHolder(new ReverseProxyServlet());
+            ServletContextHandler context = new ServletContextHandler("/", ServletContextHandler.SESSIONS);
+
+            //ConnectHandler
+            //└ServletConextHandler
+            //  └ServletHolder
+            //    └ReverseProxyServlet.class
+
+            proxy.setHandler(context);
+           
+            ServletHolder holder = context.addServlet(ReverseProxyServlet.class, "/*");
             holder.setInitParameter("maxThreads", "256");
             holder.setInitParameter("timeout", "600000");
-            context.addServlet(holder, "/*");
+
             try {
                 try {
                     this.server.start();
@@ -96,6 +117,7 @@ public final class ProxyServerImpl implements ProxyServerSpi {
             TextArea textArea = new TextArea(stackTrace);
             alert.getDialogPane().setExpandableContent(textArea);
 
+            alert.initOwner(Main.getPrimaryStage());
             alert.setTitle(title);
             alert.setHeaderText(title);
             alert.setContentText(message);
