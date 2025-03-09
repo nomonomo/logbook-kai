@@ -1,6 +1,7 @@
 package logbook.internal;
 
 import java.io.Serializable;
+import java.lang.module.ModuleDescriptor;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Optional;
@@ -128,9 +129,15 @@ public final class Version implements Comparable<Version>, Serializable {
      * @return アプリケーションの現在のバージョン
      */
     public static Version getCurrent() {
-        String version = Optional.ofNullable(Version.class.getPackage())
-                .map(Package::getImplementationVersion)
-                .orElse(null);
+        ModuleDescriptor moduleDescriptor = Version.class.getModule().getDescriptor();
+        if (moduleDescriptor == null) {
+            String version = Optional.ofNullable(Version.class.getPackage())
+                    .map(Package::getImplementationVersion)
+                    .orElse(null);
+            if(version == null)return UNKNOWN;
+            return new Version(version);
+        }
+        String version = moduleDescriptor.version().orElse(null).toString();
         if (version == null) {
             return UNKNOWN;
         }
