@@ -137,7 +137,9 @@ public final class Version implements Comparable<Version>, Serializable {
             if(version == null)return UNKNOWN;
             return new Version(version);
         }
-        String version = moduleDescriptor.version().orElse(null).toString();
+        String version = moduleDescriptor.version()
+        		.map(ModuleDescriptor.Version::toString)
+        		.orElse(null);
         if (version == null) {
             return UNKNOWN;
         }
