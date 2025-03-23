@@ -1,2 +1,4 @@
-SET JVM_OPT=-XX:MaxMetaspaceSize=256M
-START javaw %JVM_OPT% -jar logbook-kai.jar
+SETLOCAL
+SET JVM_OPT=
+
+%~dp0\logbook\bin\javaw %JVM_OPT% -m logbook

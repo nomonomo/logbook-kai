@@ -4,7 +4,7 @@
     <parent>
         <groupId>logbook-kai</groupId>
         <artifactId>logbook-kai</artifactId>
-        <version>${revision}</version>
+        <version>25.3.1</version>
     </parent>
     <artifactId>logbook</artifactId>
     <properties>

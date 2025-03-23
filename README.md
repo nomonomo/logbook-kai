@@ -61,18 +61,10 @@ MIT ライセンスの下で公開する、自由ソフトウェアです。
 ![Redhat](https://img.shields.io/badge/-Redhat-EE0000.svg?logo=red-hat)
 ![macOS](https://img.shields.io/badge/-macOS-333333.svg?logo=apple)
 
-Java 8u40以降のJava8がインストールされたWindows,LinuxまたはmacOSが必要です。
+**JREを作成する形にしたのでJavaのインストールは不要になりました**
 
-**次のJavaVMで動作確認されています。**
-- **[Liberica JDK version 8](https://bell-sw.com/pages/java-8u232/)**
-   - 新規に導入する場合、こちらを推奨します。JavaFXを利用しているため必ず**StandardではなくFullをダウンロード**してください。
-- [Oracle JDK 8](https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
-   - ダウンロードにOTNアカウントが必要です。
+Windows版のみ作成しております
 
-次のJavaVMではご利用いただけません。
-- バージョンが8ではないJavaVM
-- Amazon Corretto : 一部機能が動作しません(集計機能・自動アップデートが利用不可)。
-- AdoptOpenJDK : ライブラリが不足しているため起動しません。
 
 ### [ダウンロード](https://github.com/nomonomo/logbook-kai/releases)
 
@@ -136,11 +128,6 @@ MIT ライセンスの下で公開する、自由ソフトウェアです。
 
 * Apache License 2.0
 * **ライセンス全文 :** [http://www.apache.org/licenses/](http://www.apache.org/licenses/)
-
-#### [Apache Log4j 2](http://logging.apache.org/log4j/2.x/)
-
-* Apache License 2.0
-* **ライセンス全文 :** [http://logging.apache.org/log4j/2.x/license.html](http://logging.apache.org/log4j/2.x/license.html)
 
 #### [ControlsFX](http://fxexperience.com/controlsfx/)
 
