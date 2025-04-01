@@ -5,42 +5,69 @@ name: Maven Package
 
 on:
   push:
-    tags:
-      - 'v*'
-    
+  pull_request:
+
+#連続実行された場合、古いWorkflowを止める
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# clare all permissions for GITHUB_TOKEN
+permissions: {}
+      
 jobs:
   build:
-
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
-
+    name: ${{ matrix.os }}
+    #Push or Pull_Requestでforkしてない場合
+    if: ( github.event_name == 'push' || ( github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork ) )
+    
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest] # ターゲットの OS(Runner) , macos-latest, ubuntu-latest
+    
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up JDK 8
-      uses: actions/setup-java@v3
+    - uses: actions/checkout@v4
       with:
-        java-version: '8'
-        distribution: 'liberica'
-        java-package: jdk+fx
+        persist-credentials: 'false'
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'microsoft'
         server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
         settings-path: ${{ github.workspace }} # location for the settings.xml file
         cache: 'maven'
 
-    - name: Set env
-      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
+#    - name: Set env
+#      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
 
     - name: Build with Maven
-      run: mvn -B package --file pom.xml -Drevision=${{ env.RELEASE_VERSION }}
+      run: mvn clean package --batch-mode --show-version --file pom.xml
+#      run: mvn -B package --file pom.xml -Drevision=${{ env.RELEASE_VERSION }}
 
-    - name: Release
-      uses: softprops/action-gh-release@v1
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
       with:
-        draft: true
-        prerelease: false
-        files: target/logbook-kai_${{ env.RELEASE_VERSION }}.zip
-        name: v${{ env.RELEASE_VERSION }}
-        tag_name: v${{ env.RELEASE_VERSION }}
-        token: ${{ secrets.GITHUB_TOKEN }}
-        generate_release_notes: true
+        name: logbook_${{ matrix.os }}.zip
+        path: logbook-bin/target/logbook.zip
+        compression-level: 0 # 非圧縮
+      
+#  release:
+#    if: ( github.event_name == 'push' && github.ref_name == 'master' )
+#    - name: Release
+#      uses:  
+#          
+#    - name: Release
+#      uses: softprops/action-gh-release@v1
+#      with:
+#        draft: true
+#        prerelease: false
+#        files: target/logbook-kai_${{ env.RELEASE_VERSION }}.zip
+#        name: v${{ env.RELEASE_VERSION }}
+#        tag_name: v${{ env.RELEASE_VERSION }}
+#        token: ${{ secrets.GITHUB_TOKEN }}
+#        generate_release_notes: true
