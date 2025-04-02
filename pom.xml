@@ -8,7 +8,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <jetty.version>12.0.18</jetty.version>
-        <javafx.version>23.0.2</javafx.version>
+        <javafx.version>25-ea+10</javafx.version>
         <lombok.version>1.18.38</lombok.version>
         <javafx.platform>win</javafx.platform>
         <maven.compiler.fork>true</maven.compiler.fork>
