@@ -40,6 +40,8 @@ jobs:
       # write permission is required to create a github release
       contents: write
     runs-on: ubuntu-latest
+    outputs:
+      tagname: ${{ steps.tagname.outputs.tagname }}
     steps:
       - uses: release-drafter/release-drafter@v6
         with:
@@ -47,3 +49,35 @@ jobs:
           commitish: ${{ github.ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - id: tagname
+        run: |
+          echo "tagname=${tag_name}" >> $GITHUB_OUTPUT
+          cat $GITHUB_OUTPUT
+
+  download-artifact:
+    name: Upload Release ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    needs: update_release_draft
+    permissions:
+      # write permission is required to create a github release
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # ターゲットの OS(Runner) , macos-latest, ubuntu-latest
+        include:
+          - os: windows-latest
+            filename: win
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: logbook_${{ matrix.os }}
+      - name: Upload Release
+        run: |
+          mv logbook.zip logbook_$FILENAME.zip
+          gh release upload $TAGNAME logbook_$FILENAME.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAGNAME: ${{ needs.update_release_draft.outputs.tagname }}
+          FILENAME: ${{ matrix.filename }}
