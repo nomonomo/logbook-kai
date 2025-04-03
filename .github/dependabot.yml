@@ -4,3 +4,22 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    groups:
+      javafx:
+        patterns:
+          - "org.openjfx:javafx-*"
+        update-types:
+          - "minor"
+          - "patch"
+      jetty:
+        patterns:
+          - "org.eclipse.jetty:jetty-*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "org.openjfx:javafx-*"
+        update-types: [ "version-update:semver-major" ]
+      - dependency-name: "org.eclipse.jetty:jetty-*"
+        update-types: [ "version-update:semver-major" ]
+        
