@@ -8,16 +8,15 @@ template: |
   **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
 
 categories:
-  - title: 'Breaking'
-    label: 'type: breaking'
-  - title: 'New'
+  - title: '機能強化'
+    label: 'type: enhancement'
+  - title: '新機能'
     label: 'type: feature'
-  - title: 'Bug Fixes'
+  - title: 'Bug修正'
     label: 'type: bug'
-  - title: 'Maintenance'
+  - title: 'メンテナンス'
     label: 'type: maintenance'
   - title: 'Documentation'
     label: 'type: docs'
-  - title: 'Other changes'
-  - title: 'Dependency Updates'
+  - title: '依存関係の更新'
     label: 'type: dependencies'
