@@ -51,7 +51,7 @@ jobs:
 #      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
 
     - name: Build with Maven
-      run: mvn clean package --batch-mode --show-version --file pom.xml -Djavafx.platform=${{ matrix.platform }}
+      run: mvn clean package --batch-mode --show-version -Djavafx.platform=${{ matrix.platform }} --file pom.xml 
 #      run: mvn -B package --file pom.xml -Drevision=${{ env.RELEASE_VERSION }}
 
     - name: Upload artifacts
