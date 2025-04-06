@@ -1,49 +1,37 @@
 name: Release Drafter
 
 on:
-  push:
-    branches:
-      - 'master'
+  workflow_run:
+    workflows: [Maven Package]
+    types: [completed]
+    branches: [master]
 
 concurrency: release-drafter
 
 jobs:
-  detect-version:
-    name: Detect version
-    runs-on: ubuntu-latest
-    permissions: {}
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: 'false'
-
-      - uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'microsoft'
-          cache: 'maven'
-
-      - id: version
-        run: |
-          mvn --batch-mode --non-recursive help:evaluate -Dexpression=project.version -Doutput=target/version.txt
-          V=$(cat target/version.txt)
-          echo "version=${V%-SNAPSHOT}" >> $GITHUB_OUTPUT # -SNAPSHOTを削除
-          cat $GITHUB_OUTPUT
-
   update_release_draft:
     name: Update Release Draft
-    needs: detect-version
     permissions:
       # write permission is required to create a github release
       contents: write
     runs-on: ubuntu-latest
     outputs:
       tagname: ${{ steps.tagname.outputs.tagname }}
+      version: ${{ steps.version.outputs.version }}
     steps:
+      - name: Download Artifact Version
+        uses: actions/download-artifact@v4
+        with:
+          name: version
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - id: version
+        run: |
+          V=$(cat version.txt)
+          echo "version=${V%-SNAPSHOT}" >> $GITHUB_OUTPUT # -SNAPSHOTを削除
+          cat $GITHUB_OUTPUT
       - uses: release-drafter/release-drafter@v6
+        id: release-drafter
         with:
           version: ${{ needs.detect-version.outputs.version }}
           commitish: ${{ github.ref }}
@@ -51,7 +39,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - id: tagname
         run: |
-          echo "tagname=${tag_name}" >> $GITHUB_OUTPUT
+          echo "tagname=${{ steps.release-drafter.outputs.tag_name}" >> $GITHUB_OUTPUT
           cat $GITHUB_OUTPUT
 
   download-artifact:
@@ -67,17 +55,17 @@ jobs:
         # ターゲットの OS(Runner) , macos-latest, ubuntu-latest
         include:
           - os: windows-latest
-            filename: win
+            platform: win
     steps:
       - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
           name: logbook_${{ matrix.os }}
+          run-id: ${{ github.event.workflow_run.id }}
       - name: Upload Release
         run: |
-          mv logbook.zip logbook_$FILENAME.zip
-          gh release upload $TAGNAME logbook_$FILENAME.zip
+          gh release upload $TAGNAME logbook-$FILENAME.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAGNAME: ${{ needs.update_release_draft.outputs.tagname }}
-          FILENAME: ${{ matrix.filename }}
+          FILENAME: ${{ matrix.platform }}

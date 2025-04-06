@@ -13,7 +13,7 @@ updates:
           - "patch"
       jetty:
         patterns:
-          - "org.eclipse.jetty:jetty-*"
+          - "org.eclipse.jetty*:jetty-*"
         update-types:
           - "minor"
           - "patch"
