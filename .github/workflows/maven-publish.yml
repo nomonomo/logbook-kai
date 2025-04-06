@@ -27,8 +27,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest] # ターゲットの OS(Runner) , macos-latest, ubuntu-latest
-    
+        include:
+          - os: windows-latest
+            platform: win
+#          - os: macos-latest
+#            platform: mac-aarch64
+        # ターゲットの OS(Runner) , macos-latest, ubuntu-latest
+        # javafx.platform mac-aarch64
     steps:
     - uses: actions/checkout@v4
       with:
@@ -46,16 +51,26 @@ jobs:
 #      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
 
     - name: Build with Maven
-      run: mvn clean package --batch-mode --show-version --file pom.xml
+      run: mvn clean package --batch-mode --show-version --file pom.xml -Djavafx.platform=${{ matrix.platform }}
 #      run: mvn -B package --file pom.xml -Drevision=${{ env.RELEASE_VERSION }}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: logbook_${{ matrix.os }}.zip
-        path: logbook-bin/target/logbook.zip
+        name: logbook_${{ matrix.os }}
+        path: logbook-bin/target/logbook_${{ matrix.platform }}.zip
         compression-level: 0 # 非圧縮
-      
+
+    - name: Build with Version
+      run: mvn --batch-mode --non-recursive help:evaluate -Dexpression=project.version -Doutput=target/version.txt
+
+    - name: Upload artifacts Version
+      uses: actions/upload-artifact@v4
+      with:
+        name: version
+        path: logbook-bin/target/version.txt
+        compression-level: 0 # 非圧縮
+
 #  release:
 #    if: ( github.event_name == 'push' && github.ref_name == 'master' )
 #    - name: Release
