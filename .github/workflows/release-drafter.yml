@@ -9,41 +9,27 @@ on:
 concurrency: release-drafter
 
 jobs:
-  detect-version:
-    name: Detect version
-    runs-on: ubuntu-latest
-    permissions: {}
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: 'false'
-
-      - uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'microsoft'
-          cache: 'maven'
-
-      - id: version
-        run: |
-          mvn --batch-mode --non-recursive help:evaluate -Dexpression=project.version -Doutput=target/version.txt
-          V=$(cat target/version.txt)
-          echo "version=${V%-SNAPSHOT}" >> $GITHUB_OUTPUT # -SNAPSHOTを削除
-          cat $GITHUB_OUTPUT
-
   update_release_draft:
     name: Update Release Draft
-    needs: detect-version
     permissions:
       # write permission is required to create a github release
       contents: write
     runs-on: ubuntu-latest
     outputs:
       tagname: ${{ steps.tagname.outputs.tagname }}
+      version: ${{ steps.version.outputs.version }}
     steps:
+      - name: Download Artifact Version
+        uses: actions/download-artifact@v4
+        with:
+          name: version
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - id: version
+        run: |
+          V=$(cat version.txt)
+          echo "version=${V%-SNAPSHOT}" >> $GITHUB_OUTPUT # -SNAPSHOTを削除
+          cat $GITHUB_OUTPUT
       - uses: release-drafter/release-drafter@v6
         id: release-drafter
         with:
@@ -78,7 +64,7 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
       - name: Upload Release
         run: |
-          gh release upload $TAGNAME logbook_$FILENAME.zip
+          gh release upload $TAGNAME logbook-$FILENAME.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAGNAME: ${{ needs.update_release_draft.outputs.tagname }}
