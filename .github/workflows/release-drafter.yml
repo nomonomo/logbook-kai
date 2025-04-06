@@ -17,7 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tagname: ${{ steps.tagname.outputs.tagname }}
-      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Download Artifact Version
         uses: actions/download-artifact@v4
@@ -28,18 +27,19 @@ jobs:
       - id: version
         run: |
           V=$(cat version.txt)
-          echo "version=${V%-SNAPSHOT}" >> $GITHUB_OUTPUT # -SNAPSHOTを削除
-          cat $GITHUB_OUTPUT
+          echo "version=${V%-SNAPSHOT}" >> $GITHUB_ENV # -SNAPSHOTを削除
+          cat $GITHUB_ENV
       - uses: release-drafter/release-drafter@v6
         id: release-drafter
         with:
-          version: ${{ needs.detect-version.outputs.version }}
+          version: ${{ env.VERSION }}
           commitish: ${{ github.ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${version}
       - id: tagname
         run: |
-          echo "tagname=${{ steps.release-drafter.outputs.tag_name}" >> $GITHUB_OUTPUT
+          echo "tagname=${{ steps.release-drafter.outputs.tag_name }}" >> $GITHUB_OUTPUT
           cat $GITHUB_OUTPUT
 
   download-artifact:
