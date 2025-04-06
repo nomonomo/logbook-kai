@@ -24,8 +24,9 @@ jobs:
         with:
           name: version
           run-id: ${{ github.event.workflow_run.id }}
-
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - id: version
+        name: Set Version
         run: |
           V=$(cat version.txt)
           echo "version=${V%-SNAPSHOT}" >> $GITHUB_ENV # -SNAPSHOTを削除
@@ -39,6 +40,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${version}
       - id: tagname
+        name: Set Tagname
         run: |
           echo "tagname=${{ steps.release-drafter.outputs.tag_name }}" >> $GITHUB_OUTPUT
           cat $GITHUB_OUTPUT
@@ -64,6 +66,7 @@ jobs:
         with:
           name: logbook_${{ matrix.os }}
           run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Release
         run: |
           gh release upload $TAGNAME logbook-$FILENAME.zip
