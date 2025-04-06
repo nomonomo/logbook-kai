@@ -69,7 +69,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Release
         run: |
-          gh release upload $TAGNAME logbook-$FILENAME.zip
+          gh release upload ${{ env.TAGNAME }} logbook-${{ env.FILENAME }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAGNAME: ${{ needs.update_release_draft.outputs.tagname }}
