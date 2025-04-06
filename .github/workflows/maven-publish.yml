@@ -60,7 +60,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: logbook_${{ matrix.os }}
-        path: logbook-bin/target/logbook_${{ matrix.platform }}.zip
+        path: logbook-bin/target/logbook-${{ matrix.platform }}.zip
         compression-level: 0 # 非圧縮
 
     - name: Build with Version
