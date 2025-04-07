@@ -20,6 +20,6 @@ updates:
     ignore:
       - dependency-name: "org.openjfx:javafx-*"
         update-types: [ "version-update:semver-major" ]
-      - dependency-name: "org.eclipse.jetty:jetty-*"
+      - dependency-name: "org.eclipse.jetty*:jetty-*"
         update-types: [ "version-update:semver-major" ]
         
