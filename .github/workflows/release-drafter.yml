@@ -34,11 +34,10 @@ jobs:
       - uses: release-drafter/release-drafter@v6
         id: release-drafter
         with:
-          version: ${{ env.VERSION }}
+          version: ${{ env.version }}
           commitish: ${{ github.ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${version}
       - id: tagname
         name: Set Tagname
         run: |
