@@ -19,6 +19,22 @@ jobs:
     outputs:
       tagname: ${{ steps.tagname.outputs.tagname }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: 'false'
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'microsoft'
+          server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
+          settings-path: ${{ github.workspace }} # location for the settings.xml file
+          cache: 'maven'
+      - name: Build with Version
+        run: mvn --batch-mode --non-recursive help:evaluate 
+        env: 
+          MAVEN_OPTS: -Dexpression=project.version -Doutput=target/version.txt
+
       - name: Download Artifact Version
         uses: actions/download-artifact@v4
         with:
