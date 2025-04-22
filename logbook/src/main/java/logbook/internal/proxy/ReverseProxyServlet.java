@@ -5,8 +5,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URLDecoder;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +16,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
+import org.eclipse.jetty.client.AsyncRequestContent;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.HttpProxy;
 import org.eclipse.jetty.client.ProxyConfiguration;
@@ -23,7 +26,10 @@ import org.eclipse.jetty.ee10.proxy.AsyncProxyServlet;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.IteratingCallback;
 
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import logbook.bean.AppConfig;
@@ -86,7 +92,7 @@ public final class ReverseProxyServlet extends AsyncProxyServlet {
             if(response.getStatus() == HttpServletResponse.SC_OK) {
                 CaptureHolder holder = (CaptureHolder) request.getAttribute(Filter.CONTENT_HOLDER);
                 if (holder != null) {
-                    RequestMetaDataWrapper req = new RequestMetaDataWrapper();
+                	RequestMetaDataWrapper req = new RequestMetaDataWrapper();
                     req.set(request);
 
                     ResponseMetaDataWrapper res = new ResponseMetaDataWrapper();
@@ -126,6 +132,106 @@ public final class ReverseProxyServlet extends AsyncProxyServlet {
         return client;
     }
 
+    @Override
+    protected Request.Content proxyRequestContent(HttpServletRequest request, HttpServletResponse response, Request proxyRequest) throws IOException
+    {
+    	AsyncRequestContent content = new AsyncRequestContent();
+        request.getInputStream().setReadListener(newReadListener(request, response, proxyRequest, content));
+        return content;
+    }
+    protected ReadListener newReadListener(HttpServletRequest request, HttpServletResponse response, Request proxyRequest, AsyncRequestContent content)
+    {
+        return new StreamReader(request, response, proxyRequest, content);
+    }
+
+    protected class StreamReader extends IteratingCallback implements ReadListener
+    {
+        private final byte[] buffer = new byte[getHttpClient().getRequestBufferSize()];
+        private final HttpServletRequest request;
+        private final HttpServletResponse response;
+        private final Request proxyRequest;
+        private final AsyncRequestContent content;
+
+        protected StreamReader(HttpServletRequest request, HttpServletResponse response, Request proxyRequest, AsyncRequestContent content)
+        {
+            this.request = request;
+            this.response = response;
+            this.proxyRequest = proxyRequest;
+            this.content = content;
+        }
+
+        @Override
+        public void onDataAvailable()
+        {
+            iterate();
+        }
+
+        @Override
+        public void onAllDataRead()
+        {
+            if (_log.isDebugEnabled())
+                _log.debug("{} proxying content to upstream completed", getRequestId(request));
+            content.close();
+        }
+
+        @Override
+        public void onError(Throwable t)
+        {
+            onClientRequestFailure(request, proxyRequest, response, t);
+        }
+
+        @Override
+        protected Action process() throws Exception
+        {
+            int requestId = _log.isDebugEnabled() ? getRequestId(request) : 0;
+            ServletInputStream input = request.getInputStream();
+
+            while (input.isReady())
+            {
+                int read = input.read(buffer);
+                if (_log.isDebugEnabled())
+                    _log.debug("{} asynchronous read {} bytes on {}", requestId, read, input);
+                if (read > 0)
+                {
+                    if (_log.isDebugEnabled())
+                        _log.debug("{} proxying content to upstream: {} bytes", requestId, read);
+                    onRequestContent(request, proxyRequest, content, buffer, 0, read, this);
+                    return Action.SCHEDULED;
+                }
+                else if (read < 0)
+                {
+                    if (_log.isDebugEnabled())
+                        _log.debug("{} asynchronous read complete on {}", requestId, input);
+                    return Action.SUCCEEDED;
+                }
+            }
+
+            if (_log.isDebugEnabled())
+                _log.debug("{} asynchronous read pending on {}", requestId, input);
+            return Action.IDLE;
+        }
+
+        protected void onRequestContent(HttpServletRequest request, Request proxyRequest, AsyncRequestContent content, byte[] buffer, int offset, int length, Callback callback)
+        {
+            CaptureHolder holder = (CaptureHolder) request.getAttribute(Filter.CONTENT_HOLDER);
+            if (holder == null) {
+                holder = new CaptureHolder();
+                request.setAttribute(Filter.CONTENT_HOLDER, holder);
+            }
+            // ストリームに書き込む
+            holder.putRequest(Arrays.copyOfRange(buffer, offset, length));
+
+        	content.write(ByteBuffer.wrap(buffer, offset, length), callback);
+        }
+
+        @Override
+        protected void onCompleteFailure(Throwable cause)
+        {
+            onError(cause);
+        }
+    }
+
+    
     private void invoke(RequestMetaDataWrapper baseReq, ResponseMetaDataWrapper baseRes, CaptureHolder holder) {
         try {
             if (this.listeners == null) {
