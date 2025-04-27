@@ -39,8 +39,8 @@ public abstract class WindowController {
             boolean intersect = Screen.getScreens()
                     .stream()
                     .map(Screen::getVisualBounds)
-                    .anyMatch(r -> r.intersects(
-                            location.getX(), location.getY(), location.getWidth(), location.getHeight()));
+                    .anyMatch(r -> r.contains(	//X,Yが範囲内で無いと描画されない為
+                            location.getX(), location.getY()));
 
             if (intersect) {
                 this.window.setX(location.getX());
