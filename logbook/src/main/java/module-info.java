@@ -40,7 +40,6 @@ module logbook {
     exports logbook.plugin.gui;
     exports logbook.plugin.lifecycle;
     exports logbook.proxy;
-    exports org.apache.logging.log4j;
 
     provides logbook.api.APIListenerSpi with
         logbook.api.ApiGetMemberBasic,
