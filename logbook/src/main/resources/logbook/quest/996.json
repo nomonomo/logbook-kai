@@ -8,7 +8,7 @@
             "operator": "AND",
             "conditions": [
                 {"name": ["榛名改二乙","榛名改二丙"], "count": 1, "operator": "GE"},
-                {"name": ["金剛改二丙"]},
+                {"name": ["金剛改二丙"], "count": 1, "operator": "GE"},
                 {"stype": ["駆逐艦"], "count": 2, "operator": "GE"}
             ]
         }
