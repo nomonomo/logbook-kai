@@ -1,0 +1,22 @@
+/* [972]【艦隊12周年記念任務】二航戦、此処に在り！ */
+{
+    "type" : "出撃",
+    "resetType" : "単発",
+    "filter" : {
+        "area": ["2-2", "2-3", "2-4", "5-2", "5-4"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["飛龍","蒼龍"], "order": 1},
+                {"name": ["飛龍","蒼龍"], "order": 2}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["2-2"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-2"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-4"], "rank": ["S"], "count": 1}
+    ]
+}
