@@ -1,0 +1,22 @@
+/* [1023]三十二駆「藤波改二」、鳥海を護衛せよ！ */
+{
+    "type" : "出撃",
+    "resetType" : "単発",
+    "filter" : {
+        "area": ["2-4", "2-5", "7-2", "5-5"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["藤波改二"], "order": 1},
+                {"name": ["鳥海"], "count": 1, "operator": "GE"},
+                {"name": ["玉波", "涼波", "早波", "浜波"], "count": 1, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["2-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-5"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["7-2"], "cell": "M", "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-5"], "rank": ["S"], "count": 1}
+    ]
+}
