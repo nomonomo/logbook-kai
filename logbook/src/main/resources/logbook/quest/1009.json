@@ -1,0 +1,22 @@
+/* [1009]【艦隊12周年記念任務:拡張作戦】艦隊、西へ！ */
+{
+    "type" : "出撃",
+    "resetType" : "単発",
+    "filter" : {
+        "area": ["4-1", "4-2", "4-3", "4-4", "4-5"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["大和", "翔鶴", "衣笠改二", "Gotland", "吹雪", "曙", "朧", "Mogador", "Fletcher改 Mod.2", "Fletcher Mk.II"], "count": 2, "operator": "GE"},
+                {"name": ["白雪", "初雪", "深雪", "叢雲", "薄雲", "白雲", "磯波", "浦波"], "count": 1, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["4-1"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["4-2"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["4-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["4-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["4-5"], "rank": ["S"], "count": 1}
+    ]
+}
