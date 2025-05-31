@@ -1,0 +1,21 @@
+/* [1029]三十二駆「浜波改二」抜錨！敵中を突破せよ！ */
+{
+    "type" : "出撃",
+    "resetType" : "単発",
+    "filter" : {
+        "area": ["1-6", "2-2", "2-3", "2-4"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["浜波改二"], "order": 1},
+                {"name": ["玉波", "涼波", "早波", "藤波", "朝霜"], "count": 2, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"area": ["1-6"], "rank": ["S", "A", "B", "C", "D", "E"], "cells": ["B", "D"], "count": 1},
+        {"boss": true, "area": ["2-2"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-4"], "rank": ["S"], "count": 1}
+    ]
+}
