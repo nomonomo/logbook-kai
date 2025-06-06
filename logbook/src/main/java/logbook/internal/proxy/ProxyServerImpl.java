@@ -11,6 +11,7 @@ import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.handler.ConnectHandler;
 
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -58,21 +59,19 @@ public final class ProxyServerImpl implements ProxyServerSpi {
             }
             this.server.addConnector(connector);
 
-            // httpsをプロキシできるようにConnectHandlerを設定
-//            ReverseConnectHandler proxy = new ReverseConnectHandler();
-//            this.server.setHandler(proxy);
+            // httpsをプロキシできるようにConnectHandlerを設定（暫定）
+            ConnectHandler proxy = new ConnectHandler();
+            this.server.setHandler(proxy);
             
             // httpはこっちのハンドラでプロキシ
             ServletContextHandler context = new ServletContextHandler("/", ServletContextHandler.SESSIONS);
 
             //ConnectHandler
-
             //└ServletConextHandler
             //  └ServletHolder
             //    └ReverseProxyServlet.class
 
-            this.server.setHandler(context);
-//            proxy.setHandler(context);
+            proxy.setHandler(context);
            
             ServletHolder holder = context.addServlet(ReverseProxyServlet.class, "/*");
             holder.setInitParameter("maxThreads", "256");
@@ -93,7 +92,7 @@ public final class ProxyServerImpl implements ProxyServerSpi {
                 handleException(e);
             }
         } catch (Exception e) {
-            LoggerHolder.get().fatal("Proxyサーバーの起動に失敗しました", e);
+            LoggerHolder.get().error("Proxyサーバーの起動に失敗しました", e);
         }
     }
 
