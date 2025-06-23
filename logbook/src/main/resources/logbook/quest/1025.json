@@ -1,0 +1,21 @@
+/* [1025]精鋭十一駆「白雪改二」、抜錨します！ */
+{
+    "type" : "出撃",
+    "resetType" : "単発",
+    "filter" : {
+        "area": ["2-3", "2-5", "4-3", "5-3"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["白雪改二"], "order": 1},
+                {"name": ["吹雪", "白雪", "初雪", "深雪", "叢雲", "薄雲", "白雲", "磯波", "浦波"], "count": 1, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["2-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-5"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["4-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-3"], "rank": ["S"], "count": 1}
+    ]
+}
