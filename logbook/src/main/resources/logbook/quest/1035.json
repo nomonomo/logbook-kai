@@ -1,0 +1,20 @@
+/* [1035]【夏季限定任務】ソロモンの夏夜 */
+{
+    "type" : "出撃",
+    "resetType" : "マンスリー",
+    "filter" : {
+        "area": ["5-1", "5-3", "5-4"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["能代", "Atlanta", "Richard P.Leary"], "order": 1},
+                {"stype": ["駆逐艦"], "count": 3, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["5-1"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-4"], "rank": ["S"], "count": 1}
+    ]
+} 

@@ -1,0 +1,21 @@
+/* [1036]輸送船団護衛部隊、出撃せよ！ */
+{
+  "type": "出撃",
+  "resetType": "単発",
+  "filter": {
+    "area": ["1-2", "1-3", "1-4", "1-5"],
+    "fleet": {
+      "operator": "AND",
+      "conditions": [
+        {"stype": ["揚陸艦", "補給艦"], "count": 2, "operator": "GE"},
+        {"stype": ["海防艦"], "count": 2, "operator": "GE"}
+      ]
+    }
+  },
+  "conditions": [
+    {"boss": true, "area": ["1-2"], "rank": ["S", "A"], "count": 2},
+    {"boss": true, "area": ["1-3"], "rank": ["S", "A"], "count": 2},
+    {"boss": true, "area": ["1-4"], "rank": ["S", "A"], "count": 2},
+    {"boss": true, "area": ["1-5"], "rank": ["S", "A"], "count": 2}
+  ]
+}

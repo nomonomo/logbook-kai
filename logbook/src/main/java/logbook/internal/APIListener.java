@@ -15,7 +15,6 @@ import java.util.stream.Stream;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
-
 import logbook.Messages;
 import logbook.api.API;
 import logbook.api.APIListenerSpi;
@@ -135,7 +134,7 @@ public final class APIListener implements ContentListenerSpi {
             pair.getValue().accept(json, req, res);
         } catch (Exception e) {
             LoggerHolder.get().warn(Messages.getString("APIListener.1"), e); //$NON-NLS-1$
-            LoggerHolder.get().warn(json);
+            LoggerHolder.get().warn(json.toString());
         }
     }
 }

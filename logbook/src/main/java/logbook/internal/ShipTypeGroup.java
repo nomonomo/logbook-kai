@@ -2,7 +2,9 @@ package logbook.internal;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 艦種グループ
@@ -22,6 +24,14 @@ public enum ShipTypeGroup {
     潜水母艦("潜水母艦"),
     補給艦("補給艦");
 
+    private static final Map<String, List<String>> groupMap = new HashMap<>();
+
+    static {
+        for (ShipTypeGroup shipTypeGroup : values()) {
+            groupMap.put(shipTypeGroup.name(), Arrays.asList(shipTypeGroup.group));
+        }
+    }
+
     private String[] group;
 
     private ShipTypeGroup(String... shipTypes) {
@@ -30,5 +40,9 @@ public enum ShipTypeGroup {
 
     public List<String> shipTypes() {
         return Collections.unmodifiableList(Arrays.asList(this.group));
+    }
+
+    public static List<String> shipTypes(String groupName) {
+        return groupMap.getOrDefault(groupName, Collections.emptyList());
     }
 }

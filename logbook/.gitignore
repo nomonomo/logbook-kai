@@ -1,1 +1,13 @@
+# working directory for the logbook
 /target/
+/lib/
+/dest/
+/battlelog/
+/config/
+/logs/
+/plugins/
+/resources/
+/sounds/
+/launch.bat
+/README.url
+/*.csv

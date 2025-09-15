@@ -1,7 +1,7 @@
 package logbook.internal;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * ロギング
@@ -21,15 +21,11 @@ public class LoggerHolder {
 
         public LoggerProxy() {
             this.callerClass = getCallerClass(3);
-            this.logger = LogManager.getLogger(this.callerClass);
+            this.logger = LoggerFactory.getLogger(this.callerClass);
         }
 
         public boolean isDebugEnabled() {
             return this.logger.isDebugEnabled();
-        }
-
-        public void debug(Object message) {
-            this.logger.debug(message);
         }
 
         public void debug(String message) {
@@ -44,10 +40,6 @@ public class LoggerHolder {
             this.logger.debug(message, t);
         }
 
-        public void info(Object message) {
-            this.logger.info(message);
-        }
-
         public void info(String message) {
             this.logger.info(message);
         }
@@ -58,10 +50,6 @@ public class LoggerHolder {
 
         public void info(String message, Throwable t) {
             this.logger.info(message, t);
-        }
-
-        public void warn(Object message) {
-            this.logger.warn(message);
         }
 
         public void warn(String message) {
@@ -76,10 +64,6 @@ public class LoggerHolder {
             this.logger.warn(message, t);
         }
 
-        public void error(Object message) {
-            this.logger.error(message);
-        }
-
         public void error(String message) {
             this.logger.error(message);
         }
@@ -92,21 +76,6 @@ public class LoggerHolder {
             this.logger.error(message, t);
         }
 
-        public void fatal(Object message) {
-            this.logger.fatal(message);
-        }
-
-        public void fatal(String message) {
-            this.logger.fatal(message);
-        }
-
-        public void fatal(String message, Object... params) {
-            this.logger.fatal(message, params);
-        }
-
-        public void fatal(String message, Throwable t) {
-            this.logger.fatal(message, t);
-        }
     }
 
     static String getCallerClass(final int depth) {

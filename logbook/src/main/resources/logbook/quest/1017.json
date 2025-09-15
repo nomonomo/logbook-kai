@@ -1,0 +1,20 @@
+/* [1017]「第二駆逐隊(後期編成)」、出撃せよ！ */
+{
+    "type" : "出撃",
+    "resetType" : "単発",
+    "filter" : {
+        "area": ["1-2", "1-5", "2-3"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["早霜","秋霜","朝霜","清霜"], "order": 1},
+                {"name": ["早霜","秋霜","朝霜","清霜"], "count": 2, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["1-2"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["1-5"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["2-3"], "rank": ["S"], "count": 2}
+    ]
+}

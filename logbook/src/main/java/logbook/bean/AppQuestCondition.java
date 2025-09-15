@@ -17,6 +17,7 @@ import logbook.internal.Operator;
 import logbook.internal.QuestCollect;
 import logbook.internal.QuestCollect.Count;
 import logbook.internal.QuestCollect.Rank;
+import logbook.internal.ShipTypeGroup;
 import logbook.plugin.PluginServices;
 import lombok.Data;
 
@@ -198,7 +199,14 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
                 String stype = ship.asStype()
                         .map(Stype::getName)
                         .orElse(null);
-                return this.stype.contains(stype) || this.stype.size() > 0 && this.stype.contains("*");
+
+                //ShipTypeGroupからも判定する
+                boolean check = this.stype.stream()
+                        .map(ShipTypeGroup::shipTypes)
+                        .flatMap(List::stream)
+                        .anyMatch(stype::equals);
+
+                return check || this.stype.contains(stype) || this.stype.size() > 0 && this.stype.contains("*");
             }
             if (this.name != null) {
                 for (String name : this.name) {
