@@ -670,7 +670,6 @@ public class AirBaseController extends WindowController {
                     this.setText("未配備");
                 }
 
-                @SuppressWarnings("unchecked")
                 TableRow<Plane> row = this.getTableRow();
                 if (row != null) {
                     Plane plane = row.getItem();
@@ -702,7 +701,6 @@ public class AirBaseController extends WindowController {
 
             if (!empty) {
                 if (count != null) {
-                    @SuppressWarnings("unchecked")
                     TableRow<Plane> row = this.getTableRow();
                     if (row != null) {
                         Plane plane = row.getItem();
