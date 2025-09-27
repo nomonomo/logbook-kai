@@ -14,10 +14,10 @@ import lombok.Data;
 
 /**
  * 艦娘
- *
+ * CharaはCloneableを継承しているため、Cloneableを継承している。
  */
 @Data
-public class Ship implements Chara, Serializable, Cloneable {
+public class Ship implements Chara, Serializable {
 
     private static final long serialVersionUID = 1824670290941099475L;
 

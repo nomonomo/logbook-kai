@@ -7,10 +7,10 @@ import lombok.Data;
 
 /**
  * 友軍
- *
+ * CharaはCloneableを継承しているため、Cloneableを継承している。
  */
 @Data
-public class Friend implements Chara, Serializable, Cloneable {
+public class Friend implements Chara, Serializable {
 
     private static final long serialVersionUID = -4222845234889789870L;
 

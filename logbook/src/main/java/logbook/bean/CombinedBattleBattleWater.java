@@ -1,6 +1,5 @@
 package logbook.bean;
 
-import java.io.Serializable;
 import java.util.List;
 
 import jakarta.json.JsonObject;
@@ -9,7 +8,6 @@ import logbook.bean.BattleTypes.IAirBaseAttack;
 import logbook.bean.BattleTypes.ICombinedBattle;
 import logbook.bean.BattleTypes.IFormation;
 import logbook.bean.BattleTypes.IKouku;
-import logbook.bean.BattleTypes.ISortieBattle;
 import logbook.bean.BattleTypes.ISortieHougeki;
 import logbook.bean.BattleTypes.ISupport;
 import logbook.internal.JsonHelper;
@@ -17,11 +15,11 @@ import lombok.Data;
 
 /**
  * 機動部隊(水上部隊)
- *
+ * ICombinedBattleはIBattleを継承しているため、Serializableを継承している。
  */
 @Data
-public class CombinedBattleBattleWater implements ICombinedBattle, ISortieBattle, ISortieHougeki, IFormation, IKouku,
-        ISupport, IAirBaseAttack, Serializable {
+public class CombinedBattleBattleWater implements ICombinedBattle,  ISortieHougeki, IFormation, IKouku,
+        ISupport, IAirBaseAttack {
 
     private static final long serialVersionUID = -3700429289761616742L;
 
