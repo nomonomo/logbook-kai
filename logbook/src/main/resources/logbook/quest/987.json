@@ -1,21 +1,20 @@
-/* [987]【限定週間任務】10周年秋南瓜祭りおかわり！ */
+/* [987]【週間拡張任務】秋の南瓜祭り! Buono! */
 {
     "type" : "出撃",
     "resetType" : "ウィークリー",
     "filter" : {
-        "area": ["6-1", "6-2", "6-3"],
+        "area": ["4-2", "4-3", "4-4"],
         "fleet": {
-            "operator": "OR",
+            "operator": "AND",
             "conditions": [
-                {"name": ["阿武隈","伊201"], "count": 2, "operator": "GE"},
-                {"name": ["鵜来","稲木"], "count": 2, "operator": "GE"},
-                {"name": ["瑞穂","Brooklyn","Johnston"], "count": 3, "operator": "GE"}
+                {"name": ["Roma","Luigi Torelli","Maestrale","Grecale","Libeccio","Scirocco","Jervis","Minneapolis","村雨","夕立","朧","曙"], "order": 1},
+                {"name": ["Roma","Luigi Torelli","Maestrale","Grecale","Libeccio","Scirocco","Jervis","Minneapolis","村雨","夕立","朧","曙"], "count": 2, "operator": "GE"}
             ]
         }
     },
     "conditions" : [
-        {"boss": true, "area": ["6-1"], "rank": ["S", "A"], "count": 1},
-        {"boss": true, "area": ["6-2"], "rank": ["S", "A"], "count": 1},
-        {"boss": true, "area": ["6-3"], "rank": ["S", "A"], "count": 1}
+        {"boss": true, "area": ["4-2"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["4-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["4-4"], "rank": ["S"], "count": 1}
     ]
 }
