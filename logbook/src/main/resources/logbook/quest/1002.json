@@ -1,20 +1,20 @@
-/* [1002]【期間限定任務】10周年秋南瓜祭り拡張作戦！ */
+/* [1002]【限定拡張任務】南瓜祭り2025、拡張作戦！ */
 {
     "type" : "出撃",
     "resetType" : "単発",
     "filter" : {
-        "area": ["1-5", "2-3", "4-4", "6-4"],
+        "area": ["3-2", "3-5", "6-4"],
         "fleet": {
             "operator": "AND",
             "conditions": [
-                {"name": ["鵜来","稲木","朝潮","夕立","野分","浜波","早波","阿武隈"], "count": 2, "operator": "GE"}
+                {"name": ["Minneapolis","Tuscaloosa","Gambier Bay","Jervis","朧","夕立","村雨","朝潮","野分","巻波"], "order": 1},
+                {"name": ["Minneapolis","Tuscaloosa","Gambier Bay","Jervis","朧","夕立","村雨","朝潮","野分","巻波"], "count": 2, "operator": "GE"}
             ]
         }
     },
     "conditions" : [
-        {"boss": true, "area": ["1-5"], "rank": ["S"], "count": 1},
-        {"boss": true, "area": ["2-3"], "rank": ["S"], "count": 1},
-        {"boss": true, "area": ["4-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["3-2"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["3-5"], "rank": ["S"], "count": 1},
         {"boss": true, "area": ["6-4"], "rank": ["S"], "count": 1}
     ]
 }
