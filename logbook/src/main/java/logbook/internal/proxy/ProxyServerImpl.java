@@ -8,7 +8,6 @@ import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee11.servlet.ServletHolder;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
-import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.ConnectHandler;
@@ -44,14 +43,10 @@ public final class ProxyServerImpl implements ProxyServerSpi {
             // The HTTP configuration object.
             HttpConfiguration httpConfig = new HttpConfiguration();
 
-            // SecureRequestCustomizer(false) -> sniHostCheck
-            // Add the SecureRequestCustomizer because TLS is used.
-            httpConfig.addCustomizer(new SecureRequestCustomizer(false));
-
             // The ConnectionFactory for HTTP/1.1.
-            HttpConnectionFactory http11 = new HttpConnectionFactory(httpConfig);
+            HttpConnectionFactory h1 = new HttpConnectionFactory(httpConfig);
 
-            ServerConnector connector = new ServerConnector(server, http11);            
+            ServerConnector connector = new ServerConnector(server, h1);            
 
             connector.setPort(AppConfig.get().getListenPort());
             if (allowLocalOnly) {
@@ -59,19 +54,23 @@ public final class ProxyServerImpl implements ProxyServerSpi {
             }
             this.server.addConnector(connector);
 
-            // httpsをプロキシできるようにConnectHandlerを設定（暫定）
-            ConnectHandler proxy = new ConnectHandler();
+            // httpsをプロキシできるようにReverseConnectHandlerを設定
+            ReverseConnectHandler proxy = new ReverseConnectHandler();
             this.server.setHandler(proxy);
+
+            // httpsプロキシを行うためのConnectHandlerを設定（対象を絞っているので必要無いが念のため）
+            ConnectHandler proxy2 = new ConnectHandler();
+            proxy.setHandler(proxy2);
             
             // httpはこっちのハンドラでプロキシ
             ServletContextHandler context = new ServletContextHandler("/", ServletContextHandler.SESSIONS);
 
-            //ConnectHandler
+            //ReverseConnectHandler
             //└ServletConextHandler
             //  └ServletHolder
             //    └ReverseProxyServlet.class
 
-            proxy.setHandler(context);
+            proxy2.setHandler(context);
            
             ServletHolder holder = context.addServlet(ReverseProxyServlet.class, "/*");
             holder.setInitParameter("maxThreads", "256");
