@@ -7,7 +7,7 @@ module logbook {
     requires javafx.swing;
     requires javafx.web;
     requires jdk.jsobject;
-    requires org.eclipse.jetty.ee10.servlet;
+    requires org.eclipse.jetty.ee11.servlet;
     requires org.eclipse.jetty.http;
     requires org.slf4j;
     requires ch.qos.logback.classic;
@@ -24,7 +24,7 @@ module logbook {
     requires transitive javafx.graphics;
     requires transitive org.controlsfx.controls;
     requires transitive org.eclipse.jetty.client;
-    requires transitive org.eclipse.jetty.ee10.proxy;
+    requires transitive org.eclipse.jetty.ee11.proxy;
     requires transitive org.eclipse.jetty.io;
     requires transitive org.eclipse.jetty.server;
     requires transitive org.eclipse.jetty.util;

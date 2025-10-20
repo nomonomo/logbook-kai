@@ -4,7 +4,7 @@
     <parent>
         <groupId>logbook-kai</groupId>
         <artifactId>logbook-kai</artifactId>
-        <version>25.9.1</version>
+        <version>25.10.1</version>
     </parent>
     <artifactId>logbook</artifactId>
     <properties>
@@ -16,7 +16,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <release>21</release>
                     <annotationProcessorPaths>
                     	<path>
                     		<groupId>org.projectlombok</groupId>
@@ -27,7 +26,6 @@
                     <compilerArgument>-Xdiags:verbose</compilerArgument>
                     <verbose>true</verbose>
                     <proc>full</proc>
-                    <fork>true</fork>
                 </configuration>
             </plugin>
 
@@ -61,8 +59,10 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
+                    <!-- 通常のビルドで実行される依存関係コピー -->
                     <execution>
-                        <phase>install</phase>
+                        <id>copy-dependencies</id>
+                        <phase>package</phase>
                         <goals>
                             <goal>copy-dependencies</goal>
                         </goals>
@@ -84,17 +84,38 @@
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-server</artifactId>
-            <version>12.0.19</version>
+            <version>12.1.2</version>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.jetty.ee10</groupId>
-            <artifactId>jetty-ee10-servlet</artifactId>
-            <version>12.0.19</version>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+            <version>12.1.2</version>
+            <classifier>sources</classifier>
+            <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.jetty.ee10</groupId>
-            <artifactId>jetty-ee10-proxy</artifactId>
-            <version>12.0.19</version>
+            <groupId>org.eclipse.jetty.ee11</groupId>
+            <artifactId>jetty-ee11-servlet</artifactId>
+            <version>12.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty.ee11</groupId>
+            <artifactId>jetty-ee11-servlet</artifactId>
+            <version>12.1.2</version>
+            <classifier>sources</classifier>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty.ee11</groupId>
+            <artifactId>jetty-ee11-proxy</artifactId>
+            <version>12.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty.ee11</groupId>
+            <artifactId>jetty-ee11-proxy</artifactId>
+            <version>12.1.2</version>
+            <classifier>sources</classifier>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.controlsfx</groupId>
@@ -104,7 +125,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.19.0</version>
+            <version>2.20.0</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -114,7 +135,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.18</version>
+            <version>1.5.19</version>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
@@ -227,8 +248,49 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.12.2</version>
+            <version>5.13.4</version>
             <scope>test</scope>
         </dependency>
       </dependencies>
+    
+    <!-- 手動実行用のプロファイル -->
+    <profiles>
+        <profile>
+            <id>extract-sources</id>
+            <build>
+                <defaultGoal>dependency:unpack-dependencies</defaultGoal>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>extract-sources</id>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.basedir}/src/lib</outputDirectory>
+                                    <classifier>sources</classifier>
+                                    <!-- compileスコープを指定してprovided依存関係も含める -->
+                                    <includeScope>compile</includeScope>
+                                    <excludeTransitive>false</excludeTransitive>
+                                    <stripVersion>true</stripVersion>
+                                    <stripClassifier>true</stripClassifier>
+                                    <!-- 
+                                        不要なライブラリのソースを除外:
+                                        - org.openjfx: JavaFX (プラットフォーム固有のネイティブライブラリ)
+                                        - org.controlsfx: ControlsFX (UIコンポーネントライブラリ)
+                                        - org.projectlombok: Lombok (アノテーションプロセッサ)
+                                        - org.junit.jupiter: JUnit (テストフレームワーク)
+                                    -->
+                                    <excludeGroupIds>org.openjfx,org.controlsfx,org.projectlombok,org.junit.jupiter</excludeGroupIds>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

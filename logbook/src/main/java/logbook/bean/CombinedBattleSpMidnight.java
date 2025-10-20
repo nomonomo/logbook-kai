@@ -1,6 +1,5 @@
 package logbook.bean;
 
-import java.io.Serializable;
 import java.util.List;
 
 import jakarta.json.JsonObject;
@@ -14,10 +13,10 @@ import lombok.Data;
 
 /**
  * 夜戦(連合艦隊)
- *
+ * ICombinedBattleはIBattleを継承しているため、Serializableを継承している。
  */
 @Data
-public class CombinedBattleSpMidnight implements ICombinedBattle, IMidnightBattle, IFormation, INSupport, Serializable {
+public class CombinedBattleSpMidnight implements ICombinedBattle, IMidnightBattle, IFormation, INSupport {
 
     private static final long serialVersionUID = -364877629377359534L;
 

@@ -22,7 +22,7 @@ import org.eclipse.jetty.client.HttpProxy;
 import org.eclipse.jetty.client.ProxyConfiguration;
 import org.eclipse.jetty.client.Request;
 import org.eclipse.jetty.client.Response;
-import org.eclipse.jetty.ee10.proxy.AsyncProxyServlet;
+import org.eclipse.jetty.ee11.proxy.AsyncProxyServlet;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.util.Callback;
@@ -111,7 +111,7 @@ public final class ReverseProxyServlet extends AsyncProxyServlet {
             request.removeAttribute(Filter.CONTENT_HOLDER);
         }
         super.onProxyResponseSuccess(request, response, proxyResponse);
-    }
+    }    
 
     /*
      * HttpClientを作成する
@@ -148,14 +148,12 @@ public final class ReverseProxyServlet extends AsyncProxyServlet {
     {
         private final byte[] buffer = new byte[getHttpClient().getRequestBufferSize()];
         private final HttpServletRequest request;
-        private final HttpServletResponse response;
         private final Request proxyRequest;
         private final AsyncRequestContent content;
 
         protected StreamReader(HttpServletRequest request, HttpServletResponse response, Request proxyRequest, AsyncRequestContent content)
         {
             this.request = request;
-            this.response = response;
             this.proxyRequest = proxyRequest;
             this.content = content;
         }
@@ -177,7 +175,7 @@ public final class ReverseProxyServlet extends AsyncProxyServlet {
         @Override
         public void onError(Throwable t)
         {
-            onClientRequestFailure(request, proxyRequest, response, t);
+            content.fail(t);
         }
 
         @Override
@@ -225,9 +223,9 @@ public final class ReverseProxyServlet extends AsyncProxyServlet {
         }
 
         @Override
-        protected void onCompleteFailure(Throwable cause)
+        protected void onFailure(Throwable x)
         {
-            onError(cause);
+            onError(x);
         }
     }
 

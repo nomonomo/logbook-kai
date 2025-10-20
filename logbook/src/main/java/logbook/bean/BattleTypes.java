@@ -498,7 +498,7 @@ public class BattleTypes {
     /**
      * 夜戦→昼戦を表します
      */
-    public interface INightToDayBattle extends IBattle, ISortieBattle {
+    public interface INightToDayBattle extends ISortieBattle {
 
         /**
          * api_touch_planeを取得します。

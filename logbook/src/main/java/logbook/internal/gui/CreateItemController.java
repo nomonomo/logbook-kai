@@ -779,7 +779,7 @@ public class CreateItemController extends WindowController {
      * 投入資材
      */
     @EqualsAndHashCode
-    private static class Recipe implements Comparable<Recipe> {
+    public static class Recipe implements Comparable<Recipe> {
 
         /** 燃料 */
         private final int fuel;

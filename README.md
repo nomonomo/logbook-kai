@@ -5,6 +5,23 @@
 [![GitHub All Releases](https://img.shields.io/github/downloads/nomonomo/logbook-kai/total)](https://github.com/nomonomo/logbook-kai/releases)
 [![GitHub Release Date](https://img.shields.io/github/release-date/nomonomo/logbook-kai)](https://github.com/nomonomo/logbook-kai/releases)
 
+## ****重要なお知らせ****
+セキュア化対応を行いましたが、実装内容があやしいので、**自己責任でお願いします**
+
+**現状はWindowsのみ対応**
+
+その１  
+実行するに辺り、ブラウザ、もしくは、ＯＳにルート証明書のインストールが必要になります
+
+**手順:**
+1. `create-ca-and-cert.bat`を実行する
+2. 作成された`logbook-ca.crt`をインストールする
+
+その２  
+実行の際、今までのバッチと内容が異なっております
+jlinkを利用して実行専用のJavaランタイムイメージを作成しています。  
+これにより、Javaの事前インストールが不要となり、配布するフォルダ内のバッチファイル`launch.bat`からそのまま航海日誌を起動できます。
+
 ## ****お知らせ****
 個人利用のため修正を行っておりますので、Issueは受け付けておりません。
 勉強も兼ねています。

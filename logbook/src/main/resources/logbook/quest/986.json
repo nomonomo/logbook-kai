@@ -1,19 +1,19 @@
-/* [986]【期間限定任務】10周年秋南瓜祭り、西方へ！ */
+/* [986]【期間限定任務】米特務強襲艦隊+α、出撃！ */
 {
     "type" : "出撃",
     "resetType" : "単発",
     "filter" : {
-        "area": ["4-2", "4-3", "4-5"],
+        "area": ["3-1", "2-4", "6-1"],
         "fleet": {
             "operator": "AND",
             "conditions": [
-                {"name": ["Roma","Maestrale","Grecale","Libeccio","Scirocco","浜波","早波"], "count": 2, "operator": "GE"}
+                {"name": ["Gambier Bay","Minneapolis","Tuscaloosa","Brooklyn","Johnston","Luigi Torelli"], "count": 3, "operator": "GE"}
             ]
         }
     },
     "conditions" : [
-        {"boss": true, "area": ["4-2"], "rank": ["S"], "count": 1},
-        {"boss": true, "area": ["4-3"], "rank": ["S"], "count": 1},
-        {"boss": true, "area": ["4-5"], "rank": ["S"], "count": 1}
+        {"boss": true, "area": ["3-1"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-4"], "rank": ["S", "A"], "count": 1},
+        {"boss": true, "area": ["6-1"], "rank": ["S", "A"], "count": 1}
     ]
 }

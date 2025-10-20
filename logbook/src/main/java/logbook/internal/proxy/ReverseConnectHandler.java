@@ -1,0 +1,3052 @@
+//
+// ========================================================================
+// Copyright (c) 1995 Mort Bay Consulting Pty Ltd and others.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// https://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+// which is available at https://www.apache.org/licenses/LICENSE-2.0.
+//
+// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+// ========================================================================
+//
+
+package logbook.internal.proxy;
+
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.SelectableChannel;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.transport.HttpResponse;
+
+import logbook.internal.LoggerHolder;
+import logbook.internal.ThreadManager;
+import logbook.plugin.PluginServices;
+import logbook.proxy.ContentListenerSpi;
+import logbook.proxy.RequestMetaData;
+import logbook.proxy.ResponseMetaData;
+
+import org.eclipse.jetty.http.HttpException;
+import org.eclipse.jetty.http.HttpField;
+import org.eclipse.jetty.http.HttpFields;
+import org.eclipse.jetty.http.HttpHeader;
+import org.eclipse.jetty.http.HttpHeaderValue;
+import org.eclipse.jetty.http.HttpMethod;
+import org.eclipse.jetty.http.HttpParser;
+import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.http.HttpURI;
+import org.eclipse.jetty.http.HttpVersion;
+import org.eclipse.jetty.io.AbstractConnection;
+import org.eclipse.jetty.io.ByteBufferPool;
+import org.eclipse.jetty.io.Connection;
+import org.eclipse.jetty.io.EndPoint;
+import org.eclipse.jetty.io.ManagedSelector;
+import org.eclipse.jetty.io.Retainable;
+import org.eclipse.jetty.io.RetainableByteBuffer;
+import org.eclipse.jetty.io.SelectorManager;
+import org.eclipse.jetty.io.SocketChannelEndPoint;
+import org.eclipse.jetty.io.ssl.SslConnection;
+import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.HttpStream;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.server.TunnelSupport;
+import org.eclipse.jetty.util.Callback;
+import org.eclipse.jetty.util.HostPort;
+import org.eclipse.jetty.util.IteratingCallback;
+import org.eclipse.jetty.util.Promise;
+import org.eclipse.jetty.util.TypeUtil;
+import org.eclipse.jetty.util.thread.Scheduler;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.util.ssl.X509;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * <p>HTTP CONNECTメソッドをサポートする{@link Handler}実装。完全なHTTPパース機能を持つ。</p>
+ * <p>このハンドラーは2つのモードで動作可能：</p>
+ * <ul>
+ * <li><b>HTTP インターセプトモード</b> (デフォルト): クライアントからのHTTPリクエストとサーバーからのHTTPレスポンスの
+ *     両方をパースし、CaptureHolderに保存してContentListenerSpiプラグインで処理する。</li>
+ * <li><b>透過トンネルモード</b>: パースを行わず、クライアントとサーバー間でバイトストリームを単純に転送する。</li>
+ * </ul>
+ * 
+ * <p><b>アーキテクチャ:</b></p>
+ * <ul>
+ * <li><b>DownstreamConnection</b>: クライアント→プロキシ間の接続を処理。HttpParser.RequestHandlerを使用して
+ *     HTTPリクエストをパースし、リクエストボディをCaptureHolderに保存する。</li>
+ * <li><b>UpstreamConnection</b>: プロキシ→サーバー間の接続を処理。HttpParser.ResponseHandlerを使用して
+ *     HTTPレスポンスをパースし、レスポンスボディをCaptureHolderに保存する。</li>
+ * <li><b>HttpClientConnectionListener</b>: 各トンネルのCaptureHolderを管理し、HTTPトランザクション完了時に
+ *     ContentListenerSpiプラグインを呼び出す。</li>
+ * </ul>
+ * 
+ * <h3>Usage Example: Default HTTP Interception</h3>
+ * <pre>{@code
+ * // By default, both HTTP request and response parsing are enabled
+ * // Content is automatically captured in CaptureHolder and processed by plugins
+ * ReverseConnectHandler handler = new ReverseConnectHandler();
+ * server.setHandler(handler);
+ * }</pre>
+ * 
+ * <h3>Usage Example: Custom HTTP Interception</h3>
+ * <pre>{@code
+ * ReverseConnectHandler handler = new ReverseConnectHandler() {
+ *     @Override
+ *     protected Connection.Listener createConnectionListener(ConnectContext connectContext) {
+ *         return new HttpClientConnectionListener(connectContext, getHttpClient()) {
+ *             @Override
+ *             public void onContent(ByteBuffer buffer, int offset, int length) {
+ *                 // Process HTTP response content from server
+ *                 super.onContent(buffer, offset, length);
+ *             }
+ *             
+ *             @Override
+ *             public void onSuccess() {
+ *                 // Handle successful HTTP transaction
+ *                 // CaptureHolder now contains both request and response bodies
+ *                 super.onSuccess();
+ *             }
+ *         };
+ *     }
+ * };
+ * }</pre>
+ * 
+ * <h3>Usage Example: Disable HTTP Parsing (Transparent Mode)</h3>
+ * <pre>{@code
+ * ReverseConnectHandler handler = new ReverseConnectHandler() {
+ *     @Override
+ *     protected DownstreamConnection newDownstreamConnection(EndPoint endPoint, ConcurrentMap<String, Object> context) {
+ *         DownstreamConnection conn = super.newDownstreamConnection(endPoint, context);
+ *         conn.setParseHttpRequest(false);  // Disable request parsing
+ *         return conn;
+ *     }
+ *     
+ *     @Override
+ *     protected UpstreamConnection newUpstreamConnection(EndPoint endPoint, ConnectContext connectContext) {
+ *         UpstreamConnection conn = super.newUpstreamConnection(endPoint, connectContext);
+ *         conn.setParseHttpResponse(false);  // Disable response parsing
+ *         return conn;
+ *     }
+ * };
+ * }</pre>
+ */
+public class ReverseConnectHandler extends Handler.Wrapper
+{
+    private static final Logger LOG = LoggerFactory.getLogger(ReverseConnectHandler.class);
+
+    private final Set<String> whiteList = new HashSet<>();
+    private final Set<String> blackList = new HashSet<>();
+    private SSLContext sslContext;
+    private SslContextFactory.Server sslContextFactoryServer;  // For downstream (accepting client connections)
+    private SslContextFactory.Client sslContextFactoryClient;  // For upstream (connecting to servers)
+    private HttpClient httpClient;  // HttpClient for managing connections
+    private Executor executor;
+    private Scheduler scheduler;
+    private ByteBufferPool bufferPool;
+    private SelectorManager selector;
+    private long connectTimeout = 15000;
+    private long idleTimeout = 30000;
+    private int bufferSize = 4096;
+
+    public ReverseConnectHandler()
+    {
+        this(null);
+    }
+
+    public ReverseConnectHandler(Handler handler)
+    {
+        super(handler);
+    }
+
+    public Executor getExecutor()
+    {
+        return executor;
+    }
+
+    public void setExecutor(Executor executor)
+    {
+        this.executor = executor;
+    }
+
+    public Scheduler getScheduler()
+    {
+        return scheduler;
+    }
+
+    public void setScheduler(Scheduler scheduler)
+    {
+        updateBean(this.scheduler, scheduler);
+        this.scheduler = scheduler;
+    }
+
+    public ByteBufferPool getByteBufferPool()
+    {
+        return bufferPool;
+    }
+
+    public void setByteBufferPool(ByteBufferPool bufferPool)
+    {
+        updateBean(this.bufferPool, bufferPool);
+        this.bufferPool = bufferPool;
+    }
+
+    /**
+     * Get the timeout, in milliseconds, to connect to the remote server.
+     * @return the timeout, in milliseconds, to connect to the remote server
+     */
+    public long getConnectTimeout()
+    {
+        return connectTimeout;
+    }
+
+    /**
+     * Set the timeout, in milliseconds, to connect to the remote server.
+     * @param connectTimeout the timeout, in milliseconds, to connect to the remote server
+     */
+    public void setConnectTimeout(long connectTimeout)
+    {
+        this.connectTimeout = connectTimeout;
+    }
+
+    /**
+     * Get the idle timeout, in milliseconds.
+     * @return the idle timeout, in milliseconds
+     */
+    public long getIdleTimeout()
+    {
+        return idleTimeout;
+    }
+
+    /**
+     * Set the idle timeout, in milliseconds.
+     * @param idleTimeout the idle timeout, in milliseconds
+     */
+    public void setIdleTimeout(long idleTimeout)
+    {
+        this.idleTimeout = idleTimeout;
+    }
+
+    public int getBufferSize()
+    {
+        return bufferSize;
+    }
+
+    public void setBufferSize(int bufferSize)
+    {
+        this.bufferSize = bufferSize;
+    }
+    
+    /**
+     * Get the HttpClient used for connection management.
+     * @return the HttpClient instance
+     */
+    public HttpClient getHttpClient()
+    {
+        return httpClient;
+    }
+    
+    /**
+     * Set the HttpClient to use for connection management.
+     * @param httpClient the HttpClient instance
+     */
+    public void setHttpClient(HttpClient httpClient)
+    {
+        updateBean(this.httpClient, httpClient);
+        this.httpClient = httpClient;
+    }
+
+    @Override
+    protected void doStart() throws Exception
+    {
+        if (executor == null)
+            executor = getServer().getThreadPool();
+
+        if (scheduler == null)
+        {
+            scheduler = getServer().getScheduler();
+            addBean(scheduler);
+        }
+
+        if (bufferPool == null)
+        {
+            bufferPool = getServer().getByteBufferPool();
+            addBean(bufferPool);
+        }
+
+        // Initialize HttpClient if not already set
+        if (httpClient == null)
+        {
+            httpClient = newHttpClient();
+            addBean(httpClient);
+        }
+
+        addBean(selector = newSelectorManager());
+        selector.setConnectTimeout(getConnectTimeout());
+
+        // Load allowed hosts from certificate in resources (wildcard.p12)
+        loadCertificateHosts();
+        
+        // Initialize SSL context for HTTPS connections
+        // initializeSSLContext();
+
+        super.doStart();
+    }
+    
+    /**
+     * Creates a new HttpClient instance.
+     * Override this method to customize the HttpClient.
+     * 
+     * @return a new HttpClient instance
+     */
+    protected HttpClient newHttpClient()
+    {
+        HttpClient client = new HttpClient();
+        client.setExecutor(getExecutor());
+        client.setScheduler(getScheduler());
+        client.setByteBufferPool(getByteBufferPool());
+        client.setConnectTimeout(getConnectTimeout());
+        client.setIdleTimeout(getIdleTimeout());
+        
+        if (LOG.isDebugEnabled())
+            LOG.debug("Created HttpClient for ReverseConnectHandler");
+        
+        return client;
+    }
+
+    protected SelectorManager newSelectorManager()
+    {
+        return new ConnectManager(getExecutor(), getScheduler(), 1);
+    }
+
+    @Override
+    public boolean handle(Request request, Response response, Callback callback) throws Exception
+    {
+        if (HttpMethod.CONNECT.is(request.getMethod()))
+        {
+            TunnelSupport tunnelSupport = request.getTunnelSupport();
+            if (tunnelSupport == null)
+            {
+                Response.writeError(request, response, callback, HttpStatus.NOT_IMPLEMENTED_501);
+                return true;
+            }
+
+            if (tunnelSupport.getProtocol() == null)
+            {
+                HttpURI httpURI = request.getHttpURI();
+                String serverAddress = httpURI.getAuthority();
+                
+                // 証明書にマッチしないホストは、後続のConnectHandler（proxy2）で処理される
+                if (serverAddress != null && !isHostAllowedBySslContext(serverAddress))
+                {
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("CONNECT host {} not allowed by SSL certificate validation, passing to next handler", serverAddress);
+                    return super.handle(request, response, callback);
+                }
+                
+                if (LOG.isDebugEnabled())
+                    LOG.debug("CONNECT request for {}", serverAddress);
+                handleConnect(request, response, callback, serverAddress);
+                return true;
+            }
+        }
+        return super.handle(request, response, callback);
+    }
+
+    /**
+     * <p>Handles a CONNECT request.</p>
+     * <p>CONNECT requests may have authentication headers such as {@code Proxy-Authorization}
+     * that authenticate the client with the proxy.</p>
+     *
+     * @param request the jetty request
+     * @param response the jetty response
+     * @param callback the callback with which to generate a response
+     * @param serverAddress the remote server address in the form {@code host:port}
+     */
+    protected void handleConnect(Request request, Response response, Callback callback, String serverAddress)
+    {
+        try
+        {
+            boolean proceed = handleAuthentication(request, response, serverAddress);
+            if (!proceed)
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Missing proxy authentication");
+                sendConnectResponse(request, response, callback, HttpStatus.PROXY_AUTHENTICATION_REQUIRED_407);
+                return;
+            }
+
+            HostPort hostPort = new HostPort(serverAddress);
+            String host = hostPort.getHost();
+            int port = hostPort.getPort(80);
+
+            if (!validateDestination(host, port))
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Destination {}:{} forbidden", host, port);
+                sendConnectResponse(request, response, callback, HttpStatus.FORBIDDEN_403);
+                return;
+            }
+
+            if (LOG.isDebugEnabled())
+                LOG.debug("Connecting to {}:{}", host, port);
+
+            connectToServer(request, host, port, new Promise<>()
+            {
+                @Override
+                public void succeeded(SocketChannel channel)
+                {
+                    ConnectContext connectContext = new ConnectContext(request, response, callback, request.getTunnelSupport().getEndPoint(), sslContext);
+                    LOG.debug("connected to server: {}", channel.isConnected() ? "connected" : "not connected");
+                    if (channel.isConnected())
+                        selector.accept(channel, connectContext);
+                    else
+                        selector.connect(channel, connectContext);
+                }
+
+                @Override
+                public void failed(Throwable x)
+                {
+                    onConnectFailure(request, response, callback, x);
+                }
+            });
+        }
+        catch (Exception x)
+        {
+            onConnectFailure(request, response, callback, x);
+        }
+    }
+
+    protected void connectToServer(Request request, String host, int port, Promise<SocketChannel> promise)
+    {
+        SocketChannel channel = null;
+        try
+        {
+            channel = SocketChannel.open();
+            channel.socket().setTcpNoDelay(true);
+            channel.configureBlocking(false);
+            InetSocketAddress address = newConnectAddress(host, port);
+            channel.connect(address);
+            promise.succeeded(channel);
+        }
+        catch (Throwable x)
+        {
+            close(channel);
+            promise.failed(x);
+        }
+    }
+
+    private void close(Closeable closeable)
+    {
+        try
+        {
+            if (closeable != null)
+                closeable.close();
+        }
+        catch (Throwable x)
+        {
+            LOG.trace("IGNORED", x);
+        }
+    }
+
+    /**
+     * Creates the server address to connect to.
+     *
+     * @param host The host from the CONNECT request
+     * @param port The port from the CONNECT request
+     * @return The InetSocketAddress to connect to.
+     */
+    protected InetSocketAddress newConnectAddress(String host, int port)
+    {
+        return new InetSocketAddress(host, port);
+    }
+
+    protected void onConnectSuccess(ConnectContext connectContext, UpstreamConnection upstreamConnection)
+    {
+        ConcurrentMap<String, Object> context = connectContext.getContext();
+        Request request = connectContext.getRequest();
+        prepareContext(request, context);
+
+        EndPoint downstreamEndPoint = connectContext.getEndPoint();
+        DownstreamConnection downstreamConnection = newDownstreamConnection(downstreamEndPoint, context);
+        // downstreamConnection.setConnectContext(connectContext);
+        downstreamConnection.setInputBufferSize(getBufferSize());
+        
+        // Add connection listener if needed - share the same listener instance between connections
+        Connection.Listener listener = createConnectionListener(connectContext);
+        if (listener != null)
+        {
+            downstreamConnection.addConnectionListener(listener);
+            
+            // Add HTTP client listener to both downstream and upstream connections
+            // This ensures that request info (from downstream) and response info (from upstream)
+            // are captured by the same listener instance
+            if (listener instanceof HttpClientConnectionListener)
+            {
+                HttpClientConnectionListener httpClientListener = (HttpClientConnectionListener) listener;
+                
+                // ダウンストリーム（クライアント→プロキシ）とアップストリーム（プロキシ→サーバー）の
+                // 両方に同じリスナーインスタンスを追加し、HTTPリクエスト/レスポンスをキャプチャ
+                downstreamConnection.addHttpClientListener(httpClientListener);
+                upstreamConnection.addHttpClientListener(httpClientListener);
+            }
+        }
+
+        upstreamConnection.setConnection(downstreamConnection);
+        downstreamConnection.setConnection(upstreamConnection);
+        
+        if (LOG.isDebugEnabled())
+        {
+            // DownstreamConnectionのEndPointを確認（SSL wrapping後のEndPoint）
+            boolean downstreamSSL = downstreamConnection.getEndPoint() instanceof SslConnection.SslEndPoint;
+            boolean upstreamSSL = upstreamConnection.getEndPoint() instanceof SslConnection.SslEndPoint;
+            LOG.debug("Connection setup completed: {}<->{}  (downstream SSL: {}, upstream SSL: {})", 
+                downstreamConnection, upstreamConnection, downstreamSSL, upstreamSSL);
+        }
+
+        Response response = connectContext.getResponse();
+        upgradeConnection(request, downstreamConnection);
+        sendConnectResponse(request, response, connectContext.callback, HttpStatus.OK_200);
+    }
+
+    protected void onConnectFailure(Request request, Response response, Callback callback, Throwable failure)
+    {
+        if (LOG.isDebugEnabled())
+            LOG.debug("CONNECT failed", failure);
+        sendConnectResponse(request, response, callback, HttpStatus.INTERNAL_SERVER_ERROR_500);
+    }
+
+    private void sendConnectResponse(Request request, Response response, Callback callback, int statusCode)
+    {
+        try
+        {
+            response.getHeaders().put(HttpFields.CONTENT_LENGTH_0);
+            if (statusCode != HttpStatus.OK_200)
+            {
+                response.getHeaders().put(HttpHeader.CONNECTION, HttpHeaderValue.CLOSE);
+                Response.writeError(request, response, callback, statusCode);
+            }
+            else
+            {
+                response.setStatus(HttpStatus.OK_200);
+                callback.succeeded();
+            }
+            if (LOG.isDebugEnabled())
+                LOG.debug("CONNECT response sent {} {}", request.getConnectionMetaData().getProtocol(), statusCode);
+        }
+        catch (Throwable x)
+        {
+            if (LOG.isDebugEnabled())
+                LOG.debug("Could not send CONNECT response", x);
+        }
+    }
+
+    /**
+     * <p>Handles the authentication before setting up the tunnel to the remote server.</p>
+     * <p>The default implementation returns true.</p>
+     *
+     * @param request the HTTP request
+     * @param response the HTTP response
+     * @param address the address of the remote server in the form {@code host:port}.
+     * @return true to allow to connect to the remote host, false otherwise
+     */
+    protected boolean handleAuthentication(Request request, Response response, String address)
+    {
+        return true;
+    }
+
+    protected DownstreamConnection newDownstreamConnection(EndPoint endPoint, ConcurrentMap<String, Object> context)
+    {
+        DownstreamConnection downstreamConnection;
+        
+        // Check if we should use SSL for downstream connection (client to proxy)
+        if (shouldUseSSLForDownstream(endPoint, context))
+        {
+            try
+            {
+                // Create SSL-wrapped endpoint for downstream connection
+                EndPoint sslEndPoint = wrapWithSSLForDownstream(endPoint, context);
+                downstreamConnection = new DownstreamConnection(sslEndPoint, getExecutor(), getByteBufferPool(), context);
+                
+                // Set the DownstreamConnection as the connection for the SslEndPoint
+                if (sslEndPoint instanceof SslConnection.SslEndPoint)
+                {
+                    sslEndPoint.setConnection(downstreamConnection);
+                    
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Set DownstreamConnection to SslEndPoint");
+                }
+            }
+            catch (Exception e)
+            {
+                LOG.warn("Failed to create SSL downstream connection, falling back to plain connection", e);
+                downstreamConnection = new DownstreamConnection(endPoint, getExecutor(), getByteBufferPool(), context);
+            }
+        }
+        else
+        {
+            downstreamConnection = new DownstreamConnection(endPoint, getExecutor(), getByteBufferPool(), context);
+        }
+        
+        // HTTPリクエストのパース機能をデフォルトで有効化
+        downstreamConnection.setParseHttpRequest(true);
+        
+        return downstreamConnection;
+    }
+
+    protected UpstreamConnection newUpstreamConnection(EndPoint endPoint, ConnectContext connectContext)
+    {
+        UpstreamConnection upstreamConnection;
+        
+        // Check if we should use SSL for upstream connection
+        if (shouldUseSSLForUpstream(connectContext))
+        {
+            try
+            {
+                // Create SSL-wrapped endpoint for upstream connection
+                EndPoint sslEndPoint = wrapWithSSL(endPoint, connectContext);
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Created SSL upstream connection");
+                upstreamConnection = new UpstreamConnection(sslEndPoint, getExecutor(), getByteBufferPool(), connectContext);
+            }
+            catch (Exception e)
+            {
+                LOG.warn("Failed to create SSL upstream connection, falling back to plain connection", e);
+                upstreamConnection = new UpstreamConnection(endPoint, getExecutor(), getByteBufferPool(), connectContext);
+            }
+        }
+        else
+        {
+            upstreamConnection = new UpstreamConnection(endPoint, getExecutor(), getByteBufferPool(), connectContext);
+        }
+        
+        // HTTPレスポンスのパース機能をデフォルトで有効化
+        upstreamConnection.setParseHttpResponse(true);
+        
+        // HttpClientConnectionListenerはonConnectSuccess()で追加され、
+        // ダウンストリームとアップストリームで同じインスタンスが共有される
+        
+        return upstreamConnection;
+    }
+    
+    /**
+     * Determines if SSL should be used for the upstream connection based on the connect context.
+     * Override this method to customize SSL behavior.
+     * 
+     * @param connectContext the connection context
+     * @return true if SSL should be used, false otherwise
+     */
+    protected boolean shouldUseSSLForUpstream(ConnectContext connectContext)
+    {
+        // By default, use SSL for upstream (proxy to server) connections if sslContextFactoryClient is available
+        // Override this method to disable SSL or customize based on specific conditions (e.g., port-based)
+        return sslContextFactoryClient != null;
+    }
+    
+    /**
+     * Wraps an EndPoint with SSL/TLS encryption using SslConnection.
+     * 
+     * @param endPoint the endpoint to wrap
+     * @param connectContext the connection context
+     * @return SSL-wrapped endpoint
+     * @throws Exception if SSL wrapping fails
+     */
+    protected EndPoint wrapWithSSL(EndPoint endPoint, ConnectContext connectContext) throws Exception
+    {
+        if (sslContextFactoryClient == null)
+            throw new IllegalStateException("SslContextFactory.Client not initialized");
+        
+        // Get target host and port for SNI
+        Request request = connectContext.getRequest();
+        String serverAddress = request.getHttpURI().getAuthority();
+        HostPort hostPort = new HostPort(serverAddress);
+        String host = hostPort.getHost();
+        int port = hostPort.getPort(443);
+        
+        // Create SSLEngine in client mode for upstream connection with SNI
+        SSLEngine sslEngine = sslContextFactoryClient.newSSLEngine(host, port);
+        sslEngine.setUseClientMode(true);
+        
+        if (LOG.isDebugEnabled())
+            LOG.debug("Creating SSL client connection to {}:{} with SNI", host, port);
+        
+        // Create SslConnection wrapping the endpoint
+        // Note: SslConnection lifecycle is managed by the EndPoint and will be closed
+        // when the connection is terminated, so this is not a resource leak
+        @SuppressWarnings("resource")
+        SslConnection sslConnection = new SslConnection(
+            getByteBufferPool(),
+            getExecutor(),
+            sslContextFactoryClient,
+            endPoint,
+            sslEngine,
+            true,  // useDirectBuffersForEncryption
+            true   // useDirectBuffersForDecryption
+        );
+        
+        // Configure SSL connection
+        sslConnection.setRenegotiationAllowed(sslContextFactoryClient.isRenegotiationAllowed());
+        sslConnection.setRenegotiationLimit(sslContextFactoryClient.getRenegotiationLimit());
+        
+        // Return the SSL endpoint which will handle encryption/decryption
+        return sslConnection.getSslEndPoint();
+    }
+    
+    /**
+     * Determines if SSL should be used for the downstream connection (client to proxy).
+     * Override this method to customize SSL behavior.
+     * 
+     * @param endPoint the client endpoint
+     * @param context the connection context
+     * @return true if SSL should be used, false otherwise
+     */
+    protected boolean shouldUseSSLForDownstream(EndPoint endPoint, ConcurrentMap<String, Object> context)
+    {
+        // MITMモード: プロキシがSSL終端を行い、HTTPリクエストをキャプチャ
+        // ブラウザ → プロキシ: SSL終端（プロキシの証明書 *.kancolle-server.com）
+        // プロキシ → サーバー: 新しいSSL接続（サーバーの証明書）
+        //
+        // これにより、プロキシがHTTPリクエスト/レスポンスの内容を解読・キャプチャできる
+        // 前提: ブラウザにCA証明書（logbook-ca.crt）がインストールされている
+        return sslContextFactoryServer != null;
+    }
+    
+    /**
+     * Wraps an EndPoint with SSL/TLS encryption for downstream connection (client to proxy).
+     * This creates a server-mode SSL connection to accept encrypted connections from clients.
+     * 
+     * @param endPoint the endpoint to wrap
+     * @param context the connection context
+     * @return SSL-wrapped endpoint
+     * @throws Exception if SSL wrapping fails
+     */
+    protected EndPoint wrapWithSSLForDownstream(EndPoint endPoint, ConcurrentMap<String, Object> context) throws Exception
+    {
+        if (sslContextFactoryServer == null)
+            throw new IllegalStateException("SslContextFactory.Server not initialized");
+        
+        // Create SSLEngine in server mode for downstream connection (accepting from client)
+        SSLEngine sslEngine = sslContextFactoryServer.newSSLEngine();
+        sslEngine.setUseClientMode(false); // Server mode - accepting connections
+        
+        // Request client authentication if needed (optional)
+        // sslEngine.setNeedClientAuth(false);
+        // sslEngine.setWantClientAuth(false);
+        
+        if (LOG.isDebugEnabled())
+            LOG.debug("Creating SSL server connection for downstream from {}", endPoint.getRemoteSocketAddress());
+        
+        // Create SslConnection wrapping the endpoint
+        // Note: SslConnection lifecycle is managed by the EndPoint and will be closed
+        // when the connection is terminated, so this is not a resource leak
+        @SuppressWarnings("resource")
+        SslConnection sslConnection = new SslConnection(
+            getByteBufferPool(),
+            getExecutor(),
+            sslContextFactoryServer,
+            endPoint,
+            sslEngine,
+            true,  // useDirectBuffersForEncryption
+            true   // useDirectBuffersForDecryption
+        );
+        
+        // Configure SSL connection
+        sslConnection.setRenegotiationAllowed(sslContextFactoryServer.isRenegotiationAllowed());
+        sslConnection.setRenegotiationLimit(sslContextFactoryServer.getRenegotiationLimit());
+        
+        if (LOG.isDebugEnabled())
+            LOG.debug("SSL downstream connection prepared, waiting for client handshake");
+        
+        // Return the SSL endpoint which will handle encryption/decryption
+        // Note: The SslConnection will be opened when the DownstreamConnection is set and opened
+        return sslConnection.getSslEndPoint();
+    }
+
+    protected void prepareContext(Request request, ConcurrentMap<String, Object> context)
+    {
+    }
+    
+    /**
+     * Creates a Connection.Listener for the downstream connection.
+     * Override this method to provide a custom listener (e.g., HttpClient).
+     * 
+     * @param connectContext the connection context
+     * @return a Connection.Listener or null if no listener is needed
+     */
+    protected Connection.Listener createConnectionListener(ConnectContext connectContext)
+    {
+        // Create a listener that integrates with HttpClient
+        if (httpClient != null)
+        {
+            return new HttpClientConnectionListener(connectContext, httpClient);
+        }
+        return null;
+    }
+    
+    /**
+     * HttpClientと統合するConnection.Listener実装。
+     * 接続ライフサイクルを追跡し、HttpClientリソースを管理する。
+     * onContentとonSuccessメソッドを通じてHTTPコンテンツ処理のフックを提供する。
+     * <p>
+     * 注: HttpClientConnectionListenerインスタンスはCONNECTトンネルごとに1つ作成される。
+     * 1つのトンネルは複数のHTTPリクエスト/レスポンス交換を運ぶことができる。
+     * CaptureHolder2が完全なメタデータサポートでHTTPトランザクションを管理する。
+     * </p>
+     */
+    public static class HttpClientConnectionListener implements Connection.Listener
+    {
+        private static final Logger LOG = LoggerFactory.getLogger(HttpClientConnectionListener.class);
+        private final ConnectContext connectContext;
+        private final HttpClient httpClient;
+        private final CaptureHolder2 captureHolder;
+        private List<ContentListenerSpi> listeners;
+        private String currentRequestMethod;
+        private String currentRequestURI;
+        
+        public HttpClientConnectionListener(ConnectContext connectContext, HttpClient httpClient)
+        {
+            this.connectContext = connectContext;
+            this.httpClient = httpClient;
+            // Create CaptureHolder2 for this tunnel (manages all HTTP transactions)
+            this.captureHolder = new CaptureHolder2();
+            
+            if (LOG.isDebugEnabled())
+                LOG.debug("Created CaptureHolder2 for tunnel: {}", connectContext.getRequest().getHttpURI());
+        }
+        
+        /**
+         * Get the CaptureHolder2 for this tunnel connection.
+         * @return the CaptureHolder2 instance
+         */
+        public CaptureHolder2 getCaptureHolder()
+        {
+            return captureHolder;
+        }
+        
+        /**
+         * Set the current HTTP request information.
+         * Called when a new HTTP request starts in the tunnel.
+         */
+        public void setCurrentRequest(String method, String uri)
+        {
+            this.currentRequestMethod = method;
+            this.currentRequestURI = uri;
+            if (LOG.isDebugEnabled())
+                LOG.debug("Current HTTP request: {} {}", method, uri);
+        }
+        
+        /**
+         * Check if this listener has received a valid HTTP request.
+         * @return true if a valid HTTP request has been received
+         */
+        public boolean hasValidRequest()
+        {
+            return currentRequestURI != null;
+        }
+        
+        @Override
+        public void onOpened(Connection connection)
+        {
+            if (LOG.isDebugEnabled())
+            {
+                Request request = connectContext.getRequest();
+                String uri = request != null ? request.getHttpURI().toString() : "unknown";
+                LOG.debug("Downstream connection opened with HttpClient: {} for URI: {}", connection, uri);
+            }
+            
+            // HttpClient can track this connection if needed
+            // For example, register connection metrics, connection pool management, etc.
+        }
+        
+        @Override
+        public void onClosed(Connection connection)
+        {
+            if (LOG.isDebugEnabled())
+            {
+                Request request = connectContext.getRequest();
+                String uri = request != null ? request.getHttpURI().toString() : "unknown";
+                LOG.debug("Downstream connection closed with HttpClient: {} for URI: {}", connection, uri);
+            }
+            
+            // HttpClient cleanup if needed
+            // For example, release connection resources, update connection pool, etc.
+        }
+        
+        /**
+         * Called when HTTP content is received.
+         * This method can be used to process or log the content bytes.
+         * 
+         * @param buffer the buffer containing the content
+         * @param offset the offset in the buffer where content starts
+         * @param length the length of the content
+         */
+        public void onContent(ByteBuffer buffer, int offset, int length)
+        {
+            if (LOG.isTraceEnabled())
+            {
+                Request request = connectContext.getRequest();
+                String uri = request != null ? request.getHttpURI().toString() : "unknown";
+                LOG.trace("Content received for tunnel: {}, length: {}", uri, length);
+                
+                // Log content as UTF-8 string for debugging
+                try
+                {
+                    int savedPosition = buffer.position();
+                    int savedLimit = buffer.limit();
+                    buffer.position(offset);
+                    buffer.limit(offset + length);
+                    byte[] bytes = new byte[length];
+                    buffer.get(bytes);
+                    String content = new String(bytes, StandardCharsets.UTF_8);
+                    LOG.trace("Content (first 500 chars): {}", content.length() > 500 ? content.substring(0, 500) : content);
+                    buffer.position(savedPosition);
+                    buffer.limit(savedLimit);
+                }
+                catch (Exception e)
+                {
+                    LOG.trace("Failed to log content", e);
+                }
+            }
+
+            // HTTP response content is now stored directly in CaptureHolder2
+            // by the ResponseParserHandler via notifyContentListeners()
+            // This method is kept for backwards compatibility and logging
+        }
+        
+        /**
+         * Called when HTTP request/response completes successfully.
+         * This method efficiently processes HTTP transaction data from CaptureHolder2.
+         */
+        public void onSuccess()
+        {
+            // HTTPリクエストが受信されていない場合（TLSハンドシェイクのみ、または接続クローズ）はスキップ
+            if (currentRequestURI == null)
+            {
+                return;
+            }
+            
+            if (LOG.isDebugEnabled())
+            {
+                LOG.debug("HTTP transaction completed: {} {}", currentRequestMethod, currentRequestURI);
+            }
+            
+            try
+            {
+                // Get current transaction from CaptureHolder2
+                CaptureHolder2 holder = this.captureHolder;
+                if (holder != null)
+                {
+                    CaptureHolder2.HttpTransaction transaction = holder.getCurrentTransaction();
+                    CaptureHolder2.HttpRequest httpRequest = transaction.getRequest();
+                    CaptureHolder2.HttpResponse httpResponse = transaction.getResponse();
+                    
+                    // Check if we have meaningful data
+                    if (httpRequest.getMethod() == null && httpResponse.getStatus() == 0)
+                    {
+                        if (LOG.isDebugEnabled())
+                            LOG.debug("No HTTP data to process (empty transaction)");
+                        return;
+                    }
+                    
+                    // Create RequestMetaDataWrapper efficiently from CaptureHolder2.HttpRequest
+                    RequestMetaDataWrapper req = new RequestMetaDataWrapper();
+                    if (httpRequest.getMethod() != null)
+                    {
+                        // Use efficient set() method that copies all metadata at once
+                        req.set(httpRequest);
+                    }
+                    else
+                    {
+                        // Fallback: Use current request info if HttpRequest is incomplete
+                        req.setMethod(currentRequestMethod != null ? currentRequestMethod : "UNKNOWN");
+                        req.setRequestURI(currentRequestURI);
+                    }
+                    
+                    // Create ResponseMetaDataWrapper efficiently from CaptureHolder2.HttpResponse
+                    ResponseMetaDataWrapper res = new ResponseMetaDataWrapper();
+                    if (httpResponse.getStatus() != 0)
+                    {
+                        // Use efficient set() method that copies all metadata at once
+                        res.set(httpResponse);
+                    }
+                    else
+                    {
+                        // Fallback: Use Jetty Response if HttpResponse is incomplete
+                        Response response = connectContext.getResponse();
+                        if (response != null)
+                        {
+                            res.set(response);
+                        }
+                    }
+
+                    if (LOG.isDebugEnabled())
+                    {
+                        LOG.debug("HTTP transaction data captured for processing: {} {} (req: {} bytes, res: {} bytes)", 
+                            httpRequest.getMethod(), httpRequest.getUri(), 
+                            httpRequest.getBodySize(), httpResponse.getBodySize());
+                    }
+                    
+                    // Mark transaction as complete and prepare for next one (Keep-Alive support)
+                    holder.completeTransaction();
+                    
+                    // Process captured data asynchronously
+                    try
+                    {
+                        Runnable task = () -> {
+                            this.invoke(req, res, holder.getLastTransaction());
+                        };
+                        
+                        ExecutorService executor = ThreadManager.getExecutorService();
+                        // シャットダウン中でない場合のみタスクを送信
+                        if (executor != null && !executor.isShutdown() && !executor.isTerminated())
+                        {
+                            executor.submit(task);
+                        }
+                        else if (LOG.isDebugEnabled())
+                        {
+                            LOG.debug("Skipping HTTP transaction processing - ExecutorService is shutdown");
+                        }
+                    }
+                    catch (RejectedExecutionException e)
+                    {
+                        // シャットダウン中にタスクが拒否された場合（正常なシャットダウン）
+                        if (LOG.isDebugEnabled())
+                            LOG.debug("HTTP transaction processing rejected - application is shutting down");
+                    }
+                    
+                    // Reset current request info for next HTTP exchange in this tunnel
+                    currentRequestMethod = null;
+                    currentRequestURI = null;
+                }
+            }
+            catch (Exception e)
+            {
+                LOG.warn("Failed to process HTTP transaction data", e);
+            }
+        }
+        
+        public ConnectContext getConnectContext()
+        {
+            return connectContext;
+        }
+        
+        public HttpClient getHttpClient()
+        {
+            return httpClient;
+        }
+        
+        /**
+         * Initialize content listeners from plugin services.
+         * This method is called lazily when first needed.
+         */
+        private void initializeListeners()
+        {
+            if (listeners == null)
+            {
+                listeners = PluginServices.instances(ContentListenerSpi.class)
+                    .collect(Collectors.toList());
+                
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Initialized {} content listeners", listeners.size());
+            }
+        }
+        
+        /**
+         * Invoke content listeners with the captured request/response data.
+         * This method efficiently processes data from CaptureHolder2.HttpTransaction.
+         * 
+         * @param baseReq the base request metadata
+         * @param baseRes the base response metadata
+         * @param transaction the HTTP transaction containing request/response with metadata
+         */
+        private void invoke(RequestMetaDataWrapper baseReq, ResponseMetaDataWrapper baseRes, CaptureHolder2.HttpTransaction transaction)
+        {
+            try
+            {
+                // Initialize listeners on first use
+                initializeListeners();
+                
+                if (listeners.isEmpty())
+                {
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("No content listeners registered, skipping processing");
+                    return;
+                }
+                
+                // Process each listener
+                for (ContentListenerSpi listener : listeners)
+                {
+                    try
+                    {
+                        if (LOG.isDebugEnabled())
+                            LOG.debug("requestURI: {}", baseReq.getRequestURI());
+                        
+                        // Clone request metadata (already includes body from CaptureHolder2)
+                        RequestMetaDataWrapper req = baseReq.clone();
+                        
+                        // Test if listener is interested in this request
+                        if (!listener.test(req))
+                        {
+                            if (LOG.isDebugEnabled())
+                                LOG.debug("Listener {} not interested in request {}", 
+                                    listener.getClass().getSimpleName(), req.getRequestURI());
+                            continue;
+                        }
+                        
+                        // Clone response metadata (already includes body from CaptureHolder2)
+                        ResponseMetaDataWrapper res = baseRes.clone();
+                        
+                        // Capture transaction data size before clearing (for logging)
+                        final long requestBodySize = transaction.getRequest().getBodySize();
+                        final long responseBodySize = transaction.getResponse().getBodySize();
+                        
+                        // Process listener asynchronously
+                        Runnable task = () -> {
+                            try
+                            {
+                                if (LOG.isDebugEnabled())
+                                    LOG.debug("Processing request {} with listener {} (req: {} bytes, res: {} bytes)", 
+                                        req.getRequestURI(), listener.getClass().getSimpleName(),
+                                        requestBodySize, responseBodySize);
+                                
+                                listener.accept(req, res);
+                                
+                                if (LOG.isDebugEnabled())
+                                    LOG.debug("Successfully processed request {} with listener {}", 
+                                        req.getRequestURI(), listener.getClass().getSimpleName());
+                            }
+                            catch (Exception e)
+                            {
+                                LoggerHolder.get().warn("Content listener " + 
+                                    listener.getClass().getSimpleName() + " failed to process request", e);
+                            }
+                        };
+                        
+                        // シャットダウン中でない場合のみタスクを送信
+                        try
+                        {
+                            ExecutorService executor = ThreadManager.getExecutorService();
+                            if (executor != null && !executor.isShutdown() && !executor.isTerminated())
+                            {
+                                executor.submit(task);
+                            }
+                            else if (LOG.isDebugEnabled())
+                            {
+                                LOG.debug("Skipping listener {} processing - ExecutorService is shutdown", 
+                                    listener.getClass().getSimpleName());
+                            }
+                        }
+                        catch (RejectedExecutionException e)
+                        {
+                            // シャットダウン中にタスクが拒否された場合（正常なシャットダウン）
+                            if (LOG.isDebugEnabled())
+                                LOG.debug("Listener processing rejected - application is shutting down");
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        LoggerHolder.get().warn("Failed to process listener " + 
+                            listener.getClass().getSimpleName(), e);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                LoggerHolder.get().warn("Failed to invoke content listeners for request: " + 
+                    baseReq.getRequestURI(), e);
+            }
+            // 注: ここでtransaction.clear()を呼び出さない理由:
+            // 1. RequestMetaDataWrapper/ResponseMetaDataWrapperのclone()はInputStreamの浅いコピーのみ実行
+            // 2. トランザクションをクリアすると、非同期タスクで使用中のclonedされたreq/res内のInputStreamが無効化される
+            // 3. トランザクションはすべての非同期タスク完了後にガベージコレクションされる
+            // 4. 次のHTTPメッセージはcompleteTransaction()経由で新しいトランザクションを作成する
+        }
+    }
+    
+    /**
+     * Example Connection.Listener implementation for monitoring downstream connections.
+     * You can extend this class or create your own implementation.
+     */
+    public static class DownstreamConnectionListener implements Connection.Listener
+    {
+        private static final Logger LOG = LoggerFactory.getLogger(DownstreamConnectionListener.class);
+        
+        @Override
+        public void onOpened(Connection connection)
+        {
+            if (LOG.isDebugEnabled())
+                LOG.debug("Downstream connection opened: {}", connection);
+        }
+        
+        @Override
+        public void onClosed(Connection connection)
+        {
+            if (LOG.isDebugEnabled())
+                LOG.debug("Downstream connection closed: {}", connection);
+        }
+    }
+
+    private void upgradeConnection(Request request, Connection connection)
+    {
+        // Set the new connection as request attribute so that
+        // Jetty understands that it has to upgrade the connection.
+        request.setAttribute(HttpStream.UPGRADE_CONNECTION_ATTRIBUTE, connection);
+        if (LOG.isDebugEnabled())
+            LOG.debug("Upgraded connection to {}", connection);
+    }
+
+    /**
+     * <p>Reads (with non-blocking semantic) into the given {@code buffer} from the given {@code endPoint}.</p>
+     *
+     * @param endPoint the endPoint to read from
+     * @param buffer the buffer to read data into
+     * @param context the context information related to the connection
+     * @return the number of bytes read (possibly 0 since the read is non-blocking)
+     * or -1 if the channel has been closed remotely
+     * @throws IOException if the endPoint cannot be read
+     */
+    protected int read(EndPoint endPoint, ByteBuffer buffer, ConcurrentMap<String, Object> context) throws IOException
+    {
+        return endPoint.fill(buffer);
+    }
+
+    /**
+     * <p>Writes (with non-blocking semantic) the given buffer of data onto the given endPoint.</p>
+     *
+     * @param endPoint the endPoint to write to
+     * @param buffer the buffer to write
+     * @param callback the completion callback to invoke
+     * @param context the context information related to the connection
+     */
+    protected void write(EndPoint endPoint, ByteBuffer buffer, Callback callback, ConcurrentMap<String, Object> context)
+    {
+        endPoint.write(callback, buffer);
+    }
+
+    public Set<String> getWhiteListHosts()
+    {
+        return whiteList;
+    }
+
+    public Set<String> getBlackListHosts()
+    {
+        return blackList;
+    }
+
+    /**
+     * SSL証明書によるホスト検証を行う。
+     * SslContextFactoryにロードされた証明書に対して、指定されたホストが一致するか確認する。
+     * 
+     * @param serverAddress サーバーアドレス（"host:port"形式）
+     * @return ホストが証明書に一致する場合true、それ以外はfalse
+     */
+    private boolean isHostAllowedBySslContext(String serverAddress)
+    {
+        // 証明書が読み込まれていない場合は検証不可のため拒否
+        if (sslContextFactoryServer == null)
+        {
+            return false;
+        }
+
+        // サーバーアドレスからホスト名を抽出
+        HostPort hostPort = new HostPort(serverAddress);
+        String host = hostPort.getHost();
+            
+        if (host == null)
+        {
+            return false;
+        }
+            
+        String h = host.toLowerCase();
+            
+        try
+        {
+            // SslContextFactoryから証明書エイリアスを取得し、各証明書に対してホスト名をチェック
+            Set<String> aliases = sslContextFactoryServer.getAliases();
+            for (String alias : aliases)
+            {
+                X509 x509 = sslContextFactoryServer.getX509(alias);
+                if (x509 != null && x509.matches(h))
+                {
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("ホスト {} は証明書エイリアス {} に一致します", h, alias);
+                    return true;
+                }
+            }
+            
+            if (LOG.isDebugEnabled())
+                LOG.debug("ホスト {} はいずれの証明書にも一致しません", h);
+            
+            return false;
+        }
+        catch (Exception e)
+        {
+            LOG.warn("ホスト {} の証明書検証中にエラーが発生しました", serverAddress, e);
+            return false; // エラー時は拒否
+        }
+    }
+
+    /**
+     * Checks the given {@code host} and {@code port} against whitelist and blacklist.
+     *
+     * @param host the host to check
+     * @param port the port to check
+     * @return true if it is allowed to connect to the given host and port
+     */
+    public boolean validateDestination(String host, int port)
+    {
+        String hostPort = host + ":" + port;
+        if (!whiteList.isEmpty())
+        {
+            if (!whiteList.contains(hostPort))
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Host {}:{} not whitelisted", host, port);
+                return false;
+            }
+        }
+        if (!blackList.isEmpty())
+        {
+            if (blackList.contains(hostPort))
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Host {}:{} blacklisted", host, port);
+                return false;
+            }
+        }
+        return true;
+    }
+    private void loadCertificateHosts()
+    {
+        // Try multiple possible paths for the keystore
+        // Jetty ResourceFactoryは相対パスをサポート（プレフィックス不要）
+        String[] keystorePaths = {
+            "kancolle.p12",            // カレントディレクトリ
+            "logbook/kancolle.p12",    // logbookディレクトリ（jlink配布版）
+            "config/kancolle.p12",     // configディレクトリ
+            "./kancolle.p12",          // カレントディレクトリ（明示的）
+            "resources/kancolle.p12",  // resourcesディレクトリ
+        };
+        
+        sslContextFactoryServer = null;
+        sslContextFactoryClient = null;
+        
+        // Try to load keystore from multiple paths
+        for (String keystorePath : keystorePaths)
+        {
+            // Configure the SslContextFactory.Server for accepting client connections (downstream)
+            SslContextFactory.Server serverFactory = new SslContextFactory.Server();
+            serverFactory.setKeyStorePath(keystorePath);
+            serverFactory.setKeyStorePassword("changeit");
+            serverFactory.setKeyStoreType("PKCS12");
+            serverFactory.setCertAlias("kancolle-cert");
+            
+            // CA署名付き証明書を使用する場合の設定
+            // SNI (Server Name Indication) 検証を無効化
+            // これにより、証明書のホスト名とリクエストのホスト名が一致しなくても接続を許可
+            serverFactory.setSniRequired(false);
+            
+            // Start the server factory to load the keystore
+            try
+            {
+                serverFactory.start();
+            }
+            catch (Exception e)
+            {
+                LOG.info("Failed to load keystore from path: {}", keystorePath, e);
+                continue;
+            }
+            
+            // Keystoreのロードに成功した場合、証明書情報をログ出力
+            try
+            {
+                Set<String> aliases = serverFactory.getAliases();
+                LOG.info("Successfully loaded keystore from: {}", keystorePath);
+                LOG.info("Certificate aliases in keystore: {}", aliases);
+                    
+                // 各エイリアスの証明書情報を表示
+                for (String alias : aliases)
+                {
+                    X509 x509 = serverFactory.getX509(alias);
+                    if (x509 != null)
+                    {
+                        int hostsCount = x509.getHosts() != null && x509.getHosts().size() > 0 ? x509.getHosts().size() : 0;
+                        int wildsCount = x509.getWilds() != null && x509.getWilds().size() > 0 ? x509.getWilds().size() : 0;
+                            
+                        LOG.info("  Alias '{}': SAN hosts={}, SAN wilds={}", 
+                            alias, hostsCount, wildsCount);
+                            
+                        // 詳細なSAN情報を表示
+                        if (hostsCount > 0)
+                            LOG.info("    Hosts: {}", x509.getHosts());
+                        if (wildsCount > 0)
+                            LOG.info("    Wilds: {}", x509.getWilds());
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                LOG.warn("Failed to log certificate chain details", e);
+            }
+            
+            // Keystoreのロードに成功
+            this.sslContextFactoryServer = serverFactory;
+            break;
+        }
+        
+        // Server factoryのロードに失敗した場合は早期return
+        if (sslContextFactoryServer == null)
+        {
+            LOG.warn("Failed to load keystore from any of the attempted paths. SSL connections will not be available.");
+            // 注: SSL keystoreのロードに失敗した場合、sslContextFactoryServerがnullのままとなり、
+            // handleConnect()のisHostAllowedBySslContext()で証明書ベースの検証が行われなくなる。
+            // その結果、すべてのCONNECTリクエストが後続のConnectHandlerに委譲される。
+            // したがって、Client factoryの初期化は不要。
+            return;
+        }
+        
+        // Server factoryのロードに成功した場合、Client factoryを初期化
+        // Create client factory for upstream connections (to remote servers)
+        SslContextFactory.Client clientFactory = new SslContextFactory.Client();
+        // リモートサーバーの証明書を検証しない
+        clientFactory.setTrustAll(true);
+        // ホスト名検証を無効化
+        clientFactory.setEndpointIdentificationAlgorithm(null);
+        
+        try
+        {
+            clientFactory.start();
+            this.sslContextFactoryClient = clientFactory;
+        }
+        catch (Exception e)
+        {
+            LOG.error("Failed to initialize SSL client factory", e);
+            
+            // Server factoryもクリーンアップ
+            try
+            {
+                sslContextFactoryServer.stop();
+            }
+            catch (Exception ex)
+            {
+                LOG.error("Failed to stop SSL server factory", ex);
+            }
+            this.sslContextFactoryServer = null;
+        }
+    }
+
+    protected class ConnectManager extends SelectorManager
+    {
+        protected ConnectManager(Executor executor, Scheduler scheduler, int selectors)
+        {
+            super(executor, scheduler, selectors);
+        }
+
+        @Override
+        protected EndPoint newEndPoint(SelectableChannel channel, ManagedSelector selector, SelectionKey key)
+        {
+            SocketChannelEndPoint endPoint = new SocketChannelEndPoint((SocketChannel)channel, selector, key, getScheduler());
+            endPoint.setIdleTimeout(getIdleTimeout());
+            return endPoint;
+        }
+
+        @Override
+        public Connection newConnection(SelectableChannel channel, EndPoint endpoint, Object attachment) throws IOException
+        {
+            if (ReverseConnectHandler.LOG.isDebugEnabled())
+                ReverseConnectHandler.LOG.debug("Connected to {}", ((SocketChannel)channel).getRemoteAddress());
+            ConnectContext connectContext = (ConnectContext)attachment;
+            
+            // Create upstream connection (potentially SSL-wrapped)
+            UpstreamConnection connection = newUpstreamConnection(endpoint, connectContext);
+            connection.setInputBufferSize(getBufferSize());
+            
+            // If the endpoint is SSL-wrapped, we need to handle the SSL connection lifecycle
+            if (endpoint instanceof SslConnection.SslEndPoint)
+            {
+                // Get the parent SslConnection and ensure it's opened
+                SslConnection.SslEndPoint sslEndPoint = 
+                    (SslConnection.SslEndPoint) endpoint;
+                SslConnection sslConnection = sslEndPoint.getSslConnection();
+                
+                // The SslConnection itself needs to be opened
+                sslConnection.onOpen();
+                
+                if (ReverseConnectHandler.LOG.isDebugEnabled())
+                    ReverseConnectHandler.LOG.debug("SSL connection established for upstream");
+            }
+            
+            return connection;
+        }
+
+        @Override
+        protected void connectionFailed(SelectableChannel channel, final Throwable ex, final Object attachment)
+        {
+            close(channel);
+            ConnectContext connectContext = (ConnectContext)attachment;
+            onConnectFailure(connectContext.request, connectContext.response, connectContext.callback, ex);
+        }
+    }
+
+    public static class ConnectContext
+    {
+        private final ConcurrentMap<String, Object> context = new ConcurrentHashMap<>();
+        private final Request request;
+        private final Response response;
+        private final Callback callback;
+        private final EndPoint endPoint;
+        private final SSLEngine clientSSLEngine;
+        private final SSLEngine serverSSLEngine;
+        private final SSLContext sslContext;
+
+        public ConnectContext(Request request, Response response, Callback callback, EndPoint endPoint)
+        {
+            this.request = request;
+            this.response = response;
+            this.callback = callback;
+            this.endPoint = endPoint;
+            this.clientSSLEngine = null;
+            this.serverSSLEngine = null;
+            this.sslContext = null;
+        }
+
+        public ConnectContext(Request request, Response response, Callback callback, EndPoint endPoint, SSLEngine clientSSLEngine, SSLEngine serverSSLEngine)
+        {
+            this.request = request;
+            this.response = response;
+            this.callback = callback;
+            this.endPoint = endPoint;
+            this.clientSSLEngine = clientSSLEngine;
+            this.serverSSLEngine = serverSSLEngine;
+            this.sslContext = null;
+        }
+
+        public ConnectContext(Request request, Response response, Callback callback, EndPoint endPoint, SSLContext sslContext)
+        {
+            this.request = request;
+            this.response = response;
+            this.callback = callback;
+            this.endPoint = endPoint;
+            this.clientSSLEngine = null;
+            this.serverSSLEngine = null;
+            this.sslContext = sslContext;
+        }
+
+        public ConcurrentMap<String, Object> getContext()
+        {
+            return context;
+        }
+
+        public Request getRequest()
+        {
+            return request;
+        }
+
+        public Response getResponse()
+        {
+            return response;
+        }
+
+        public Callback getCallback()
+        {
+            return callback;
+        }
+
+        public EndPoint getEndPoint()
+        {
+            return endPoint;
+        }
+
+        public SSLEngine getClientSSLEngine()
+        {
+            return clientSSLEngine;
+        }
+
+        public SSLEngine getServerSSLEngine()
+        {
+            return serverSSLEngine;
+        }
+
+        public boolean isSSLEnabled()
+        {
+            return clientSSLEngine != null && serverSSLEngine != null;
+        }
+
+        public SSLContext getSslContext()
+        {
+            return sslContext;
+        }
+
+    }
+
+    public class UpstreamConnection extends TunnelConnection
+    {
+        private final ConnectContext connectContext;
+        private final List<HttpClientConnectionListener> httpClientListeners = new CopyOnWriteArrayList<>();
+        private HttpParser httpParser;
+        private boolean parseHttpResponse = false;
+        private HttpResponse currentResponse;
+
+        public UpstreamConnection(EndPoint endPoint, Executor executor, ByteBufferPool bufferPool, ConnectContext connectContext)
+        {
+            super(endPoint, executor, bufferPool, connectContext.getContext());
+            this.connectContext = connectContext;
+        }
+
+        @Override
+        public void onOpen()
+        {
+            super.onOpen();
+            onConnectSuccess(connectContext, this);
+            fillInterested();
+        }
+        
+        /**
+         * Enable or disable HTTP response parsing for upstream connection.
+         * <p>When enabled, HTTP responses from the server will be parsed and notified to listeners.</p>
+         * 
+         * @param enable true to enable HTTP parsing, false to disable
+         */
+        public void setParseHttpResponse(boolean enable)
+        {
+            this.parseHttpResponse = enable;
+            if (enable && httpParser == null)
+            {
+                // Create HTTP parser for response parsing
+                httpParser = new HttpParser(new ResponseParserHandler());
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP response parser enabled for upstream connection {}", this);
+            }
+        }
+        
+        /**
+         * Add a connection listener to track HTTP events.
+         * 
+         * @param listener the listener to add
+         */
+        public void addHttpClientListener(HttpClientConnectionListener listener)
+        {
+            httpClientListeners.add(listener);
+            if (LOG.isDebugEnabled())
+                LOG.debug("Added HTTP client listener {} to {}", listener, this);
+        }
+        
+        /**
+         * Notify all HttpClientConnectionListener instances of content received.
+         * Content is stored directly in CaptureHolder2 for efficiency.
+         */
+        private void notifyContentListeners(ByteBuffer buffer, int offset, int length)
+        {
+            // Extract bytes from buffer for storing in CaptureHolder2
+            byte[] bytes;
+            if (buffer.hasArray())
+            {
+                // Buffer has backing array
+                bytes = Arrays.copyOfRange(buffer.array(), buffer.arrayOffset() + offset, buffer.arrayOffset() + offset + length);
+            }
+            else
+            {
+                // Direct buffer - need to read manually
+                int savedPosition = buffer.position();
+                buffer.position(offset);
+                bytes = new byte[length];
+                buffer.get(bytes);
+                buffer.position(savedPosition);
+            }
+            
+            for (HttpClientConnectionListener listener : httpClientListeners)
+            {
+                try
+                {
+                    // Store response body directly in CaptureHolder2
+                    listener.getCaptureHolder().getCurrentResponse().addBodyChunk(bytes);
+                    
+                    // Also notify listener for backwards compatibility
+                    listener.onContent(buffer, offset, length);
+                }
+                catch (Exception e)
+                {
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Error notifying listener of content", e);
+                }
+            }
+        }
+        
+        /**
+         * Notify all HttpClientConnectionListener instances of successful completion.
+         */
+        private void notifySuccessListeners()
+        {
+            for (HttpClientConnectionListener listener : httpClientListeners)
+            {
+                try
+                {
+                    listener.onSuccess();
+                }
+                catch (Exception e)
+                {
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Error notifying listener of success", e);
+                }
+            }
+        }
+        
+        /**
+         * HttpParser.ResponseHandler implementation for parsing HTTP responses from upstream server.
+         * This handler directly populates CaptureHolder2 with response metadata and body.
+         */
+        private class ResponseParserHandler implements HttpParser.ResponseHandler
+        {
+            @Override
+            public void startResponse(HttpVersion version, int status, String reason)
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Response: {} {} {}", version, status, reason);
+                
+                // Store response status line directly in CaptureHolder2
+                for (HttpClientConnectionListener listener : httpClientListeners)
+                {
+                    listener.getCaptureHolder().getCurrentResponse().setStatusLine(
+                        version.toString(), status, reason);
+                }
+                
+                currentResponse = new HttpResponse(null);
+                currentResponse.version(version).status(status).reason(reason);
+            }
+            
+            @Override
+            public void parsedHeader(HttpField field)
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Response Header: {}: {}", field.getName(), field.getValue());
+                
+                // Store header directly in CaptureHolder2
+                for (HttpClientConnectionListener listener : httpClientListeners)
+                {
+                    listener.getCaptureHolder().getCurrentResponse().addHeader(
+                        field.getName(), field.getValue());
+                }
+                
+                if (currentResponse != null)
+                {
+                    currentResponse.headers(headers -> headers.add(field));
+                }
+            }
+            
+            @Override
+            public boolean headerComplete()
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Response Headers complete");
+                return false;
+            }
+            
+            @Override
+            public boolean content(ByteBuffer buffer)
+            {
+                int length = buffer.remaining();
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Response Content: {} bytes", length);
+                
+                // Notify listeners and store content in CaptureHolder2
+                notifyContentListeners(buffer, buffer.position(), length);
+                return false;
+            }
+            
+            @Override
+            public boolean contentComplete()
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Response Content complete");
+                return false;
+            }
+            
+            @Override
+            public void parsedTrailer(HttpField field)
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Response Trailer: {}", field);
+            }
+            
+            @Override
+            public boolean messageComplete()
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Response Message complete");
+                
+                // Notify success listeners when HTTP response is complete
+                notifySuccessListeners();
+                
+                currentResponse = null;
+                return false;
+            }
+            
+            @Override
+            public void badMessage(HttpException failure)
+            {
+                LOG.warn("Bad HTTP response message: {}", failure != null ? failure.toString() : "unknown");
+            }
+            
+            @Override
+            public void earlyEOF()
+            {
+                LOG.warn("Early EOF while parsing HTTP response");
+            }
+        }
+
+        @Override
+        protected int read(EndPoint endPoint, ByteBuffer buffer) throws IOException
+        {
+            // SslEndPoint automatically handles decryption if SSL is enabled
+            // Save buffer state before reading
+            int positionBefore = buffer.position();
+            
+            int read = ReverseConnectHandler.this.read(endPoint, buffer, getContext());
+            
+            if (read > 0)
+            {
+                // If HTTP parsing is enabled, parse the buffer
+                if (parseHttpResponse && httpParser != null)
+                {
+                    try
+                    {
+                        // Reset parser if it's in END state (previous message completed)
+                        if (httpParser.isComplete())
+                        {
+                            if (LOG.isDebugEnabled())
+                                LOG.debug("Resetting HTTP response parser for new message");
+                            httpParser.reset();
+                        }
+                        
+                        // Save current position
+                        int positionAfter = buffer.position();
+                        
+                        // Create a read-only view for parsing (to avoid modifying buffer state)
+                        buffer.position(positionBefore);
+                        ByteBuffer parseBuffer = buffer.slice();
+                        parseBuffer.limit(read);
+                        
+                        // Parse HTTP response
+                        httpParser.parseNext(parseBuffer);
+                        
+                        // Restore buffer position
+                        buffer.position(positionAfter);
+                    }
+                    catch (Exception e)
+                    {
+            if (LOG.isDebugEnabled())
+                            LOG.debug("Failed to parse HTTP response", e);
+                    }
+                }
+                else
+                {
+                    // In tunnel mode, just notify content listeners if any
+                    if (!httpClientListeners.isEmpty())
+                    {
+                        notifyContentListeners(buffer, positionBefore, read);
+                    }
+                }
+                
+                if (LOG.isTraceEnabled())
+                {
+                    try
+                    {
+                        // Current buffer position after read
+                        int positionAfter = buffer.position();
+                        
+                        // Read buffer content as string (from the data just read)
+                        // Data is between positionBefore and positionAfter
+                        buffer.position(positionBefore);
+                        byte[] bytes = new byte[read];
+                        buffer.get(bytes);
+                        String content = new String(bytes, StandardCharsets.UTF_8);
+                        
+                        // Restore buffer position to after read
+                        buffer.position(positionAfter);
+                        
+                        LOG.trace("Read {} bytes from server (upstream) {}: [{}]", read, this, content);
+                    }
+                    catch (Exception e)
+                    {
+                        LOG.trace("Failed to log buffer content", e);
+                    }
+                }
+            }
+            return read;
+        }
+
+        @Override
+        protected void write(EndPoint endPoint, ByteBuffer buffer, Callback callback)
+        {
+            // SslEndPoint automatically handles encryption if SSL is enabled
+            if (LOG.isTraceEnabled() && buffer.hasRemaining())
+            {
+                int remaining = buffer.remaining();
+                
+                // Save current buffer position
+                int position = buffer.position();
+                int limit = buffer.limit();
+                
+                // Read buffer content as string
+                byte[] bytes = new byte[remaining];
+                buffer.get(bytes);
+                String content = new String(bytes, StandardCharsets.UTF_8);
+                
+                // Restore buffer position
+                buffer.position(position);
+                buffer.limit(limit);
+                
+                LOG.trace("Writing {} bytes to server (upstream) {}: [{}]", remaining, this, content);
+            }
+            ReverseConnectHandler.this.write(endPoint, buffer, callback, getContext());
+        }
+        
+        @Override
+        public void onClose(Throwable cause)
+        {
+            // Cleanup HTTP parser if present
+            if (httpParser != null)
+            {
+                try
+                {
+                    httpParser.close();
+                }
+                catch (Exception e)
+                {
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Error closing HTTP parser", e);
+                }
+            }
+            
+            // If closing without error and HTTP request was received, notify success listeners
+            // Check if any listener has a valid request URI to avoid "null null" logs
+            boolean hasValidRequest = false;
+            for (HttpClientConnectionListener listener : httpClientListeners)
+            {
+                if (listener.hasValidRequest())
+                {
+                    hasValidRequest = true;
+                    break;
+                }
+            }
+            
+            if (cause == null && hasValidRequest)
+            {
+                notifySuccessListeners();
+            }
+            else if (LOG.isDebugEnabled() && cause == null && !hasValidRequest)
+            {
+                LOG.debug("Skipping notifySuccessListeners() on UpstreamConnection close - no valid HTTP request received");
+            }
+            
+            super.onClose(cause);
+        }
+    }
+
+    public class DownstreamConnection extends TunnelConnection implements Connection.UpgradeTo
+    {
+        private ByteBuffer buffer;
+        private final List<HttpClientConnectionListener> httpClientListeners = new CopyOnWriteArrayList<>();
+        private HttpParser httpParser;
+        private boolean parseHttpRequest = false;
+        private String currentRequestMethod;
+        private String currentRequestURI;
+
+        public DownstreamConnection(EndPoint endPoint, Executor executor, ByteBufferPool bufferPool, ConcurrentMap<String, Object> context)
+        {
+            super(endPoint, executor, bufferPool, context);
+        }
+        
+        /**
+         * Add a Connection.Listener to this connection.
+         * The listener will be notified of connection lifecycle events.
+         * 
+         * @param listener the listener to add
+         */
+        public void addConnectionListener(Connection.Listener listener)
+        {
+            addEventListener(listener);
+            if (LOG.isDebugEnabled())
+                LOG.debug("Added connection listener {} to {}", listener, this);
+        }
+        
+        /**
+         * Remove a Connection.Listener from this connection.
+         * 
+         * @param listener the listener to remove
+         */
+        public void removeConnectionListener(Connection.Listener listener)
+        {
+            removeEventListener(listener);
+            if (LOG.isDebugEnabled())
+                LOG.debug("Removed connection listener {} from {}", listener, this);
+        }
+        
+        /**
+         * Enable or disable HTTP request parsing for downstream connection.
+         * <p>When enabled, HTTP requests from the client will be parsed and stored in CaptureHolder.</p>
+         * 
+         * @param enable true to enable HTTP parsing, false to disable
+         */
+        public void setParseHttpRequest(boolean enable)
+        {
+            this.parseHttpRequest = enable;
+            
+            if (enable && httpParser == null)
+            {
+                // HTTPリクエストパーサーを作成
+                httpParser = new HttpParser(new RequestParserHandler());
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP request parser enabled for downstream connection");
+            }
+        }
+        
+        /**
+         * Add a connection listener to track HTTP events.
+         * 
+         * @param listener the listener to add
+         */
+        public void addHttpClientListener(HttpClientConnectionListener listener)
+        {
+            httpClientListeners.add(listener);
+            if (LOG.isDebugEnabled())
+                LOG.debug("Added HTTP client listener {} to {}", listener, this);
+        }
+        
+        /**
+         * Notify all HttpClientConnectionListener instances of content received.
+         * Content is stored directly in CaptureHolder2 for efficiency.
+         */
+        private void notifyContentListeners(ByteBuffer buffer, int offset, int length)
+        {
+            // Extract bytes from buffer for storing in CaptureHolder2
+            byte[] bytes;
+            if (buffer.hasArray())
+            {
+                // Buffer has backing array
+                bytes = Arrays.copyOfRange(buffer.array(), buffer.arrayOffset() + offset, buffer.arrayOffset() + offset + length);
+            }
+            else
+            {
+                // Direct buffer - need to read manually
+                int savedPosition = buffer.position();
+                buffer.position(offset);
+                bytes = new byte[length];
+                buffer.get(bytes);
+                buffer.position(savedPosition);
+            }
+            
+            for (HttpClientConnectionListener listener : httpClientListeners)
+            {
+                try
+                {
+                    // Store request body directly in CaptureHolder2
+                    listener.getCaptureHolder().getCurrentRequest().addBodyChunk(bytes);
+                    
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Captured {} bytes of HTTP request content", length);
+                }
+                catch (Exception e)
+                {
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Error capturing request content", e);
+                }
+            }
+        }
+        
+        /**
+         * HttpParser.RequestHandler implementation for parsing HTTP requests from client.
+         * This handler directly populates CaptureHolder2 with request metadata and body.
+         */
+        private class RequestParserHandler implements HttpParser.RequestHandler
+        {
+            @Override
+            public void startRequest(String method, String uri, HttpVersion version)
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Request: {} {} {}", method, uri, version);
+                
+                currentRequestMethod = method;
+                currentRequestURI = uri;
+                
+                // CaptureHolder2にリクエスト行を直接保存
+                for (HttpClientConnectionListener listener : httpClientListeners)
+                {
+                    listener.getCaptureHolder().getCurrentRequest().setRequestLine(
+                        method, uri, version.toString());
+                    listener.setCurrentRequest(method, uri);
+                }
+            }
+            
+            @Override
+            public void parsedHeader(HttpField field)
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Request Header: {}: {}", field.getName(), field.getValue());
+                
+                // Store header directly in CaptureHolder2
+                for (HttpClientConnectionListener listener : httpClientListeners)
+                {
+                    listener.getCaptureHolder().getCurrentRequest().addHeader(
+                        field.getName(), field.getValue());
+                }
+            }
+            
+            @Override
+            public boolean headerComplete()
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Request Headers complete");
+                return false;
+            }
+            
+            @Override
+            public boolean content(ByteBuffer buffer)
+            {
+                int length = buffer.remaining();
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Request Content: {} bytes", length);
+                
+                // Store request body in CaptureHolder2 via listeners
+                notifyContentListeners(buffer, buffer.position(), length);
+                return false;
+            }
+            
+            @Override
+            public boolean contentComplete()
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Request Content complete");
+                return false;
+            }
+            
+            @Override
+            public void parsedTrailer(HttpField field)
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Request Trailer: {}: {}", field.getName(), field.getValue());
+            }
+            
+            @Override
+            public boolean messageComplete()
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("HTTP Request Message complete: {} {}", currentRequestMethod, currentRequestURI);
+                
+                currentRequestMethod = null;
+                currentRequestURI = null;
+                return false;
+            }
+            
+            @Override
+            public void badMessage(HttpException failure)
+            {
+                LOG.warn("Bad HTTP request message: {}", failure != null ? failure.toString() : "unknown");
+            }
+            
+            @Override
+            public void earlyEOF()
+            {
+                LOG.warn("Early EOF while parsing HTTP request");
+            }
+        }
+
+        @Override
+        public void onUpgradeTo(ByteBuffer buffer)
+        {
+            this.buffer = buffer;
+        }
+
+        @Override
+        public void onOpen()
+        {
+            super.onOpen();
+
+            // Check if this is an SSL endpoint that needs handshake
+            EndPoint endPoint = getEndPoint();
+            if (endPoint instanceof SslConnection.SslEndPoint)
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Downstream SSL connection opened, waiting for SSL handshake from client");
+                
+                // SSL endpoint will handle handshake automatically when we register interest
+                // The SslConnection is already opened through the connection hierarchy
+                // Just register interest in reading to start the SSL handshake
+                fillInterested();
+                return;
+            }
+
+            if (buffer == null)
+            {
+                fillInterested();
+                return;
+            }
+
+            // HTTPパース機能が有効な場合、初期バッファをパース
+            if (parseHttpRequest && httpParser != null && buffer.hasRemaining())
+            {
+                try
+                {
+                    // パーサーがEND状態の場合、リセット
+                    if (httpParser.isComplete())
+                    {
+                        httpParser.reset();
+                    }
+                    
+                    // 初期HTTPリクエストをパース
+                    httpParser.parseNext(buffer.duplicate());
+                    
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Parsed initial HTTP request buffer: {} bytes", buffer.remaining());
+                }
+                catch (Exception e)
+                {
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Failed to parse initial HTTP request", e);
+                }
+            }
+
+            int remaining = buffer.remaining();
+            write(getConnection().getEndPoint(), buffer, new Callback()
+            {
+                @Override
+                public void succeeded()
+                {
+                    buffer = null;
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Wrote initial {} bytes to server {}", remaining, DownstreamConnection.this);
+                    fillInterested();
+                }
+
+                @Override
+                public void failed(Throwable x)
+                {
+                    buffer = null;
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Failed to write initial {} bytes to server {}", remaining, DownstreamConnection.this, x);
+                    close();
+                    getConnection().close();
+                }
+            });
+        }
+
+        @Override
+        protected int read(EndPoint endPoint, ByteBuffer buffer) throws IOException
+        {
+            // Save buffer position BEFORE reading
+            int positionBefore = buffer.position();
+            
+            int read = ReverseConnectHandler.this.read(endPoint, buffer, getContext());
+            
+            if (read > 0)
+            {
+                // HTTPパース機能が有効な場合、バッファをパース
+                if (parseHttpRequest && httpParser != null)
+        {
+            try
+            {
+                        // パーサーがEND状態の場合（前のメッセージ完了済み）、リセット
+                        if (httpParser.isComplete())
+                        {
+                            if (LOG.isDebugEnabled())
+                                LOG.debug("Resetting HTTP request parser for new message");
+                            httpParser.reset();
+                        }
+                        
+                        // 現在位置を保存
+                        int positionAfter = buffer.position();
+                        
+                        // パース用の読み取り専用ビューを作成（バッファ状態を変更しないため）
+                        buffer.position(positionBefore);
+                        ByteBuffer parseBuffer = buffer.slice();
+                        parseBuffer.limit(read);
+                        
+                        // HTTPリクエストをパース
+                        httpParser.parseNext(parseBuffer);
+                        
+                        // バッファ位置を復元
+                        buffer.position(positionAfter);
+            }
+            catch (Exception e)
+            {
+                        if (LOG.isDebugEnabled())
+                            LOG.debug("Failed to parse HTTP request", e);
+                    }
+                }
+                else
+                {
+                    // トンネルモード: リスナーがあればコンテンツを通知
+                    if (!httpClientListeners.isEmpty())
+                    {
+                        notifyContentListeners(buffer, positionBefore, read);
+                    }
+                }
+                
+            if (LOG.isTraceEnabled())
+                {
+                    try
+                    {
+                        // Current buffer position after read
+                        int positionAfter = buffer.position();
+                        
+                        // Read buffer content as string (from the data just read)
+                        buffer.position(positionBefore);
+                        byte[] bytes = new byte[read];
+                        buffer.get(bytes);
+                        String content = new String(bytes, StandardCharsets.UTF_8);
+                        
+                        // Restore buffer position to after read
+                        buffer.position(positionAfter);
+                        
+                        LOG.trace("Read {} bytes from client {}: [{}]", read, this, content);
+                    }
+                    catch (Exception e)
+                    {
+                        LOG.trace("Failed to log buffer content", e);
+                    }
+                }
+            }
+            return read;
+        }
+
+        @Override
+        protected void write(EndPoint endPoint, ByteBuffer buffer, Callback callback)
+        {
+            if (LOG.isTraceEnabled() && buffer.hasRemaining())
+            {
+                int remaining = buffer.remaining();
+                
+                // Save current buffer position
+                int position = buffer.position();
+                int limit = buffer.limit();
+                
+                // Read buffer content as string
+                byte[] bytes = new byte[remaining];
+                buffer.get(bytes);
+                String content = new String(bytes, StandardCharsets.UTF_8);
+                
+                // Restore buffer position
+                buffer.position(position);
+                buffer.limit(limit);
+                
+                LOG.trace("Writing {} bytes to server {}: [{}]", remaining, this, content);
+            }
+            ReverseConnectHandler.this.write(endPoint, buffer, callback, getContext());
+        }
+        
+        @Override
+        public void onClose(Throwable cause)
+        {
+            // Cleanup HTTP parser if present
+            if (httpParser != null)
+            {
+                try
+                {
+                    httpParser.close();
+                }
+                catch (Exception e)
+                {
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Error closing HTTP parser", e);
+                }
+            }
+            
+            super.onClose(cause);
+        }
+    }
+
+    private abstract static class TunnelConnection extends AbstractConnection.NonBlocking
+    {
+        private final IteratingCallback pipe = new ProxyIteratingCallback();
+        private final ByteBufferPool bufferPool;
+        private final ConcurrentMap<String, Object> context;
+        private TunnelConnection connection;
+
+        protected TunnelConnection(EndPoint endPoint, Executor executor, ByteBufferPool bufferPool, ConcurrentMap<String, Object> context)
+        {
+            super(endPoint, executor);
+            this.bufferPool = bufferPool;
+            this.context = context;
+        }
+
+        public ByteBufferPool getByteBufferPool()
+        {
+            return bufferPool;
+        }
+
+        public ConcurrentMap<String, Object> getContext()
+        {
+            return context;
+        }
+
+        public Connection getConnection()
+        {
+            return connection;
+        }
+
+        public void setConnection(TunnelConnection connection)
+        {
+            this.connection = connection;
+        }
+
+        @Override
+        public void onFillable()
+        {
+            pipe.iterate();
+        }
+
+        protected abstract int read(EndPoint endPoint, ByteBuffer buffer) throws IOException;
+
+        protected abstract void write(EndPoint endPoint, ByteBuffer buffer, Callback callback);
+
+        protected void close(Throwable failure)
+        {
+            getEndPoint().close(failure);
+        }
+
+        @Override
+        public String toConnectionString()
+        {
+            EndPoint endPoint = getEndPoint();
+            return String.format("%s@%x[l:%s<=>r:%s]",
+                TypeUtil.toShortName(getClass()),
+                hashCode(),
+                endPoint.getLocalSocketAddress(),
+                endPoint.getRemoteSocketAddress());
+        }
+
+        private class ProxyIteratingCallback extends IteratingCallback
+        {
+            private RetainableByteBuffer buffer;
+            private int filled;
+
+            @Override
+            protected Action process()
+            {
+                buffer = bufferPool.acquire(getInputBufferSize(), true);
+                try
+                {
+                    ByteBuffer byteBuffer = buffer.getByteBuffer();
+                    int filled = this.filled = read(getEndPoint(), byteBuffer);
+                    if (filled > 0)
+                    {
+                        write(connection.getEndPoint(), byteBuffer, this);
+                        return Action.SCHEDULED;
+                    }
+
+                    buffer = Retainable.release(buffer);
+
+                    if (filled == 0)
+                    {
+                        fillInterested(this);
+                        return Action.SCHEDULED;
+                    }
+
+                        connection.getEndPoint().shutdownOutput();
+                        return Action.SUCCEEDED;
+                }
+                catch (IOException x)
+                {
+                    if (LOG.isDebugEnabled())
+                        LOG.debug("Could not fill {}", TunnelConnection.this, x);
+                    buffer.release();
+                    disconnect(x);
+                    return Action.SUCCEEDED;
+                }
+            }
+
+            @Override
+            protected void onSuccess()
+            {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Wrote {} bytes {}", filled, TunnelConnection.this);
+                buffer = Retainable.release(buffer);
+            }
+
+            @Override
+            protected void onFailure(Throwable x)
+            {
+                if (LOG.isDebugEnabled())
+                {
+                    // Provide more context for common error types
+                    if (x instanceof TimeoutException)
+                    {
+                        LOG.debug("Connection timeout while writing {} bytes {}: {}", 
+                            filled, TunnelConnection.this, x.getMessage());
+                    }
+                    else if (x instanceof ClosedChannelException)
+                    {
+                        LOG.debug("Connection closed while writing {} bytes {}", 
+                            filled, TunnelConnection.this);
+                    }
+                    else
+                    {
+                        LOG.debug("Failed to write {} bytes {}", filled, TunnelConnection.this, x);
+                    }
+                }
+                disconnect(x);
+            }
+
+            @Override
+            protected void onCompleteFailure(Throwable cause)
+            {
+                buffer = Retainable.release(buffer);
+            }
+
+            @Override
+            public InvocationType getInvocationType()
+            {
+                return InvocationType.NON_BLOCKING;
+            }
+
+            private void disconnect(Throwable x)
+            {
+                TunnelConnection.this.close(x);
+                connection.close(x);
+            }
+        }
+    }
+    
+    /**
+     * リクエストメタデータのラッパークラス。完全なHTTPヘッダーサポート付き。
+     * Jetty Core 12 API用に設計され、CaptureHolder2と統合される。
+     */
+    static class RequestMetaDataWrapper implements RequestMetaData, Cloneable
+    {
+        private String contentType;
+        private String method;
+        private String requestURI;
+        private String queryString;
+        private Map<String, String> headers = new LinkedHashMap<>();
+        private byte[] requestBodyBytes = null;  // Store as byte array, not InputStream
+        private Map<String, List<String>> parameterMap = null;  // Lazy-initialized parameter map
+
+        /**
+         * Initialize from CaptureHolder2.HttpRequest.
+         * This is the primary and most efficient initialization method.
+         */
+        void set(CaptureHolder2.HttpRequest httpRequest)
+        {
+            this.method = httpRequest.getMethod();
+            this.requestURI = httpRequest.getUri();
+            this.headers = new LinkedHashMap<>(httpRequest.getHeaders());
+            this.contentType = httpRequest.getContentType();
+            
+            // Extract query string from URI
+            if (requestURI != null && requestURI.contains("?"))
+            {
+                int queryIndex = requestURI.indexOf('?');
+                this.queryString = requestURI.substring(queryIndex + 1);
+            }
+            
+            // Store body as byte array (not InputStream) for thread-safe reuse
+            if (httpRequest.getBodySize() > 0)
+            {
+                this.requestBodyBytes = httpRequest.getBodyAsBytes();
+            }
+        }
+
+        /**
+         * Legacy initialization from Jetty Request (for CONNECT request metadata).
+         * Less efficient than set(CaptureHolder2.HttpRequest).
+         */
+        void set(Request req)
+        {
+            this.contentType = req.getHeaders().get(HttpHeader.CONTENT_TYPE);
+            this.method = req.getMethod();
+            this.requestURI = req.getHttpURI().getPath();
+            this.queryString = req.getHttpURI().getQuery();
+            
+            // Copy headers
+            req.getHeaders().forEach(field -> 
+                headers.put(field.getName(), field.getValue())
+            );
+        }
+        
+        /**
+         * Set body from InputStream (legacy support).
+         * Converts to byte array for thread-safe reuse.
+         */
+        void set(InputStream body) throws IOException
+        {
+            if (body != null)
+            {
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = body.read(buffer)) != -1)
+                {
+                    baos.write(buffer, 0, bytesRead);
+                }
+                this.requestBodyBytes = baos.toByteArray();
+            }
+        }
+        
+        void setMethod(String method)
+        {
+            this.method = method;
+        }
+        
+        void setRequestURI(String requestURI)
+        {
+            this.requestURI = requestURI;
+            
+            // Extract query string from URI
+            if (requestURI != null && requestURI.contains("?"))
+            {
+                int queryIndex = requestURI.indexOf('?');
+                this.queryString = requestURI.substring(queryIndex + 1);
+            }
+        }
+        
+        void setContentType(String contentType)
+        {
+            this.contentType = contentType;
+        }
+        
+        void addHeader(String name, String value)
+        {
+            headers.put(name, value);
+        }
+        
+        /**
+         * Get all HTTP headers.
+         */
+        public Map<String, String> getHeaders()
+        {
+            return Collections.unmodifiableMap(headers);
+        }
+        
+        /**
+         * Get a specific HTTP header value.
+         */
+        public String getHeader(String name)
+        {
+            return headers.get(name);
+        }
+
+        @Override
+        public String getContentType()
+        {
+            return contentType;
+        }
+
+        @Override
+        public String getMethod()
+        {
+            return method;
+        }
+
+        @Override
+        public Map<String, List<String>> getParameterMap()
+        {
+            // Lazy initialization of parameter map
+            if (parameterMap == null)
+            {
+                parameterMap = parseParameters();
+            }
+            return parameterMap;
+        }
+        
+        /**
+         * Parse URL parameters from query string and request body.
+         */
+        private Map<String, List<String>> parseParameters()
+        {
+            Map<String, List<String>> params = new LinkedHashMap<>();
+            
+            // Parse query string parameters
+            if (queryString != null && !queryString.isEmpty())
+            {
+                parseParameterString(queryString, params);
+            }
+            
+            // Parse POST body parameters (application/x-www-form-urlencoded)
+            if ("POST".equalsIgnoreCase(method) && requestBodyBytes != null && requestBodyBytes.length > 0)
+            {
+                String bodyContentType = contentType != null ? contentType.toLowerCase() : "";
+                if (bodyContentType.contains("application/x-www-form-urlencoded"))
+                {
+                    try
+                    {
+                        String bodyString = new String(requestBodyBytes, StandardCharsets.UTF_8);
+                        parseParameterString(bodyString, params);
+                    }
+                    catch (Exception e)
+                    {
+                        LOG.warn("Failed to parse POST body parameters", e);
+                    }
+                }
+            }
+            
+            return params;
+        }
+        
+        /**
+         * Parse URL-encoded parameter string into a parameter map.
+         */
+        private void parseParameterString(String paramString, Map<String, List<String>> params)
+        {
+            if (paramString == null || paramString.isEmpty())
+            {
+                return;
+            }
+            
+            String[] pairs = paramString.split("&");
+            for (String pair : pairs)
+            {
+                int idx = pair.indexOf('=');
+                String key;
+                String value;
+                
+                if (idx > 0)
+                {
+                    key = urlDecode(pair.substring(0, idx));
+                    value = urlDecode(pair.substring(idx + 1));
+                }
+                else if (idx == 0)
+                {
+                    // =value (no key)
+                    continue;
+                }
+                else
+                {
+                    // key with no value
+                    key = urlDecode(pair);
+                    value = "";
+                }
+                
+                params.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+            }
+        }
+        
+        /**
+         * URL decode a string.
+         */
+        private String urlDecode(String encoded)
+        {
+            try
+            {
+                return java.net.URLDecoder.decode(encoded, StandardCharsets.UTF_8);
+            }
+            catch (Exception e)
+            {
+                LOG.warn("Failed to URL decode: {}", encoded, e);
+                return encoded;
+            }
+        }
+
+        @Override
+        public String getQueryString()
+        {
+            return queryString;
+        }
+
+        @Override
+        public String getRequestURI()
+        {
+            return requestURI;
+        }
+
+        @Override
+        public Optional<InputStream> getRequestBody()
+        {
+            // Return a new ByteArrayInputStream each time for thread-safe reuse
+            if (requestBodyBytes != null && requestBodyBytes.length > 0)
+            {
+                return Optional.of(new ByteArrayInputStream(requestBodyBytes));
+            }
+            return Optional.empty();
+        }
+        
+        @Override
+        public RequestMetaDataWrapper clone()
+        {
+            try
+            {
+                RequestMetaDataWrapper copy = (RequestMetaDataWrapper) super.clone();
+                // Deep copy headers map
+                copy.headers = new LinkedHashMap<>(this.headers);
+                // Byte array is immutable reference, no need to copy the array itself
+                // (multiple clones can share the same byte array safely)
+                // Parameter map is lazy-initialized, share the reference if already computed
+                copy.parameterMap = this.parameterMap;
+                return copy;
+            }
+            catch (CloneNotSupportedException e)
+            {
+                // This should never happen as we implement Cloneable
+                RequestMetaDataWrapper copy = new RequestMetaDataWrapper();
+                copy.contentType = this.contentType;
+                copy.method = this.method;
+                copy.requestURI = this.requestURI;
+                copy.queryString = this.queryString;
+                copy.headers = new LinkedHashMap<>(this.headers);
+                copy.requestBodyBytes = this.requestBodyBytes;  // Share the byte array reference
+                copy.parameterMap = this.parameterMap;  // Share the parameter map reference
+                return copy;
+            }
+        }
+    }
+
+    /**
+     * レスポンスメタデータのラッパークラス。完全なHTTPヘッダーサポート付き。
+     * Jetty Core 12 API用に設計され、CaptureHolder2と統合される。
+     */
+    static class ResponseMetaDataWrapper implements ResponseMetaData, Cloneable
+    {
+        private int status;
+        private String reason;
+        private String contentType;
+        private Map<String, String> headers = new LinkedHashMap<>();
+        private byte[] responseBodyBytes = null;  // Store as byte array, not InputStream
+
+        /**
+         * Initialize from CaptureHolder2.HttpResponse.
+         * This is the primary and most efficient initialization method.
+         */
+        void set(CaptureHolder2.HttpResponse httpResponse)
+        {
+            this.status = httpResponse.getStatus();
+            this.reason = httpResponse.getReason();
+            this.headers = new LinkedHashMap<>(httpResponse.getHeaders());
+            this.contentType = httpResponse.getContentType();
+            
+            // Store body as byte array (with automatic ungzip support)
+            if (httpResponse.getBodySize() > 0)
+            {
+                try
+                {
+                    byte[] bodyBytes = httpResponse.getBodyAsBytes();
+                    String contentEncoding = headers.get("Content-Encoding");
+                    
+                    // Ungzip if needed
+                    if ("gzip".equalsIgnoreCase(contentEncoding))
+                    {
+                        try (InputStream gzipStream = new GZIPInputStream(new ByteArrayInputStream(bodyBytes));
+                             ByteArrayOutputStream baos = new ByteArrayOutputStream())
+                        {
+                            byte[] buffer = new byte[8192];
+                            int bytesRead;
+                            while ((bytesRead = gzipStream.read(buffer)) != -1)
+                            {
+                                baos.write(buffer, 0, bytesRead);
+                            }
+                            this.responseBodyBytes = baos.toByteArray();
+                            
+                            if (LOG.isDebugEnabled())
+                            {
+                                LOG.debug("Response body ungzipped (Content-Encoding: gzip)");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // No gzip, use raw bytes
+                        this.responseBodyBytes = bodyBytes;
+                    }
+                }
+                catch (IOException e)
+                {
+                    LOG.warn("Failed to ungzip response body (Content-Encoding: {}), using raw body", 
+                        headers.get("Content-Encoding"), e);
+                    // Fallback: use raw body bytes
+                    this.responseBodyBytes = httpResponse.getBodyAsBytes();
+                }
+            }
+        }
+
+        /**
+         * Legacy initialization from Jetty Response (for CONNECT response metadata).
+         * Less efficient than set(CaptureHolder2.HttpResponse).
+         */
+        void set(Response res)
+        {
+            this.status = res.getStatus();
+            this.contentType = res.getHeaders().get(HttpHeader.CONTENT_TYPE);
+            
+            // Copy headers
+            res.getHeaders().forEach(field -> 
+                headers.put(field.getName(), field.getValue())
+            );
+        }
+
+        /**
+         * Set body from InputStream (legacy support).
+         * Converts to byte array for thread-safe reuse.
+         */
+        void set(InputStream body) throws IOException
+        {
+            if (body != null)
+            {
+                // Ungzip if needed, then convert to byte array
+                InputStream processedStream = ungzip(body, headers.get("Content-Encoding"));
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = processedStream.read(buffer)) != -1)
+                {
+                    baos.write(buffer, 0, bytesRead);
+                }
+                this.responseBodyBytes = baos.toByteArray();
+            }
+        }
+        
+        void setStatus(int status)
+        {
+            this.status = status;
+        }
+        
+        void setReason(String reason)
+        {
+            this.reason = reason;
+        }
+        
+        void setContentType(String contentType)
+        {
+            this.contentType = contentType;
+        }
+        
+        void addHeader(String name, String value)
+        {
+            headers.put(name, value);
+        }
+        
+        /**
+         * Get all HTTP headers.
+         */
+        public Map<String, String> getHeaders()
+        {
+            return Collections.unmodifiableMap(headers);
+        }
+        
+        /**
+         * Get a specific HTTP header value.
+         */
+        public String getHeader(String name)
+        {
+            return headers.get(name);
+        }
+        
+        /**
+         * Get the HTTP status reason phrase.
+         */
+        public String getReason()
+        {
+            return reason;
+        }
+
+        @Override
+        public int getStatus()
+        {
+            return status;
+        }
+
+        @Override
+        public String getContentType()
+        {
+            return contentType;
+        }
+
+        @Override
+        public Optional<InputStream> getResponseBody()
+        {
+            // Return a new ByteArrayInputStream each time for thread-safe reuse
+            if (responseBodyBytes != null && responseBodyBytes.length > 0)
+            {
+                return Optional.of(new ByteArrayInputStream(responseBodyBytes));
+            }
+            return Optional.empty();
+        }
+        
+        @Override
+        public ResponseMetaDataWrapper clone()
+        {
+            try
+            {
+                ResponseMetaDataWrapper copy = (ResponseMetaDataWrapper) super.clone();
+                // Deep copy headers map
+                copy.headers = new LinkedHashMap<>(this.headers);
+                // Byte array is immutable reference, no need to copy the array itself
+                // (multiple clones can share the same byte array safely)
+                return copy;
+            }
+            catch (CloneNotSupportedException e)
+            {
+                // This should never happen as we implement Cloneable
+                ResponseMetaDataWrapper copy = new ResponseMetaDataWrapper();
+                copy.status = this.status;
+                copy.reason = this.reason;
+                copy.contentType = this.contentType;
+                copy.headers = new LinkedHashMap<>(this.headers);
+                copy.responseBodyBytes = this.responseBodyBytes;  // Share the byte array reference
+                return copy;
+            }
+        }
+
+        /**
+         * Improved ungzip with Content-Encoding awareness.
+         */
+        private static InputStream ungzip(InputStream body, String contentEncoding) throws IOException
+        {
+            // Check Content-Encoding header first
+            if ("gzip".equalsIgnoreCase(contentEncoding))
+            {
+                return new GZIPInputStream(body);
+            }
+            
+            // SequenceInputStream など mark をサポートしていないストリームを BufferedInputStream でラップ
+            // これにより、magic byte 検出が正しく機能する
+            if (!body.markSupported())
+            {
+                body = new BufferedInputStream(body);
+            }
+            
+            // Magic byte detection (GZIP header: 0x1f8b)
+            body.mark(2);
+            int byte1 = body.read();
+            int byte2 = body.read();
+            body.reset();
+            
+            // Check if data is gzip compressed (even if Content-Encoding header is missing)
+            int magicbyte = (byte1 << 8) | byte2;
+            if (magicbyte == 0x1f8b)
+            {
+                return new GZIPInputStream(body);
+            }
+            return body;
+        }
+    }
+}
+
