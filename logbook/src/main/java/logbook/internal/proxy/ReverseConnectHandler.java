@@ -13,7 +13,6 @@
 
 package logbook.internal.proxy;
 
-import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -43,19 +42,20 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import java.util.zip.GZIPInputStream;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.compression.brotli.BrotliCompression;
+import org.eclipse.jetty.compression.gzip.GzipCompression;
 import org.eclipse.jetty.client.transport.HttpResponse;
 
-import logbook.internal.LoggerHolder;
 import logbook.internal.ThreadManager;
 import logbook.plugin.PluginServices;
 import logbook.proxy.ContentListenerSpi;
 import logbook.proxy.RequestMetaData;
 import logbook.proxy.ResponseMetaData;
+import lombok.extern.slf4j.Slf4j;
 
 import org.eclipse.jetty.http.HttpException;
 import org.eclipse.jetty.http.HttpField;
@@ -90,8 +90,6 @@ import org.eclipse.jetty.util.TypeUtil;
 import org.eclipse.jetty.util.thread.Scheduler;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.ssl.X509;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * <p>HTTP CONNECTメソッドをサポートする{@link Handler}実装。完全なHTTPパース機能を持つ。</p>
@@ -162,10 +160,9 @@ import org.slf4j.LoggerFactory;
  * };
  * }</pre>
  */
+@Slf4j
 public class ReverseConnectHandler extends Handler.Wrapper
 {
-    private static final Logger LOG = LoggerFactory.getLogger(ReverseConnectHandler.class);
-
     private final Set<String> whiteList = new HashSet<>();
     private final Set<String> blackList = new HashSet<>();
     private SSLContext sslContext;
@@ -339,8 +336,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         client.setConnectTimeout(getConnectTimeout());
         client.setIdleTimeout(getIdleTimeout());
         
-        if (LOG.isDebugEnabled())
-            LOG.debug("Created HttpClient for ReverseConnectHandler");
+        log.debug("Created HttpClient for ReverseConnectHandler");
         
         return client;
     }
@@ -370,13 +366,11 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 // 証明書にマッチしないホストは、後続のConnectHandler（proxy2）で処理される
                 if (serverAddress != null && !isHostAllowedBySslContext(serverAddress))
                 {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("CONNECT host {} not allowed by SSL certificate validation, passing to next handler", serverAddress);
+                    log.debug("CONNECT host {} not allowed by SSL certificate validation, passing to next handler", serverAddress);
                     return super.handle(request, response, callback);
                 }
                 
-                if (LOG.isDebugEnabled())
-                    LOG.debug("CONNECT request for {}", serverAddress);
+                log.debug("CONNECT request for {}", serverAddress);
                 handleConnect(request, response, callback, serverAddress);
                 return true;
             }
@@ -401,8 +395,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             boolean proceed = handleAuthentication(request, response, serverAddress);
             if (!proceed)
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("Missing proxy authentication");
+                log.debug("Missing proxy authentication");
                 sendConnectResponse(request, response, callback, HttpStatus.PROXY_AUTHENTICATION_REQUIRED_407);
                 return;
             }
@@ -413,14 +406,12 @@ public class ReverseConnectHandler extends Handler.Wrapper
 
             if (!validateDestination(host, port))
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("Destination {}:{} forbidden", host, port);
+                log.debug("Destination {}:{} forbidden", host, port);
                 sendConnectResponse(request, response, callback, HttpStatus.FORBIDDEN_403);
                 return;
             }
 
-            if (LOG.isDebugEnabled())
-                LOG.debug("Connecting to {}:{}", host, port);
+            log.debug("Connecting to {}:{}", host, port);
 
             connectToServer(request, host, port, new Promise<>()
             {
@@ -428,7 +419,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 public void succeeded(SocketChannel channel)
                 {
                     ConnectContext connectContext = new ConnectContext(request, response, callback, request.getTunnelSupport().getEndPoint(), sslContext);
-                    LOG.debug("connected to server: {}", channel.isConnected() ? "connected" : "not connected");
+                    log.debug("connected to server: {}", channel.isConnected() ? "connected" : "not connected");
                     if (channel.isConnected())
                         selector.accept(channel, connectContext);
                     else
@@ -476,7 +467,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
         catch (Throwable x)
         {
-            LOG.trace("IGNORED", x);
+            log.trace("IGNORED", x);
         }
     }
 
@@ -526,14 +517,11 @@ public class ReverseConnectHandler extends Handler.Wrapper
         upstreamConnection.setConnection(downstreamConnection);
         downstreamConnection.setConnection(upstreamConnection);
         
-        if (LOG.isDebugEnabled())
-        {
-            // DownstreamConnectionのEndPointを確認（SSL wrapping後のEndPoint）
-            boolean downstreamSSL = downstreamConnection.getEndPoint() instanceof SslConnection.SslEndPoint;
-            boolean upstreamSSL = upstreamConnection.getEndPoint() instanceof SslConnection.SslEndPoint;
-            LOG.debug("Connection setup completed: {}<->{}  (downstream SSL: {}, upstream SSL: {})", 
-                downstreamConnection, upstreamConnection, downstreamSSL, upstreamSSL);
-        }
+        // DownstreamConnectionのEndPointを確認（SSL wrapping後のEndPoint）
+        boolean downstreamSSL = downstreamConnection.getEndPoint() instanceof SslConnection.SslEndPoint;
+        boolean upstreamSSL = upstreamConnection.getEndPoint() instanceof SslConnection.SslEndPoint;
+        log.debug("Connection setup completed: {}<->{}  (downstream SSL: {}, upstream SSL: {})", 
+            downstreamConnection, upstreamConnection, downstreamSSL, upstreamSSL);
 
         Response response = connectContext.getResponse();
         upgradeConnection(request, downstreamConnection);
@@ -542,8 +530,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
 
     protected void onConnectFailure(Request request, Response response, Callback callback, Throwable failure)
     {
-        if (LOG.isDebugEnabled())
-            LOG.debug("CONNECT failed", failure);
+        log.debug("CONNECT failed", failure);
         sendConnectResponse(request, response, callback, HttpStatus.INTERNAL_SERVER_ERROR_500);
     }
 
@@ -562,13 +549,11 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 response.setStatus(HttpStatus.OK_200);
                 callback.succeeded();
             }
-            if (LOG.isDebugEnabled())
-                LOG.debug("CONNECT response sent {} {}", request.getConnectionMetaData().getProtocol(), statusCode);
+            log.debug("CONNECT response sent {} {}", request.getConnectionMetaData().getProtocol(), statusCode);
         }
         catch (Throwable x)
         {
-            if (LOG.isDebugEnabled())
-                LOG.debug("Could not send CONNECT response", x);
+            log.debug("Could not send CONNECT response", x);
         }
     }
 
@@ -604,13 +589,12 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 {
                     sslEndPoint.setConnection(downstreamConnection);
                     
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Set DownstreamConnection to SslEndPoint");
+                    log.debug("Set DownstreamConnection to SslEndPoint");
                 }
             }
             catch (Exception e)
             {
-                LOG.warn("Failed to create SSL downstream connection, falling back to plain connection", e);
+                log.warn("Failed to create SSL downstream connection, falling back to plain connection", e);
                 downstreamConnection = new DownstreamConnection(endPoint, getExecutor(), getByteBufferPool(), context);
             }
         }
@@ -636,13 +620,12 @@ public class ReverseConnectHandler extends Handler.Wrapper
             {
                 // Create SSL-wrapped endpoint for upstream connection
                 EndPoint sslEndPoint = wrapWithSSL(endPoint, connectContext);
-                if (LOG.isDebugEnabled())
-                    LOG.debug("Created SSL upstream connection");
+                log.debug("Created SSL upstream connection");
                 upstreamConnection = new UpstreamConnection(sslEndPoint, getExecutor(), getByteBufferPool(), connectContext);
             }
             catch (Exception e)
             {
-                LOG.warn("Failed to create SSL upstream connection, falling back to plain connection", e);
+                log.warn("Failed to create SSL upstream connection, falling back to plain connection", e);
                 upstreamConnection = new UpstreamConnection(endPoint, getExecutor(), getByteBufferPool(), connectContext);
             }
         }
@@ -698,8 +681,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         SSLEngine sslEngine = sslContextFactoryClient.newSSLEngine(host, port);
         sslEngine.setUseClientMode(true);
         
-        if (LOG.isDebugEnabled())
-            LOG.debug("Creating SSL client connection to {}:{} with SNI", host, port);
+        log.debug("Creating SSL client connection to {}:{} with SNI", host, port);
         
         // Create SslConnection wrapping the endpoint
         // Note: SslConnection lifecycle is managed by the EndPoint and will be closed
@@ -764,8 +746,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         // sslEngine.setNeedClientAuth(false);
         // sslEngine.setWantClientAuth(false);
         
-        if (LOG.isDebugEnabled())
-            LOG.debug("Creating SSL server connection for downstream from {}", endPoint.getRemoteSocketAddress());
+        log.debug("Creating SSL server connection for downstream from {}", endPoint.getRemoteSocketAddress());
         
         // Create SslConnection wrapping the endpoint
         // Note: SslConnection lifecycle is managed by the EndPoint and will be closed
@@ -785,8 +766,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         sslConnection.setRenegotiationAllowed(sslContextFactoryServer.isRenegotiationAllowed());
         sslConnection.setRenegotiationLimit(sslContextFactoryServer.getRenegotiationLimit());
         
-        if (LOG.isDebugEnabled())
-            LOG.debug("SSL downstream connection prepared, waiting for client handshake");
+        log.debug("SSL downstream connection prepared, waiting for client handshake");
         
         // Return the SSL endpoint which will handle encryption/decryption
         // Note: The SslConnection will be opened when the DownstreamConnection is set and opened
@@ -826,7 +806,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
      */
     public static class HttpClientConnectionListener implements Connection.Listener
     {
-        private static final Logger LOG = LoggerFactory.getLogger(HttpClientConnectionListener.class);
+        private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(HttpClientConnectionListener.class);
         private final ConnectContext connectContext;
         private final HttpClient httpClient;
         private final CaptureHolder2 captureHolder;
@@ -841,8 +821,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             // Create CaptureHolder2 for this tunnel (manages all HTTP transactions)
             this.captureHolder = new CaptureHolder2();
             
-            if (LOG.isDebugEnabled())
-                LOG.debug("Created CaptureHolder2 for tunnel: {}", connectContext.getRequest().getHttpURI());
+            log.debug("Created CaptureHolder2 for tunnel: {}", connectContext.getRequest().getHttpURI());
         }
         
         /**
@@ -862,8 +841,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         {
             this.currentRequestMethod = method;
             this.currentRequestURI = uri;
-            if (LOG.isDebugEnabled())
-                LOG.debug("Current HTTP request: {} {}", method, uri);
+            log.debug("Current HTTP request: {} {}", method, uri);
         }
         
         /**
@@ -878,12 +856,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
         @Override
         public void onOpened(Connection connection)
         {
-            if (LOG.isDebugEnabled())
-            {
-                Request request = connectContext.getRequest();
-                String uri = request != null ? request.getHttpURI().toString() : "unknown";
-                LOG.debug("Downstream connection opened with HttpClient: {} for URI: {}", connection, uri);
-            }
+            Request request = connectContext.getRequest();
+            String uri = request != null ? request.getHttpURI().toString() : "unknown";
+            log.debug("Downstream connection opened with HttpClient: {} for URI: {}", connection, uri);
             
             // HttpClient can track this connection if needed
             // For example, register connection metrics, connection pool management, etc.
@@ -892,12 +867,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
         @Override
         public void onClosed(Connection connection)
         {
-            if (LOG.isDebugEnabled())
-            {
-                Request request = connectContext.getRequest();
-                String uri = request != null ? request.getHttpURI().toString() : "unknown";
-                LOG.debug("Downstream connection closed with HttpClient: {} for URI: {}", connection, uri);
-            }
+            Request request = connectContext.getRequest();
+            String uri = request != null ? request.getHttpURI().toString() : "unknown";
+            log.debug("Downstream connection closed with HttpClient: {} for URI: {}", connection, uri);
             
             // HttpClient cleanup if needed
             // For example, release connection resources, update connection pool, etc.
@@ -913,11 +885,11 @@ public class ReverseConnectHandler extends Handler.Wrapper
          */
         public void onContent(ByteBuffer buffer, int offset, int length)
         {
-            if (LOG.isTraceEnabled())
+            if (log.isTraceEnabled())
             {
                 Request request = connectContext.getRequest();
                 String uri = request != null ? request.getHttpURI().toString() : "unknown";
-                LOG.trace("Content received for tunnel: {}, length: {}", uri, length);
+                log.trace("Content received for tunnel: {}, length: {}", uri, length);
                 
                 // Log content as UTF-8 string for debugging
                 try
@@ -929,13 +901,13 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     byte[] bytes = new byte[length];
                     buffer.get(bytes);
                     String content = new String(bytes, StandardCharsets.UTF_8);
-                    LOG.trace("Content (first 500 chars): {}", content.length() > 500 ? content.substring(0, 500) : content);
+                    log.trace("Content (first 500 chars): {}", content.length() > 500 ? content.substring(0, 500) : content);
                     buffer.position(savedPosition);
                     buffer.limit(savedLimit);
                 }
                 catch (Exception e)
                 {
-                    LOG.trace("Failed to log content", e);
+                    log.trace("Failed to log content", e);
                 }
             }
 
@@ -956,10 +928,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 return;
             }
             
-            if (LOG.isDebugEnabled())
-            {
-                LOG.debug("HTTP transaction completed: {} {}", currentRequestMethod, currentRequestURI);
-            }
+            log.debug("HTTP transaction completed: {} {}", currentRequestMethod, currentRequestURI);
             
             try
             {
@@ -974,8 +943,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     // Check if we have meaningful data
                     if (httpRequest.getMethod() == null && httpResponse.getStatus() == 0)
                     {
-                        if (LOG.isDebugEnabled())
-                            LOG.debug("No HTTP data to process (empty transaction)");
+                        log.debug("No HTTP data to process (empty transaction)");
                         return;
                     }
                     
@@ -1010,12 +978,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
                         }
                     }
 
-                    if (LOG.isDebugEnabled())
-                    {
-                        LOG.debug("HTTP transaction data captured for processing: {} {} (req: {} bytes, res: {} bytes)", 
-                            httpRequest.getMethod(), httpRequest.getUri(), 
-                            httpRequest.getBodySize(), httpResponse.getBodySize());
-                    }
+                    log.debug("HTTP transaction data captured for processing: {} {} (req: {} bytes, res: {} bytes)", 
+                        httpRequest.getMethod(), httpRequest.getUri(), 
+                        httpRequest.getBodySize(), httpResponse.getBodySize());
                     
                     // Mark transaction as complete and prepare for next one (Keep-Alive support)
                     holder.completeTransaction();
@@ -1033,16 +998,15 @@ public class ReverseConnectHandler extends Handler.Wrapper
                         {
                             executor.submit(task);
                         }
-                        else if (LOG.isDebugEnabled())
+                        else
                         {
-                            LOG.debug("Skipping HTTP transaction processing - ExecutorService is shutdown");
+                            log.debug("Skipping HTTP transaction processing - ExecutorService is shutdown");
                         }
                     }
                     catch (RejectedExecutionException e)
                     {
                         // シャットダウン中にタスクが拒否された場合（正常なシャットダウン）
-                        if (LOG.isDebugEnabled())
-                            LOG.debug("HTTP transaction processing rejected - application is shutting down");
+                        log.debug("HTTP transaction processing rejected - application is shutting down");
                     }
                     
                     // Reset current request info for next HTTP exchange in this tunnel
@@ -1052,7 +1016,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             }
             catch (Exception e)
             {
-                LOG.warn("Failed to process HTTP transaction data", e);
+                log.warn("Failed to process HTTP transaction data", e);
             }
         }
         
@@ -1077,8 +1041,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 listeners = PluginServices.instances(ContentListenerSpi.class)
                     .collect(Collectors.toList());
                 
-                if (LOG.isDebugEnabled())
-                    LOG.debug("Initialized {} content listeners", listeners.size());
+                log.debug("Initialized {} content listeners", listeners.size());
             }
         }
         
@@ -1099,8 +1062,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 
                 if (listeners.isEmpty())
                 {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("No content listeners registered, skipping processing");
+                    log.debug("No content listeners registered, skipping processing");
                     return;
                 }
                 
@@ -1109,8 +1071,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 {
                     try
                     {
-                        if (LOG.isDebugEnabled())
-                            LOG.debug("requestURI: {}", baseReq.getRequestURI());
+                        log.debug("requestURI: {}", baseReq.getRequestURI());
                         
                         // Clone request metadata (already includes body from CaptureHolder2)
                         RequestMetaDataWrapper req = baseReq.clone();
@@ -1118,9 +1079,8 @@ public class ReverseConnectHandler extends Handler.Wrapper
                         // Test if listener is interested in this request
                         if (!listener.test(req))
                         {
-                            if (LOG.isDebugEnabled())
-                                LOG.debug("Listener {} not interested in request {}", 
-                                    listener.getClass().getSimpleName(), req.getRequestURI());
+                            log.debug("Listener {} not interested in request {}", 
+                                listener.getClass().getSimpleName(), req.getRequestURI());
                             continue;
                         }
                         
@@ -1135,21 +1095,19 @@ public class ReverseConnectHandler extends Handler.Wrapper
                         Runnable task = () -> {
                             try
                             {
-                                if (LOG.isDebugEnabled())
-                                    LOG.debug("Processing request {} with listener {} (req: {} bytes, res: {} bytes)", 
-                                        req.getRequestURI(), listener.getClass().getSimpleName(),
-                                        requestBodySize, responseBodySize);
+                                log.debug("Processing request {} with listener {} (req: {} bytes, res: {} bytes)", 
+                                    req.getRequestURI(), listener.getClass().getSimpleName(),
+                                    requestBodySize, responseBodySize);
                                 
                                 listener.accept(req, res);
                                 
-                                if (LOG.isDebugEnabled())
-                                    LOG.debug("Successfully processed request {} with listener {}", 
-                                        req.getRequestURI(), listener.getClass().getSimpleName());
+                                log.debug("Successfully processed request {} with listener {}", 
+                                    req.getRequestURI(), listener.getClass().getSimpleName());
                             }
                             catch (Exception e)
                             {
-                                LoggerHolder.get().warn("Content listener " + 
-                                    listener.getClass().getSimpleName() + " failed to process request", e);
+                                log.warn("Content listener {} failed to process request", 
+                                    listener.getClass().getSimpleName(), e);
                             }
                         };
                         
@@ -1161,29 +1119,28 @@ public class ReverseConnectHandler extends Handler.Wrapper
                             {
                                 executor.submit(task);
                             }
-                            else if (LOG.isDebugEnabled())
+                            else
                             {
-                                LOG.debug("Skipping listener {} processing - ExecutorService is shutdown", 
+                                log.debug("Skipping listener {} processing - ExecutorService is shutdown", 
                                     listener.getClass().getSimpleName());
                             }
                         }
                         catch (RejectedExecutionException e)
                         {
                             // シャットダウン中にタスクが拒否された場合（正常なシャットダウン）
-                            if (LOG.isDebugEnabled())
-                                LOG.debug("Listener processing rejected - application is shutting down");
+                            log.debug("Listener processing rejected - application is shutting down");
                         }
                     }
                     catch (Exception e)
                     {
-                        LoggerHolder.get().warn("Failed to process listener " + 
+                        log.warn("Failed to process listener {}", 
                             listener.getClass().getSimpleName(), e);
                     }
                 }
             }
             catch (Exception e)
             {
-                LoggerHolder.get().warn("Failed to invoke content listeners for request: " + 
+                log.warn("Failed to invoke content listeners for request: {}", 
                     baseReq.getRequestURI(), e);
             }
             // 注: ここでtransaction.clear()を呼び出さない理由:
@@ -1200,20 +1157,18 @@ public class ReverseConnectHandler extends Handler.Wrapper
      */
     public static class DownstreamConnectionListener implements Connection.Listener
     {
-        private static final Logger LOG = LoggerFactory.getLogger(DownstreamConnectionListener.class);
+        private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DownstreamConnectionListener.class);
         
         @Override
         public void onOpened(Connection connection)
         {
-            if (LOG.isDebugEnabled())
-                LOG.debug("Downstream connection opened: {}", connection);
+            log.debug("Downstream connection opened: {}", connection);
         }
         
         @Override
         public void onClosed(Connection connection)
         {
-            if (LOG.isDebugEnabled())
-                LOG.debug("Downstream connection closed: {}", connection);
+            log.debug("Downstream connection closed: {}", connection);
         }
     }
 
@@ -1222,8 +1177,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         // Set the new connection as request attribute so that
         // Jetty understands that it has to upgrade the connection.
         request.setAttribute(HttpStream.UPGRADE_CONNECTION_ATTRIBUTE, connection);
-        if (LOG.isDebugEnabled())
-            LOG.debug("Upgraded connection to {}", connection);
+        log.debug("Upgraded connection to {}", connection);
     }
 
     /**
@@ -1299,20 +1253,18 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 X509 x509 = sslContextFactoryServer.getX509(alias);
                 if (x509 != null && x509.matches(h))
                 {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("ホスト {} は証明書エイリアス {} に一致します", h, alias);
+                    log.debug("ホスト {} は証明書エイリアス {} に一致します", h, alias);
                     return true;
                 }
             }
             
-            if (LOG.isDebugEnabled())
-                LOG.debug("ホスト {} はいずれの証明書にも一致しません", h);
+            log.debug("ホスト {} はいずれの証明書にも一致しません", h);
             
             return false;
         }
         catch (Exception e)
         {
-            LOG.warn("ホスト {} の証明書検証中にエラーが発生しました", serverAddress, e);
+            log.warn("ホスト {} の証明書検証中にエラーが発生しました", serverAddress, e);
             return false; // エラー時は拒否
         }
     }
@@ -1331,8 +1283,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         {
             if (!whiteList.contains(hostPort))
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("Host {}:{} not whitelisted", host, port);
+                log.debug("Host {}:{} not whitelisted", host, port);
                 return false;
             }
         }
@@ -1340,17 +1291,18 @@ public class ReverseConnectHandler extends Handler.Wrapper
         {
             if (blackList.contains(hostPort))
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("Host {}:{} blacklisted", host, port);
+                log.debug("Host {}:{} blacklisted", host, port);
                 return false;
             }
         }
         return true;
     }
+    /**
+     * 証明書ホスト情報をロードし、SSL接続用のファクトリを初期化する。
+     */
     private void loadCertificateHosts()
     {
-        // Try multiple possible paths for the keystore
-        // Jetty ResourceFactoryは相対パスをサポート（プレフィックス不要）
+        // 複数のパスからkeystoreのロードを試行
         String[] keystorePaths = {
             "kancolle.p12",            // カレントディレクトリ
             "logbook/kancolle.p12",    // logbookディレクトリ（jlink配布版）
@@ -1362,87 +1314,101 @@ public class ReverseConnectHandler extends Handler.Wrapper
         sslContextFactoryServer = null;
         sslContextFactoryClient = null;
         
-        // Try to load keystore from multiple paths
+        // Serverファクトリのロード
         for (String keystorePath : keystorePaths)
         {
-            // Configure the SslContextFactory.Server for accepting client connections (downstream)
-            SslContextFactory.Server serverFactory = new SslContextFactory.Server();
-            serverFactory.setKeyStorePath(keystorePath);
-            serverFactory.setKeyStorePassword("changeit");
-            serverFactory.setKeyStoreType("PKCS12");
-            serverFactory.setCertAlias("kancolle-cert");
-            
-            // CA署名付き証明書を使用する場合の設定
-            // SNI (Server Name Indication) 検証を無効化
-            // これにより、証明書のホスト名とリクエストのホスト名が一致しなくても接続を許可
-            serverFactory.setSniRequired(false);
-            
-            // Start the server factory to load the keystore
-            try
+            var serverFactory = tryLoadServerFactory(keystorePath);
+            if (serverFactory != null)
             {
-                serverFactory.start();
+                logCertificateInfo(serverFactory, keystorePath);
+                this.sslContextFactoryServer = serverFactory;
+                break;
             }
-            catch (Exception e)
-            {
-                LOG.info("Failed to load keystore from path: {}", keystorePath, e);
-                continue;
-            }
-            
-            // Keystoreのロードに成功した場合、証明書情報をログ出力
-            try
-            {
-                Set<String> aliases = serverFactory.getAliases();
-                LOG.info("Successfully loaded keystore from: {}", keystorePath);
-                LOG.info("Certificate aliases in keystore: {}", aliases);
-                    
-                // 各エイリアスの証明書情報を表示
-                for (String alias : aliases)
-                {
-                    X509 x509 = serverFactory.getX509(alias);
-                    if (x509 != null)
-                    {
-                        int hostsCount = x509.getHosts() != null && x509.getHosts().size() > 0 ? x509.getHosts().size() : 0;
-                        int wildsCount = x509.getWilds() != null && x509.getWilds().size() > 0 ? x509.getWilds().size() : 0;
-                            
-                        LOG.info("  Alias '{}': SAN hosts={}, SAN wilds={}", 
-                            alias, hostsCount, wildsCount);
-                            
-                        // 詳細なSAN情報を表示
-                        if (hostsCount > 0)
-                            LOG.info("    Hosts: {}", x509.getHosts());
-                        if (wildsCount > 0)
-                            LOG.info("    Wilds: {}", x509.getWilds());
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                LOG.warn("Failed to log certificate chain details", e);
-            }
-            
-            // Keystoreのロードに成功
-            this.sslContextFactoryServer = serverFactory;
-            break;
         }
         
         // Server factoryのロードに失敗した場合は早期return
         if (sslContextFactoryServer == null)
         {
-            LOG.warn("Failed to load keystore from any of the attempted paths. SSL connections will not be available.");
-            // 注: SSL keystoreのロードに失敗した場合、sslContextFactoryServerがnullのままとなり、
-            // handleConnect()のisHostAllowedBySslContext()で証明書ベースの検証が行われなくなる。
-            // その結果、すべてのCONNECTリクエストが後続のConnectHandlerに委譲される。
-            // したがって、Client factoryの初期化は不要。
+            log.warn("Failed to load keystore from any of the attempted paths. SSL connections will not be available.");
             return;
         }
         
-        // Server factoryのロードに成功した場合、Client factoryを初期化
-        // Create client factory for upstream connections (to remote servers)
+        // Clientファクトリの初期化
+        initializeClientFactory();
+    }
+    
+    /**
+     * 指定されたパスからServerファクトリのロードを試行する。
+     * 
+     * @param keystorePath keystoreファイルのパス
+     * @return ロード成功時はServerファクトリ、失敗時はnull
+     */
+    private SslContextFactory.Server tryLoadServerFactory(String keystorePath)
+    {
+        SslContextFactory.Server serverFactory = new SslContextFactory.Server();
+        serverFactory.setKeyStorePath(keystorePath);
+        serverFactory.setKeyStorePassword("changeit");
+        serverFactory.setKeyStoreType("PKCS12");
+        serverFactory.setCertAlias("kancolle-cert");
+        serverFactory.setSniRequired(false); // SNI検証を無効化
+        
+        try
+        {
+            serverFactory.start();
+            return serverFactory;
+        }
+        catch (Exception e)
+        {
+            log.info("Failed to load keystore from path: {}", keystorePath, e);
+            return null;
+        }
+    }
+    
+    /**
+     * ロード成功した証明書の情報をログ出力する。
+     */
+    private void logCertificateInfo(SslContextFactory.Server serverFactory, String keystorePath)
+    {
+        try
+        {
+            Set<String> aliases = serverFactory.getAliases();
+            log.info("Successfully loaded keystore from: {}", keystorePath);
+            log.info("Certificate aliases in keystore: {}", aliases);
+            
+            // 各エイリアスの証明書情報を表示
+            aliases.forEach(alias -> logCertificateAlias(serverFactory, alias));
+        }
+        catch (Exception e)
+        {
+            log.warn("Failed to log certificate chain details", e);
+        }
+    }
+    
+    /**
+     * 証明書エイリアスの詳細情報をログ出力する。
+     */
+    private void logCertificateAlias(SslContextFactory.Server serverFactory, String alias)
+    {
+        X509 x509 = serverFactory.getX509(alias);
+        if (x509 == null) return;
+        
+        int hostsCount = (x509.getHosts() != null && x509.getHosts().size() > 0) ? x509.getHosts().size() : 0;
+        int wildsCount = (x509.getWilds() != null && x509.getWilds().size() > 0) ? x509.getWilds().size() : 0;
+        
+        log.info("  Alias '{}': SAN hosts={}, SAN wilds={}", alias, hostsCount, wildsCount);
+        
+        if (hostsCount > 0) log.info("    Hosts: {}", x509.getHosts());
+        if (wildsCount > 0) log.info("    Wilds: {}", x509.getWilds());
+    }
+    
+    /**
+     * Clientファクトリを初期化する。
+     */
+    private void initializeClientFactory()
+    {
         SslContextFactory.Client clientFactory = new SslContextFactory.Client();
-        // リモートサーバーの証明書を検証しない
-        clientFactory.setTrustAll(true);
-        // ホスト名検証を無効化
-        clientFactory.setEndpointIdentificationAlgorithm(null);
+        clientFactory.setTrustAll(true); // リモートサーバーの証明書を検証しない
+        clientFactory.setEndpointIdentificationAlgorithm(null); // ホスト名検証を無効化
         
         try
         {
@@ -1451,19 +1417,28 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
         catch (Exception e)
         {
-            LOG.error("Failed to initialize SSL client factory", e);
-            
-            // Server factoryもクリーンアップ
-            try
+            log.error("Failed to initialize SSL client factory", e);
+            cleanupServerFactory();
+        }
+    }
+    
+    /**
+     * Serverファクトリをクリーンアップする。
+     */
+    private void cleanupServerFactory()
+    {
+        try
+        {
+            if (sslContextFactoryServer != null)
             {
                 sslContextFactoryServer.stop();
             }
-            catch (Exception ex)
-            {
-                LOG.error("Failed to stop SSL server factory", ex);
-            }
-            this.sslContextFactoryServer = null;
         }
+        catch (Exception ex)
+        {
+            log.error("Failed to stop SSL server factory", ex);
+        }
+        this.sslContextFactoryServer = null;
     }
 
     protected class ConnectManager extends SelectorManager
@@ -1484,8 +1459,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         @Override
         public Connection newConnection(SelectableChannel channel, EndPoint endpoint, Object attachment) throws IOException
         {
-            if (ReverseConnectHandler.LOG.isDebugEnabled())
-                ReverseConnectHandler.LOG.debug("Connected to {}", ((SocketChannel)channel).getRemoteAddress());
+            ReverseConnectHandler.log.debug("Connected to {}", ((SocketChannel)channel).getRemoteAddress());
             ConnectContext connectContext = (ConnectContext)attachment;
             
             // Create upstream connection (potentially SSL-wrapped)
@@ -1493,18 +1467,15 @@ public class ReverseConnectHandler extends Handler.Wrapper
             connection.setInputBufferSize(getBufferSize());
             
             // If the endpoint is SSL-wrapped, we need to handle the SSL connection lifecycle
-            if (endpoint instanceof SslConnection.SslEndPoint)
+            if (endpoint instanceof SslConnection.SslEndPoint sslEndPoint)
             {
                 // Get the parent SslConnection and ensure it's opened
-                SslConnection.SslEndPoint sslEndPoint = 
-                    (SslConnection.SslEndPoint) endpoint;
                 SslConnection sslConnection = sslEndPoint.getSslConnection();
                 
                 // The SslConnection itself needs to be opened
                 sslConnection.onOpen();
                 
-                if (ReverseConnectHandler.LOG.isDebugEnabled())
-                    ReverseConnectHandler.LOG.debug("SSL connection established for upstream");
+                ReverseConnectHandler.log.debug("SSL connection established for upstream");
             }
             
             return connection;
@@ -1645,8 +1616,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             {
                 // Create HTTP parser for response parsing
                 httpParser = new HttpParser(new ResponseParserHandler());
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP response parser enabled for upstream connection {}", this);
+                log.debug("HTTP response parser enabled for upstream connection {}", this);
             }
         }
         
@@ -1658,8 +1628,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         public void addHttpClientListener(HttpClientConnectionListener listener)
         {
             httpClientListeners.add(listener);
-            if (LOG.isDebugEnabled())
-                LOG.debug("Added HTTP client listener {} to {}", listener, this);
+            log.debug("Added HTTP client listener {} to {}", listener, this);
         }
         
         /**
@@ -1697,8 +1666,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 }
                 catch (Exception e)
                 {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Error notifying listener of content", e);
+                    log.debug("Error notifying listener of content", e);
                 }
             }
         }
@@ -1716,8 +1684,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 }
                 catch (Exception e)
                 {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Error notifying listener of success", e);
+                    log.debug("Error notifying listener of success", e);
                 }
             }
         }
@@ -1731,8 +1698,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             public void startResponse(HttpVersion version, int status, String reason)
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Response: {} {} {}", version, status, reason);
+                log.debug("HTTP Response: {} {} {}", version, status, reason);
                 
                 // Store response status line directly in CaptureHolder2
                 for (HttpClientConnectionListener listener : httpClientListeners)
@@ -1748,8 +1714,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             public void parsedHeader(HttpField field)
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Response Header: {}: {}", field.getName(), field.getValue());
+                log.debug("HTTP Response Header: {}: {}", field.getName(), field.getValue());
                 
                 // Store header directly in CaptureHolder2
                 for (HttpClientConnectionListener listener : httpClientListeners)
@@ -1767,8 +1732,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             public boolean headerComplete()
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Response Headers complete");
+                log.debug("HTTP Response Headers complete");
                 return false;
             }
             
@@ -1776,8 +1740,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             public boolean content(ByteBuffer buffer)
             {
                 int length = buffer.remaining();
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Response Content: {} bytes", length);
+                log.debug("HTTP Response Content: {} bytes", length);
                 
                 // Notify listeners and store content in CaptureHolder2
                 notifyContentListeners(buffer, buffer.position(), length);
@@ -1787,23 +1750,20 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             public boolean contentComplete()
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Response Content complete");
+                log.debug("HTTP Response Content complete");
                 return false;
             }
             
             @Override
             public void parsedTrailer(HttpField field)
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Response Trailer: {}", field);
+                log.debug("HTTP Response Trailer: {}", field);
             }
             
             @Override
             public boolean messageComplete()
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Response Message complete");
+                log.debug("HTTP Response Message complete");
                 
                 // Notify success listeners when HTTP response is complete
                 notifySuccessListeners();
@@ -1815,13 +1775,13 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             public void badMessage(HttpException failure)
             {
-                LOG.warn("Bad HTTP response message: {}", failure != null ? failure.toString() : "unknown");
+                log.warn("Bad HTTP response message: {}", failure != null ? failure.toString() : "unknown");
             }
             
             @Override
             public void earlyEOF()
             {
-                LOG.warn("Early EOF while parsing HTTP response");
+                log.warn("Early EOF while parsing HTTP response");
             }
         }
 
@@ -1844,8 +1804,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                         // Reset parser if it's in END state (previous message completed)
                         if (httpParser.isComplete())
                         {
-                            if (LOG.isDebugEnabled())
-                                LOG.debug("Resetting HTTP response parser for new message");
+                            log.debug("Resetting HTTP response parser for new message");
                             httpParser.reset();
                         }
                         
@@ -1865,8 +1824,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     }
                     catch (Exception e)
                     {
-            if (LOG.isDebugEnabled())
-                            LOG.debug("Failed to parse HTTP response", e);
+                        log.debug("Failed to parse HTTP response", e);
                     }
                 }
                 else
@@ -1878,7 +1836,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     }
                 }
                 
-                if (LOG.isTraceEnabled())
+                if (log.isTraceEnabled())
                 {
                     try
                     {
@@ -1895,11 +1853,11 @@ public class ReverseConnectHandler extends Handler.Wrapper
                         // Restore buffer position to after read
                         buffer.position(positionAfter);
                         
-                        LOG.trace("Read {} bytes from server (upstream) {}: [{}]", read, this, content);
+                        log.trace("Read {} bytes from server (upstream) {}: [{}]", read, this, content);
                     }
                     catch (Exception e)
                     {
-                        LOG.trace("Failed to log buffer content", e);
+                        log.trace("Failed to log buffer content", e);
                     }
                 }
             }
@@ -1910,7 +1868,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         protected void write(EndPoint endPoint, ByteBuffer buffer, Callback callback)
         {
             // SslEndPoint automatically handles encryption if SSL is enabled
-            if (LOG.isTraceEnabled() && buffer.hasRemaining())
+            if (log.isTraceEnabled() && buffer.hasRemaining())
             {
                 int remaining = buffer.remaining();
                 
@@ -1927,7 +1885,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 buffer.position(position);
                 buffer.limit(limit);
                 
-                LOG.trace("Writing {} bytes to server (upstream) {}: [{}]", remaining, this, content);
+                log.trace("Writing {} bytes to server (upstream) {}: [{}]", remaining, this, content);
             }
             ReverseConnectHandler.this.write(endPoint, buffer, callback, getContext());
         }
@@ -1944,8 +1902,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 }
                 catch (Exception e)
                 {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Error closing HTTP parser", e);
+                    log.debug("Error closing HTTP parser", e);
                 }
             }
             
@@ -1965,9 +1922,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
             {
                 notifySuccessListeners();
             }
-            else if (LOG.isDebugEnabled() && cause == null && !hasValidRequest)
+            else if (cause == null && !hasValidRequest)
             {
-                LOG.debug("Skipping notifySuccessListeners() on UpstreamConnection close - no valid HTTP request received");
+                log.debug("Skipping notifySuccessListeners() on UpstreamConnection close - no valid HTTP request received");
             }
             
             super.onClose(cause);
@@ -1997,8 +1954,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         public void addConnectionListener(Connection.Listener listener)
         {
             addEventListener(listener);
-            if (LOG.isDebugEnabled())
-                LOG.debug("Added connection listener {} to {}", listener, this);
+            log.debug("Added connection listener {} to {}", listener, this);
         }
         
         /**
@@ -2009,8 +1965,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         public void removeConnectionListener(Connection.Listener listener)
         {
             removeEventListener(listener);
-            if (LOG.isDebugEnabled())
-                LOG.debug("Removed connection listener {} from {}", listener, this);
+            log.debug("Removed connection listener {} from {}", listener, this);
         }
         
         /**
@@ -2027,8 +1982,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             {
                 // HTTPリクエストパーサーを作成
                 httpParser = new HttpParser(new RequestParserHandler());
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP request parser enabled for downstream connection");
+                log.debug("HTTP request parser enabled for downstream connection");
             }
         }
         
@@ -2040,8 +1994,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         public void addHttpClientListener(HttpClientConnectionListener listener)
         {
             httpClientListeners.add(listener);
-            if (LOG.isDebugEnabled())
-                LOG.debug("Added HTTP client listener {} to {}", listener, this);
+            log.debug("Added HTTP client listener {} to {}", listener, this);
         }
         
         /**
@@ -2074,13 +2027,11 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     // Store request body directly in CaptureHolder2
                     listener.getCaptureHolder().getCurrentRequest().addBodyChunk(bytes);
                     
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Captured {} bytes of HTTP request content", length);
+                    log.debug("Captured {} bytes of HTTP request content", length);
                 }
                 catch (Exception e)
                 {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Error capturing request content", e);
+                    log.debug("Error capturing request content", e);
                 }
             }
         }
@@ -2094,8 +2045,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             public void startRequest(String method, String uri, HttpVersion version)
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Request: {} {} {}", method, uri, version);
+                log.debug("HTTP Request: {} {} {}", method, uri, version);
                 
                 currentRequestMethod = method;
                 currentRequestURI = uri;
@@ -2112,8 +2062,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             public void parsedHeader(HttpField field)
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Request Header: {}: {}", field.getName(), field.getValue());
+                log.debug("HTTP Request Header: {}: {}", field.getName(), field.getValue());
                 
                 // Store header directly in CaptureHolder2
                 for (HttpClientConnectionListener listener : httpClientListeners)
@@ -2126,8 +2075,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             public boolean headerComplete()
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Request Headers complete");
+                log.debug("HTTP Request Headers complete");
                 return false;
             }
             
@@ -2135,8 +2083,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             public boolean content(ByteBuffer buffer)
             {
                 int length = buffer.remaining();
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Request Content: {} bytes", length);
+                log.debug("HTTP Request Content: {} bytes", length);
                 
                 // Store request body in CaptureHolder2 via listeners
                 notifyContentListeners(buffer, buffer.position(), length);
@@ -2146,23 +2093,20 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             public boolean contentComplete()
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Request Content complete");
+                log.debug("HTTP Request Content complete");
                 return false;
             }
             
             @Override
             public void parsedTrailer(HttpField field)
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Request Trailer: {}: {}", field.getName(), field.getValue());
+                log.debug("HTTP Request Trailer: {}: {}", field.getName(), field.getValue());
             }
             
             @Override
             public boolean messageComplete()
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("HTTP Request Message complete: {} {}", currentRequestMethod, currentRequestURI);
+                log.debug("HTTP Request Message complete: {} {}", currentRequestMethod, currentRequestURI);
                 
                 currentRequestMethod = null;
                 currentRequestURI = null;
@@ -2172,13 +2116,13 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             public void badMessage(HttpException failure)
             {
-                LOG.warn("Bad HTTP request message: {}", failure != null ? failure.toString() : "unknown");
+                log.warn("Bad HTTP request message: {}", failure != null ? failure.toString() : "unknown");
             }
             
             @Override
             public void earlyEOF()
             {
-                LOG.warn("Early EOF while parsing HTTP request");
+                log.warn("Early EOF while parsing HTTP request");
             }
         }
 
@@ -2197,8 +2141,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             EndPoint endPoint = getEndPoint();
             if (endPoint instanceof SslConnection.SslEndPoint)
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("Downstream SSL connection opened, waiting for SSL handshake from client");
+                log.debug("Downstream SSL connection opened, waiting for SSL handshake from client");
                 
                 // SSL endpoint will handle handshake automatically when we register interest
                 // The SslConnection is already opened through the connection hierarchy
@@ -2227,13 +2170,11 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     // 初期HTTPリクエストをパース
                     httpParser.parseNext(buffer.duplicate());
                     
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Parsed initial HTTP request buffer: {} bytes", buffer.remaining());
+                    log.debug("Parsed initial HTTP request buffer: {} bytes", buffer.remaining());
                 }
                 catch (Exception e)
                 {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Failed to parse initial HTTP request", e);
+                    log.debug("Failed to parse initial HTTP request", e);
                 }
             }
 
@@ -2244,8 +2185,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 public void succeeded()
                 {
                     buffer = null;
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Wrote initial {} bytes to server {}", remaining, DownstreamConnection.this);
+                    log.debug("Wrote initial {} bytes to server {}", remaining, DownstreamConnection.this);
                     fillInterested();
                 }
 
@@ -2253,8 +2193,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 public void failed(Throwable x)
                 {
                     buffer = null;
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Failed to write initial {} bytes to server {}", remaining, DownstreamConnection.this, x);
+                    log.debug("Failed to write initial {} bytes to server {}", remaining, DownstreamConnection.this, x);
                     close();
                     getConnection().close();
                 }
@@ -2279,8 +2218,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                         // パーサーがEND状態の場合（前のメッセージ完了済み）、リセット
                         if (httpParser.isComplete())
                         {
-                            if (LOG.isDebugEnabled())
-                                LOG.debug("Resetting HTTP request parser for new message");
+                            log.debug("Resetting HTTP request parser for new message");
                             httpParser.reset();
                         }
                         
@@ -2300,8 +2238,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             }
             catch (Exception e)
             {
-                        if (LOG.isDebugEnabled())
-                            LOG.debug("Failed to parse HTTP request", e);
+                        log.debug("Failed to parse HTTP request", e);
                     }
                 }
                 else
@@ -2313,7 +2250,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     }
                 }
                 
-            if (LOG.isTraceEnabled())
+            if (log.isTraceEnabled())
                 {
                     try
                     {
@@ -2329,11 +2266,11 @@ public class ReverseConnectHandler extends Handler.Wrapper
                         // Restore buffer position to after read
                         buffer.position(positionAfter);
                         
-                        LOG.trace("Read {} bytes from client {}: [{}]", read, this, content);
+                        log.trace("Read {} bytes from client {}: [{}]", read, this, content);
                     }
                     catch (Exception e)
                     {
-                        LOG.trace("Failed to log buffer content", e);
+                        log.trace("Failed to log buffer content", e);
                     }
                 }
             }
@@ -2343,7 +2280,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         @Override
         protected void write(EndPoint endPoint, ByteBuffer buffer, Callback callback)
         {
-            if (LOG.isTraceEnabled() && buffer.hasRemaining())
+            if (log.isTraceEnabled() && buffer.hasRemaining())
             {
                 int remaining = buffer.remaining();
                 
@@ -2360,7 +2297,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 buffer.position(position);
                 buffer.limit(limit);
                 
-                LOG.trace("Writing {} bytes to server {}: [{}]", remaining, this, content);
+                log.trace("Writing {} bytes to server {}: [{}]", remaining, this, content);
             }
             ReverseConnectHandler.this.write(endPoint, buffer, callback, getContext());
         }
@@ -2377,8 +2314,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 }
                 catch (Exception e)
                 {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Error closing HTTP parser", e);
+                    log.debug("Error closing HTTP parser", e);
                 }
             }
             
@@ -2478,8 +2414,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 }
                 catch (IOException x)
                 {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug("Could not fill {}", TunnelConnection.this, x);
+                    log.debug("Could not fill {}", TunnelConnection.this, x);
                     buffer.release();
                     disconnect(x);
                     return Action.SUCCEEDED;
@@ -2489,31 +2424,24 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             protected void onSuccess()
             {
-                if (LOG.isDebugEnabled())
-                    LOG.debug("Wrote {} bytes {}", filled, TunnelConnection.this);
+                log.debug("Wrote {} bytes {}", filled, TunnelConnection.this);
                 buffer = Retainable.release(buffer);
             }
 
             @Override
             protected void onFailure(Throwable x)
             {
-                if (LOG.isDebugEnabled())
+                // Java 21のpattern matchingでより簡潔に例外タイプを処理
+                switch (x)
                 {
-                    // Provide more context for common error types
-                    if (x instanceof TimeoutException)
-                    {
-                        LOG.debug("Connection timeout while writing {} bytes {}: {}", 
-                            filled, TunnelConnection.this, x.getMessage());
-                    }
-                    else if (x instanceof ClosedChannelException)
-                    {
-                        LOG.debug("Connection closed while writing {} bytes {}", 
+                    case TimeoutException e -> 
+                        log.debug("Connection timeout while writing {} bytes {}: {}", 
+                            filled, TunnelConnection.this, e.getMessage());
+                    case ClosedChannelException e -> 
+                        log.debug("Connection closed while writing {} bytes {}", 
                             filled, TunnelConnection.this);
-                    }
-                    else
-                    {
-                        LOG.debug("Failed to write {} bytes {}", filled, TunnelConnection.this, x);
-                    }
+                    default -> 
+                        log.debug("Failed to write {} bytes {}", filled, TunnelConnection.this, x);
                 }
                 disconnect(x);
             }
@@ -2705,7 +2633,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     }
                     catch (Exception e)
                     {
-                        LOG.warn("Failed to parse POST body parameters", e);
+                        log.warn("Failed to parse POST body parameters", e);
                     }
                 }
             }
@@ -2762,7 +2690,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             }
             catch (Exception e)
             {
-                LOG.warn("Failed to URL decode: {}", encoded, e);
+                log.warn("Failed to URL decode: {}", encoded, e);
                 return encoded;
             }
         }
@@ -2826,6 +2754,53 @@ public class ReverseConnectHandler extends Handler.Wrapper
      */
     static class ResponseMetaDataWrapper implements ResponseMetaData, Cloneable
     {
+        private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ResponseMetaDataWrapper.class);
+        
+        // Jetty公式の圧縮API（静的インスタンスで再利用）
+        // 注: 静的初期化はResponseMetaDataWrapperの初回使用時に実行される（遅延初期化）
+        private static final GzipCompression GZIP_COMPRESSION;
+        private static final BrotliCompression BROTLI_COMPRESSION;  // 初期化失敗時はnull
+        
+        static
+        {
+            // GzipCompressionの初期化（標準Java APIのため必ず成功）
+            try
+            {
+                GZIP_COMPRESSION = new GzipCompression();
+                GZIP_COMPRESSION.start();
+            }
+            catch (Exception e)
+            {
+                // Gzip解凍は必須機能のため、初期化失敗時はアプリケーション起動を停止
+                throw new ExceptionInInitializerError("Failed to initialize GzipCompression: " + e.getMessage());
+            }
+            
+            // BrotliCompressionの初期化（ネイティブライブラリのため失敗する可能性あり）
+            BROTLI_COMPRESSION = initializeBrotliCompression();
+        }
+        
+        /**
+         * BrotliCompressionを初期化する。
+         * 初期化に失敗した場合はnullを返す（Brotli解凍は使用不可となる）。
+         * 
+         * @return 初期化済みのBrotliCompressionインスタンス、または失敗時はnull
+         */
+        private static BrotliCompression initializeBrotliCompression()
+        {
+            try
+            {
+                BrotliCompression brotli = new BrotliCompression();
+                brotli.start();
+                return brotli;
+            }
+            catch (Throwable e)
+            {
+                log.warn("Failed to initialize BrotliCompression (Brotli decompression will not be available): {}", 
+                    e.getMessage());
+                return null;  // 初期化失敗時はnullを返す
+            }
+        }
+        
         private int status;
         private String reason;
         private String contentType;
@@ -2838,53 +2813,182 @@ public class ReverseConnectHandler extends Handler.Wrapper
          */
         void set(CaptureHolder2.HttpResponse httpResponse)
         {
+            log.debug("ResponseMetaDataWrapper.set(HttpResponse) called: status={}, bodySize={}", 
+                httpResponse.getStatus(), httpResponse.getBodySize());
+            
             this.status = httpResponse.getStatus();
             this.reason = httpResponse.getReason();
             this.headers = new LinkedHashMap<>(httpResponse.getHeaders());
             this.contentType = httpResponse.getContentType();
             
-            // Store body as byte array (with automatic ungzip support)
+            // レスポンスボディの処理（圧縮解凍を含む）
             if (httpResponse.getBodySize() > 0)
             {
-                try
+                this.responseBodyBytes = processResponseBody(httpResponse);
+            }
+        }
+        
+        /**
+         * レスポンスボディを処理し、必要に応じて解凍する。
+         * 
+         * @param httpResponse HTTPレスポンス
+         * @return 処理済みのボディバイト配列
+         */
+        private byte[] processResponseBody(CaptureHolder2.HttpResponse httpResponse)
+        {
+            byte[] bodyBytes = getBodyBytes(httpResponse);
+            if (bodyBytes == null || bodyBytes.length == 0)
+            {
+                return new byte[0];
+            }
+            
+            log.debug("Response headers: {}", headers);
+            
+            String contentEncoding = getHeaderCaseInsensitive(headers, "Content-Encoding");
+            CompressionType compressionType = detectCompressionType(contentEncoding, bodyBytes);
+            
+            return decompressIfNeeded(bodyBytes, compressionType, contentEncoding);
+        }
+        
+        /**
+         * HTTPレスポンスからボディバイトを取得する。
+         */
+        private byte[] getBodyBytes(CaptureHolder2.HttpResponse httpResponse)
+        {
+            log.debug("Attempting to get body bytes: reportedSize={}", httpResponse.getBodySize());
+            
+            byte[] bodyBytes = httpResponse.getBodyAsBytes();
+            
+            log.debug("Successfully retrieved body bytes: actualSize={}", bodyBytes != null ? bodyBytes.length : 0);
+            
+            if (bodyBytes == null || bodyBytes.length == 0)
+            {
+                log.warn("Body bytes is null or empty despite getBodySize() = {}", httpResponse.getBodySize());
+            }
+            
+            return bodyBytes;
+        }
+        
+        /**
+         * 圧縮形式を検出する。
+         */
+        private CompressionType detectCompressionType(String contentEncoding, byte[] bodyBytes)
+        {
+            log.debug("Content-Encoding header value: '{}', body size: {} bytes", contentEncoding, bodyBytes.length);
+            
+            // ヘッダーベースの検出
+            CompressionType type = switch (contentEncoding == null ? "" : contentEncoding.toLowerCase())
+            {
+                case "gzip" -> CompressionType.GZIP;
+                case "br" -> CompressionType.BROTLI;
+                case "" -> CompressionType.NONE;
+                default -> {
+                    log.error("Unsupported Content-Encoding: '{}' (only 'gzip' and 'br' are supported)", contentEncoding);
+                    yield CompressionType.NONE;
+                }
+            };
+            
+            // マジックバイトによるフォールバック検出（gzipのみ）
+            if (type == CompressionType.NONE && bodyBytes.length >= 2)
+            {
+                boolean isGzipMagic = (bodyBytes[0] & 0xFF) == 0x1f && (bodyBytes[1] & 0xFF) == 0x8b;
+                if (isGzipMagic)
                 {
-                    byte[] bodyBytes = httpResponse.getBodyAsBytes();
-                    String contentEncoding = headers.get("Content-Encoding");
-                    
-                    // Ungzip if needed
-                    if ("gzip".equalsIgnoreCase(contentEncoding))
+                    if (contentEncoding != null)
                     {
-                        try (InputStream gzipStream = new GZIPInputStream(new ByteArrayInputStream(bodyBytes));
-                             ByteArrayOutputStream baos = new ByteArrayOutputStream())
-                        {
-                            byte[] buffer = new byte[8192];
-                            int bytesRead;
-                            while ((bytesRead = gzipStream.read(buffer)) != -1)
-                            {
-                                baos.write(buffer, 0, bytesRead);
-                            }
-                            this.responseBodyBytes = baos.toByteArray();
-                            
-                            if (LOG.isDebugEnabled())
-                            {
-                                LOG.debug("Response body ungzipped (Content-Encoding: gzip)");
-                            }
-                        }
+                        log.warn("gzip圧縮データをマジックバイトで検出しましたが、Content-Encodingは'{}'でした", contentEncoding);
                     }
                     else
                     {
-                        // No gzip, use raw bytes
-                        this.responseBodyBytes = bodyBytes;
+                        log.debug("gzip圧縮データをマジックバイトで検出しました（Content-Encodingヘッダーなし）");
                     }
-                }
-                catch (IOException e)
-                {
-                    LOG.warn("Failed to ungzip response body (Content-Encoding: {}), using raw body", 
-                        headers.get("Content-Encoding"), e);
-                    // Fallback: use raw body bytes
-                    this.responseBodyBytes = httpResponse.getBodyAsBytes();
+                    return CompressionType.GZIP;
                 }
             }
+            
+            return type;
+        }
+        
+        /**
+         * 必要に応じてボディを解凍する。
+         */
+        private byte[] decompressIfNeeded(byte[] bodyBytes, CompressionType type, String contentEncoding)
+        {
+            return switch (type)
+            {
+                case GZIP -> decompressGzip(bodyBytes, contentEncoding);
+                case BROTLI -> decompressBrotli(bodyBytes, contentEncoding);
+                case NONE -> bodyBytes;
+            };
+        }
+        
+        /**
+         * Gzip形式のデータを解凍する。
+         */
+        private byte[] decompressGzip(byte[] bodyBytes, String contentEncoding)
+        {
+            try (InputStream compressedStream = new ByteArrayInputStream(bodyBytes);
+                 InputStream gzipStream = GZIP_COMPRESSION.newDecoderInputStream(compressedStream);
+                 ByteArrayOutputStream baos = new ByteArrayOutputStream())
+            {
+                gzipStream.transferTo(baos);
+                byte[] decompressed = baos.toByteArray();
+                
+                log.debug("Response body ungzipped: {} bytes -> {} bytes (Content-Encoding: {})", 
+                    bodyBytes.length, decompressed.length, contentEncoding);
+                
+                return decompressed;
+            }
+            catch (IOException e)
+            {
+                log.error("Failed to decompress Gzip data: {}", e.getMessage(), e);
+                log.warn("Using raw compressed body due to Gzip decompression failure");
+                return bodyBytes;
+            }
+        }
+        
+        /**
+         * Brotli形式のデータを解凍する。
+         */
+        private byte[] decompressBrotli(byte[] bodyBytes, String contentEncoding)
+        {
+            if (BROTLI_COMPRESSION == null)
+            {
+                log.warn("Brotli decompression requested but BrotliCompression is not available (initialization failed at startup)");
+                log.warn("Using raw compressed body (Brotli-compressed data will not be decompressed)");
+                return bodyBytes;
+            }
+            
+            log.debug("Starting Brotli decompression: input size = {} bytes", bodyBytes.length);
+            
+            try (InputStream compressedStream = new ByteArrayInputStream(bodyBytes);
+                 InputStream brotliStream = BROTLI_COMPRESSION.newDecoderInputStream(compressedStream);
+                 ByteArrayOutputStream baos = new ByteArrayOutputStream())
+            {
+                brotliStream.transferTo(baos);
+                byte[] decompressed = baos.toByteArray();
+                
+                log.debug("Response body decompressed (Brotli): {} bytes -> {} bytes (Content-Encoding: {})", 
+                    bodyBytes.length, decompressed.length, contentEncoding);
+                
+                return decompressed;
+            }
+            catch (IOException e)
+            {
+                log.error("Failed to decompress Brotli data: {}", e.getMessage(), e);
+                log.warn("Using raw compressed body due to Brotli decompression failure");
+                return bodyBytes;
+            }
+        }
+        
+        /**
+         * 圧縮形式の列挙型
+         */
+        private enum CompressionType
+        {
+            NONE,    // 非圧縮
+            GZIP,    // Gzip圧縮
+            BROTLI   // Brotli圧縮
         }
 
         /**
@@ -2893,6 +2997,8 @@ public class ReverseConnectHandler extends Handler.Wrapper
          */
         void set(Response res)
         {
+            log.debug("ResponseMetaDataWrapper.set(Response) called: status={}", res.getStatus());
+            
             this.status = res.getStatus();
             this.contentType = res.getHeaders().get(HttpHeader.CONTENT_TYPE);
             
@@ -2900,27 +3006,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
             res.getHeaders().forEach(field -> 
                 headers.put(field.getName(), field.getValue())
             );
-        }
-
-        /**
-         * Set body from InputStream (legacy support).
-         * Converts to byte array for thread-safe reuse.
-         */
-        void set(InputStream body) throws IOException
-        {
-            if (body != null)
-            {
-                // Ungzip if needed, then convert to byte array
-                InputStream processedStream = ungzip(body, headers.get("Content-Encoding"));
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                byte[] buffer = new byte[8192];
-                int bytesRead;
-                while ((bytesRead = processedStream.read(buffer)) != -1)
-                {
-                    baos.write(buffer, 0, bytesRead);
-                }
-                this.responseBodyBytes = baos.toByteArray();
-            }
         }
         
         void setStatus(int status)
@@ -2960,6 +3045,36 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
         
         /**
+         * Get a specific HTTP header value (case-insensitive).
+         * HTTPヘッダーは大文字小文字を区別しないため、このメソッドを使用する。
+         */
+        private static String getHeaderCaseInsensitive(Map<String, String> headers, String name)
+        {
+            if (headers == null || name == null)
+            {
+                return null;
+            }
+            
+            // 完全一致を優先
+            String value = headers.get(name);
+            if (value != null)
+            {
+                return value;
+            }
+            
+            // ケースインセンシティブ検索
+            for (Map.Entry<String, String> entry : headers.entrySet())
+            {
+                if (name.equalsIgnoreCase(entry.getKey()))
+                {
+                    return entry.getValue();
+                }
+            }
+            
+            return null;
+        }
+        
+        /**
          * Get the HTTP status reason phrase.
          */
         public String getReason()
@@ -2982,6 +3097,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
         @Override
         public Optional<InputStream> getResponseBody()
         {
+            log.debug("ResponseMetaDataWrapper.getResponseBody() called: bodyBytes={}, size={} bytes", 
+                responseBodyBytes != null, responseBodyBytes != null ? responseBodyBytes.length : 0);
+            
             // Return a new ByteArrayInputStream each time for thread-safe reuse
             if (responseBodyBytes != null && responseBodyBytes.length > 0)
             {
@@ -3013,39 +3131,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 copy.responseBodyBytes = this.responseBodyBytes;  // Share the byte array reference
                 return copy;
             }
-        }
-
-        /**
-         * Improved ungzip with Content-Encoding awareness.
-         */
-        private static InputStream ungzip(InputStream body, String contentEncoding) throws IOException
-        {
-            // Check Content-Encoding header first
-            if ("gzip".equalsIgnoreCase(contentEncoding))
-            {
-                return new GZIPInputStream(body);
-            }
-            
-            // SequenceInputStream など mark をサポートしていないストリームを BufferedInputStream でラップ
-            // これにより、magic byte 検出が正しく機能する
-            if (!body.markSupported())
-            {
-                body = new BufferedInputStream(body);
-            }
-            
-            // Magic byte detection (GZIP header: 0x1f8b)
-            body.mark(2);
-            int byte1 = body.read();
-            int byte2 = body.read();
-            body.reset();
-            
-            // Check if data is gzip compressed (even if Content-Encoding header is missing)
-            int magicbyte = (byte1 << 8) | byte2;
-            if (magicbyte == 0x1f8b)
-            {
-                return new GZIPInputStream(body);
-            }
-            return body;
         }
     }
 }
