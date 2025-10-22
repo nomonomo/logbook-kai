@@ -140,12 +140,14 @@ module logbook {
     opens logbook.supplemental;
     
     
+    // コア機能のSPI（実装あり）
     uses logbook.api.APIListenerSpi;
     uses logbook.plugin.lifecycle.StartUp;
-    uses logbook.plugin.gui.FleetTabRemark;
     uses logbook.proxy.ContentListenerSpi;
     uses logbook.proxy.ProxyServerSpi;
 
+    // 外部プラグイン用のSPI（実装なし、拡張用）
+    uses logbook.plugin.gui.FleetTabRemark;
     uses logbook.plugin.gui.MainCommandMenu;
     uses logbook.plugin.gui.MainCalcMenu;
     uses logbook.plugin.gui.MainExtMenu;

@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>logbook-kai</groupId>
     <artifactId>logbook-kai</artifactId>
-    <version>25.10.2</version>
+    <version>25.10.3</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

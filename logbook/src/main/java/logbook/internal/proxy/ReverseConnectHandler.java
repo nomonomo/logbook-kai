@@ -813,6 +813,8 @@ public class ReverseConnectHandler extends Handler.Wrapper
         private List<ContentListenerSpi> listeners;
         private String currentRequestMethod;
         private String currentRequestURI;
+        // クライアント（ダウンストリーム）が早期切断したことを示すフラグ
+        private volatile boolean clientDisconnectedEarly = false;
         
         public HttpClientConnectionListener(ConnectContext connectContext, HttpClient httpClient)
         {
@@ -867,9 +869,16 @@ public class ReverseConnectHandler extends Handler.Wrapper
         @Override
         public void onClosed(Connection connection)
         {
-            Request request = connectContext.getRequest();
-            String uri = request != null ? request.getHttpURI().toString() : "unknown";
-            log.debug("Downstream connection closed with HttpClient: {} for URI: {}", connection, uri);
+            // クライアント側（ダウンストリーム）の切断を検知
+            // HttpClientConnectionListenerは、アップストリームとダウンストリームの両方に登録されている
+            // ので、Connectionの実際の型を確認する必要がある
+            if (connection instanceof ReverseConnectHandler.DownstreamConnection)
+            {
+                Request request = connectContext.getRequest();
+                String uri = request != null ? request.getHttpURI().toString() : "unknown";
+                log.debug("Client (downstream) disconnected early for URI: {}, marking transaction as invalid", uri);
+                clientDisconnectedEarly = true;
+            }
             
             // HttpClient cleanup if needed
             // For example, release connection resources, update connection pool, etc.
@@ -922,6 +931,14 @@ public class ReverseConnectHandler extends Handler.Wrapper
          */
         public void onSuccess()
         {
+            // クライアントが早期切断した場合は、すべての処理をスキップ
+            if (clientDisconnectedEarly)
+            {
+                log.debug("Skipping HTTP transaction processing for {} {} due to client early disconnection", 
+                    currentRequestMethod, currentRequestURI);
+                return;
+            }
+            
             // HTTPリクエストが受信されていない場合（TLSハンドシェイクのみ、または接続クローズ）はスキップ
             if (currentRequestURI == null)
             {
@@ -1057,6 +1074,24 @@ public class ReverseConnectHandler extends Handler.Wrapper
         {
             try
             {
+                // Content-Lengthとの不一致チェック（圧縮後のデータサイズで比較）
+                // ネットワーク障害やサーバー側の切断で不完全なデータを検出
+                CaptureHolder2.HttpResponse httpResponse = transaction.getResponse();
+                long expectedLength = httpResponse.getContentLength();
+                if (expectedLength > 0)
+                {
+                    long actualLength = httpResponse.getBodySize();  // 圧縮後の受信バイト数
+                    
+                    if (actualLength != expectedLength)
+                    {
+                        log.warn("Content-Length mismatch detected - rejecting incomplete data: expected {} bytes, but received {} bytes ({} bytes missing, {}% received). ContentListenerSpi will not be invoked for request {}",
+                            expectedLength, actualLength, expectedLength - actualLength, 
+                            String.format("%.1f", (actualLength * 100.0 / expectedLength)),
+                            baseReq.getRequestURI());
+                        return;
+                    }
+                }
+                
                 // Initialize listeners on first use
                 initializeListeners();
                 
@@ -1586,7 +1621,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         private final ConnectContext connectContext;
         private final List<HttpClientConnectionListener> httpClientListeners = new CopyOnWriteArrayList<>();
         private HttpParser httpParser;
-        private boolean parseHttpResponse = false;
+        private boolean parseHttpResponse = true;  // HTTPレスポンスを常にパース
         private HttpResponse currentResponse;
 
         public UpstreamConnection(EndPoint endPoint, Executor executor, ByteBufferPool bufferPool, ConnectContext connectContext)
@@ -2851,7 +2886,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
         
         /**
-         * HTTPレスポンスからボディバイトを取得する。
+         * HTTPレスポンスからボディバイトを取得する（圧縮後の生データ）。
          */
         private byte[] getBodyBytes(CaptureHolder2.HttpResponse httpResponse)
         {

@@ -18,6 +18,7 @@ import java.util.Optional;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -168,11 +169,9 @@ public class MainController extends WindowController {
 
             timeline.play();
 
-            // 開始処理
+            // 開始処理（JavaFX Application Thread で実行し、primaryStage が確実に設定された後に実行される）
             PluginServices.instances(StartUp.class)
-                    .map(Thread::new)
-                    .peek(t -> t.setDaemon(true))
-                    .forEach(Thread::start);
+                    .forEach(startup -> Platform.runLater(startup));
         } catch (Exception e) {
             LoggerHolder.get().error("FXMLの初期化に失敗しました", e);
         }

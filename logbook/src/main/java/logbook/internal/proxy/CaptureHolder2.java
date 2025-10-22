@@ -68,7 +68,7 @@ public class CaptureHolder2 {
         public String getHeader(String name) {
             return headers.get(name);
         }
-        
+
         public String getContentType() {
             return headers.get("Content-Type");
         }
@@ -125,6 +125,7 @@ public class CaptureHolder2 {
         private final Map<String, String> headers = new LinkedHashMap<>();
         private final List<byte[]> bodyChunks = new ArrayList<>();
         private int totalBodySize = 0;
+        private long contentLength = -1;  // Content-Lengthヘッダーの値（未設定時は-1）
         
         public void setStatusLine(String version, int status, String reason) {
             this.version = version;
@@ -134,6 +135,16 @@ public class CaptureHolder2 {
         
         public void addHeader(String name, String value) {
             headers.put(name, value);
+            
+            // Content-Lengthヘッダーを自動的にパースして保存
+            if ("Content-Length".equalsIgnoreCase(name) && value != null) {
+                try {
+                    contentLength = Long.parseLong(value.trim());
+                } catch (NumberFormatException e) {
+                    // パース失敗時は-1のまま（無効なContent-Length）
+                    contentLength = -1;
+                }
+            }
         }
         
         public void addBodyChunk(byte[] data) {
@@ -167,6 +178,21 @@ public class CaptureHolder2 {
             return headers.get("Content-Type");
         }
         
+        /**
+         * Content-Lengthヘッダーの値を取得する（ネットワーク送信されるボディのバイト数）。
+         * 圧縮されている場合は圧縮後のサイズ。
+         * 
+         * @return Content-Lengthの値、未設定または無効な場合は-1
+         */
+        public long getContentLength() {
+            return contentLength;
+        }
+        
+        /**
+         * 実際に受信したボディのバイト数を取得する（圧縮後のサイズ）。
+         * 
+         * @return 受信バイト数
+         */
         public int getBodySize() {
             return totalBodySize;
         }
@@ -206,6 +232,7 @@ public class CaptureHolder2 {
             headers.clear();
             bodyChunks.clear();
             totalBodySize = 0;
+            contentLength = -1;
         }
     }
     
