@@ -8,9 +8,13 @@ import logbook.proxy.ResponseMetaData;
 /**
  * JSONオブジェクトを受け取るリスナーです。<br>
  * <br>
- * 実装クラスはServiceLoaderより取得されます。
- * 実装クラスが呼び出されるようにするには  META-INF/services/logbook.api.APIListenerSpi に
- * 実装クラスの完全修飾名を記述します
+ * 実装クラスはServiceLoaderより取得されます。<br>
+ * 実装クラスが呼び出されるようにするには、module-info.java で以下のように宣言してください：
+ * <pre>{@code
+ * module your.module {
+ *     provides logbook.api.APIListenerSpi with your.package.YourAPIListener;
+ * }
+ * }</pre>
  *
  * @see logbook.api.API
  * @see logbook.internal.APIListener
