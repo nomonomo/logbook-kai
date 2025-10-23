@@ -48,6 +48,18 @@
                         <addOption>--add-exports=javafx.base/com.sun.javafx.event=org.controlsfx.controls</addOption>
                     </addOptions>
                     <launcher>logbook=logbook/logbook.internal.Launcher</launcher>
+                    <!-- JVMデフォルトオプション設定 -->
+                    <jvmOptions>
+                        <!-- GC設定 -->
+                        <jvmOption>-XX:+UseG1GC</jvmOption>
+                        <jvmOption>-XX:MaxGCPauseMillis=200</jvmOption>
+                        <jvmOption>-XX:G1HeapRegionSize=2M</jvmOption>
+                        <!-- メモリ設定 -->
+                        <jvmOption>-Xms256M</jvmOption>
+                        <jvmOption>-Xmx2G</jvmOption>
+                        <!-- 文字列重複排除 -->
+                        <jvmOption>-XX:+UseStringDeduplication</jvmOption>
+                    </jvmOptions>
                     <noHeaderFiles>true</noHeaderFiles>
                 </configuration>
             </plugin>
