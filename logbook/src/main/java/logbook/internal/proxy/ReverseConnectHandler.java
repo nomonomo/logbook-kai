@@ -36,9 +36,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -48,7 +46,6 @@ import javax.net.ssl.SSLEngine;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.compression.brotli.BrotliCompression;
 import org.eclipse.jetty.compression.gzip.GzipCompression;
-import org.eclipse.jetty.client.transport.HttpResponse;
 
 import logbook.internal.ThreadManager;
 import logbook.plugin.PluginServices;
@@ -125,16 +122,15 @@ import org.eclipse.jetty.util.ssl.X509;
  *     protected Connection.Listener createConnectionListener(ConnectContext connectContext) {
  *         return new HttpClientConnectionListener(connectContext, getHttpClient()) {
  *             @Override
- *             public void onContent(ByteBuffer buffer, int offset, int length) {
- *                 // Process HTTP response content from server
- *                 super.onContent(buffer, offset, length);
- *             }
- *             
- *             @Override
  *             public void onSuccess() {
  *                 // Handle successful HTTP transaction
  *                 // CaptureHolder now contains both request and response bodies
  *                 super.onSuccess();
+ *                 
+ *                 // Access captured data from CaptureHolder2
+ *                 CaptureHolder2.HttpRequest request = getCaptureHolder().getCurrentRequest();
+ *                 CaptureHolder2.HttpResponse response = getCaptureHolder().getCurrentResponse();
+ *                 // Custom processing...
  *             }
  *         };
  *     }
@@ -172,6 +168,13 @@ public class ReverseConnectHandler extends Handler.Wrapper
     private Executor executor;
     private Scheduler scheduler;
     private ByteBufferPool bufferPool;
+    
+    /**
+     * ContentListenerSpiプラグインのリスト（全トンネルで共有）
+     * doStart()で初期化される
+     */
+    private static List<ContentListenerSpi> contentListeners;
+    
     private SelectorManager selector;
     private long connectTimeout = 15000;
     private long idleTimeout = 30000;
@@ -317,6 +320,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
         
         // Initialize SSL context for HTTPS connections
         // initializeSSLContext();
+        
+        // Initialize content listeners
+        initializeContentListeners();
 
         super.doStart();
     }
@@ -508,9 +514,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 HttpClientConnectionListener httpClientListener = (HttpClientConnectionListener) listener;
                 
                 // ダウンストリーム（クライアント→プロキシ）とアップストリーム（プロキシ→サーバー）の
-                // 両方に同じリスナーインスタンスを追加し、HTTPリクエスト/レスポンスをキャプチャ
-                downstreamConnection.addHttpClientListener(httpClientListener);
-                upstreamConnection.addHttpClientListener(httpClientListener);
+                // 両方に同じリスナーインスタンスを設定し、HTTPリクエスト/レスポンスをキャプチャ
+                downstreamConnection.setHttpClientListener(httpClientListener);
+                upstreamConnection.setHttpClientListener(httpClientListener);
             }
         }
 
@@ -778,6 +784,34 @@ public class ReverseConnectHandler extends Handler.Wrapper
     }
     
     /**
+     * ContentListenerSpiプラグインを初期化する。
+     * doStart()から呼ばれる。
+     */
+    private void initializeContentListeners()
+    {
+        try
+        {
+            contentListeners = PluginServices.instances(ContentListenerSpi.class)
+                .collect(Collectors.toList());
+            log.info("Initialized {} content listeners", contentListeners.size());
+        }
+        catch (Exception e)
+        {
+            log.error("Failed to initialize content listeners", e);
+            contentListeners = Collections.emptyList();
+        }
+    }
+    
+    /**
+     * ContentListenerSpiプラグインのリストを取得する。
+     * @return ContentListenerSpiのリスト（変更不可）
+     */
+    private static List<ContentListenerSpi> getContentListeners()
+    {
+        return contentListeners != null ? contentListeners : Collections.emptyList();
+    }
+    
+    /**
      * Creates a Connection.Listener for the downstream connection.
      * Override this method to provide a custom listener (e.g., HttpClient).
      * 
@@ -810,10 +844,33 @@ public class ReverseConnectHandler extends Handler.Wrapper
         private final ConnectContext connectContext;
         private final HttpClient httpClient;
         private final CaptureHolder2 captureHolder;
-        private List<ContentListenerSpi> listeners;
-        private String currentRequestMethod;
-        private String currentRequestURI;
-        // クライアント（ダウンストリーム）が早期切断したことを示すフラグ
+        
+        /**
+         * クライアント（ダウンストリーム）がHTTPトランザクション進行中に異常終了したことを示すフラグ。
+         * 
+         * <p><b>設定条件：</b></p>
+         * <pre>{@code
+         * DownstreamConnection.onClose(cause) {
+         *     if (cause != null && hasValidRequest()) {
+         *         clientDisconnectedEarly = true;  // ★ここで設定
+         *     }
+         * }
+         * }</pre>
+         * 
+         * <p><b>使用箇所：</b></p>
+         * <pre>{@code
+         * HttpClientConnectionListener.onSuccess() {
+         *     if (clientDisconnectedEarly) {
+         *         return;  // 不完全なHTTPデータの処理をスキップ
+         *     }
+         *     // 正常なHTTPデータのみ処理
+         * }
+         * }</pre>
+         * 
+         * <p><b>volatileの理由：</b>
+         * DownstreamConnection.onClose()とHttpClientConnectionListener.onSuccess()は
+         * 異なるスレッドで実行される可能性があるため、メモリ可視性を保証する。</p>
+         */
         private volatile boolean clientDisconnectedEarly = false;
         
         public HttpClientConnectionListener(ConnectContext connectContext, HttpClient httpClient)
@@ -836,23 +893,33 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
         
         /**
-         * Set the current HTTP request information.
-         * Called when a new HTTP request starts in the tunnel.
-         */
-        public void setCurrentRequest(String method, String uri)
-        {
-            this.currentRequestMethod = method;
-            this.currentRequestURI = uri;
-            log.debug("Current HTTP request: {} {}", method, uri);
-        }
-        
-        /**
-         * Check if this listener has received a valid HTTP request.
-         * @return true if a valid HTTP request has been received
+         * HTTPトランザクションが進行中かどうかをチェックする。
+         * 
+         * <p>このメソッドは、HTTPリクエスト行（例：GET /api HTTP/1.1）が受信されてから、
+         * HTTPトランザクションが完了してonSuccess()が呼ばれるまでの間、trueを返す。</p>
+         * 
+         * <p><b>ライフサイクル：</b></p>
+         * <ul>
+         * <li>false: 接続開始時（TLSハンドシェイクのみ）</li>
+         * <li>true:  RequestParserHandler.startRequest()呼び出し後</li>
+         * <li>true:  HTTPリクエスト/レスポンス処理中</li>
+         * <li>false: onSuccess()でcompleteTransaction()が呼ばれた後</li>
+         * </ul>
+         * 
+         * <p><b>使用目的：</b></p>
+         * <ul>
+         * <li>DownstreamConnection.onClose()：HTTPトランザクション進行中の異常終了を検知</li>
+         * <li>UpstreamConnection.onClose()：HTTPパーサー未完了時のフォールバック判定</li>
+         * </ul>
+         * 
+         * <p><b>注意：</b>このメソッド単独では異常終了を検知できません。
+         * 必ず{@code cause != null}との組み合わせで使用してください。</p>
+         * 
+         * @return HTTPトランザクションが進行中の場合true、それ以外はfalse
          */
         public boolean hasValidRequest()
         {
-            return currentRequestURI != null;
+            return captureHolder.getCurrentRequest().getUri() != null;
         }
         
         @Override
@@ -869,60 +936,15 @@ public class ReverseConnectHandler extends Handler.Wrapper
         @Override
         public void onClosed(Connection connection)
         {
-            // クライアント側（ダウンストリーム）の切断を検知
-            // HttpClientConnectionListenerは、アップストリームとダウンストリームの両方に登録されている
-            // ので、Connectionの実際の型を確認する必要がある
-            if (connection instanceof ReverseConnectHandler.DownstreamConnection)
-            {
-                Request request = connectContext.getRequest();
-                String uri = request != null ? request.getHttpURI().toString() : "unknown";
-                log.debug("Client (downstream) disconnected early for URI: {}, marking transaction as invalid", uri);
-                clientDisconnectedEarly = true;
-            }
+            // 接続のクローズを記録
+            // clientDisconnectedEarlyフラグは、DownstreamConnection.onClose(cause)で
+            // cause != nullの場合のみ設定される（異常終了のみ）
+            String connectionType = connection instanceof ReverseConnectHandler.DownstreamConnection 
+                ? "downstream" : "upstream";
+            log.debug("Connection closed ({}): {}", connectionType, connection);
             
             // HttpClient cleanup if needed
             // For example, release connection resources, update connection pool, etc.
-        }
-        
-        /**
-         * Called when HTTP content is received.
-         * This method can be used to process or log the content bytes.
-         * 
-         * @param buffer the buffer containing the content
-         * @param offset the offset in the buffer where content starts
-         * @param length the length of the content
-         */
-        public void onContent(ByteBuffer buffer, int offset, int length)
-        {
-            if (log.isTraceEnabled())
-            {
-                Request request = connectContext.getRequest();
-                String uri = request != null ? request.getHttpURI().toString() : "unknown";
-                log.trace("Content received for tunnel: {}, length: {}", uri, length);
-                
-                // Log content as UTF-8 string for debugging
-                try
-                {
-                    int savedPosition = buffer.position();
-                    int savedLimit = buffer.limit();
-                    buffer.position(offset);
-                    buffer.limit(offset + length);
-                    byte[] bytes = new byte[length];
-                    buffer.get(bytes);
-                    String content = new String(bytes, StandardCharsets.UTF_8);
-                    log.trace("Content (first 500 chars): {}", content.length() > 500 ? content.substring(0, 500) : content);
-                    buffer.position(savedPosition);
-                    buffer.limit(savedLimit);
-                }
-                catch (Exception e)
-                {
-                    log.trace("Failed to log content", e);
-                }
-            }
-
-            // HTTP response content is now stored directly in CaptureHolder2
-            // by the ResponseParserHandler via notifyContentListeners()
-            // This method is kept for backwards compatibility and logging
         }
         
         /**
@@ -931,21 +953,25 @@ public class ReverseConnectHandler extends Handler.Wrapper
          */
         public void onSuccess()
         {
-            // クライアントが早期切断した場合は、すべての処理をスキップ
+            // Get current transaction from CaptureHolder2 for early checks
+            CaptureHolder2.HttpRequest httpRequest = captureHolder.getCurrentRequest();
+            
+            // クライアントが早期切断（異常終了）した場合は、すべての処理をスキップ
+            // clientDisconnectedEarlyは、DownstreamConnection.onClose(cause != null)で設定される
             if (clientDisconnectedEarly)
             {
                 log.debug("Skipping HTTP transaction processing for {} {} due to client early disconnection", 
-                    currentRequestMethod, currentRequestURI);
+                    httpRequest.getMethod(), httpRequest.getUri());
                 return;
             }
             
             // HTTPリクエストが受信されていない場合（TLSハンドシェイクのみ、または接続クローズ）はスキップ
-            if (currentRequestURI == null)
+            if (httpRequest.getUri() == null)
             {
                 return;
             }
             
-            log.debug("HTTP transaction completed: {} {}", currentRequestMethod, currentRequestURI);
+            log.debug("HTTP transaction completed: {} {}", httpRequest.getMethod(), httpRequest.getUri());
             
             try
             {
@@ -954,13 +980,40 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 if (holder != null)
                 {
                     CaptureHolder2.HttpTransaction transaction = holder.getCurrentTransaction();
-                    CaptureHolder2.HttpRequest httpRequest = transaction.getRequest();
                     CaptureHolder2.HttpResponse httpResponse = transaction.getResponse();
                     
                     // Check if we have meaningful data
                     if (httpRequest.getMethod() == null && httpResponse.getStatus() == 0)
                     {
                         log.debug("No HTTP data to process (empty transaction)");
+                        return;
+                    }
+                    
+                    // Content-Lengthとの不一致チェック（圧縮後のデータサイズで比較）
+                    // ネットワーク障害やサーバー側の切断で不完全なデータを検出
+                    // 非同期処理を開始する前に検証し、不完全なデータは早期にリジェクト
+                    long expectedLength = httpResponse.getContentLength();
+                    if (expectedLength > 0)
+                    {
+                        long actualLength = httpResponse.getBodySize();  // 圧縮後の受信バイト数
+                        
+                        if (actualLength != expectedLength)
+                        {
+                            log.warn("Content-Length mismatch detected - rejecting incomplete data: expected {} bytes, but received {} bytes ({} bytes missing, {}% received). ContentListenerSpi will not be invoked for request {} {}",
+                                expectedLength, actualLength, expectedLength - actualLength, 
+                                String.format("%.1f", (actualLength * 100.0 / expectedLength)),
+                                httpRequest.getMethod(), httpRequest.getUri());
+                            return;
+                        }
+                    }
+                    
+                    // リスナーが登録されているかチェック
+                    // リスナーが空なら非同期処理を起動する必要なし
+                    List<ContentListenerSpi> listeners = ReverseConnectHandler.getContentListeners();
+                    if (listeners.isEmpty())
+                    {
+                        log.debug("No content listeners registered, skipping processing for {} {}", 
+                            httpRequest.getMethod(), httpRequest.getUri());
                         return;
                     }
                     
@@ -973,9 +1026,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     }
                     else
                     {
-                        // Fallback: Use current request info if HttpRequest is incomplete
-                        req.setMethod(currentRequestMethod != null ? currentRequestMethod : "UNKNOWN");
-                        req.setRequestURI(currentRequestURI);
+                        // Fallback: Use minimal info if HttpRequest is incomplete
+                        req.setMethod("UNKNOWN");
+                        req.setRequestURI(httpRequest.getUri() != null ? httpRequest.getUri() : "unknown");
                     }
                     
                     // Create ResponseMetaDataWrapper efficiently from CaptureHolder2.HttpResponse
@@ -1002,33 +1055,10 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     // Mark transaction as complete and prepare for next one (Keep-Alive support)
                     holder.completeTransaction();
                     
-                    // Process captured data asynchronously
-                    try
-                    {
-                        Runnable task = () -> {
-                            this.invoke(req, res, holder.getLastTransaction());
-                        };
-                        
-                        ExecutorService executor = ThreadManager.getExecutorService();
-                        // シャットダウン中でない場合のみタスクを送信
-                        if (executor != null && !executor.isShutdown() && !executor.isTerminated())
-                        {
-                            executor.submit(task);
-                        }
-                        else
-                        {
-                            log.debug("Skipping HTTP transaction processing - ExecutorService is shutdown");
-                        }
-                    }
-                    catch (RejectedExecutionException e)
-                    {
-                        // シャットダウン中にタスクが拒否された場合（正常なシャットダウン）
-                        log.debug("HTTP transaction processing rejected - application is shutting down");
-                    }
-                    
-                    // Reset current request info for next HTTP exchange in this tunnel
-                    currentRequestMethod = null;
-                    currentRequestURI = null;
+                    // Process captured data
+                    // invoke()自体は軽量（リスナーループ + test() + clone()のみ）なので同期的に実行
+                    // 各リスナーの実際の処理（JSONパース、ファイルI/Oなど）は invoke()内で非同期化される
+                    this.invoke(req, res);
                 }
             }
             catch (Exception e)
@@ -1048,141 +1078,82 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
         
         /**
-         * Initialize content listeners from plugin services.
-         * This method is called lazily when first needed.
-         */
-        private void initializeListeners()
-        {
-            if (listeners == null)
-            {
-                listeners = PluginServices.instances(ContentListenerSpi.class)
-                    .collect(Collectors.toList());
-                
-                log.debug("Initialized {} content listeners", listeners.size());
-            }
-        }
-        
-        /**
          * Invoke content listeners with the captured request/response data.
          * This method efficiently processes data from CaptureHolder2.HttpTransaction.
          * 
          * @param baseReq the base request metadata
          * @param baseRes the base response metadata
-         * @param transaction the HTTP transaction containing request/response with metadata
          */
-        private void invoke(RequestMetaDataWrapper baseReq, ResponseMetaDataWrapper baseRes, CaptureHolder2.HttpTransaction transaction)
+        private void invoke(RequestMetaDataWrapper baseReq, ResponseMetaDataWrapper baseRes)
         {
-            try
+            // Get content listeners (validated in onSuccess(), guaranteed non-empty here)
+            List<ContentListenerSpi> listeners = ReverseConnectHandler.getContentListeners();
+            
+            log.debug("Processing request: {}", baseReq.getRequestURI());
+            
+            // Process each listener
+            for (ContentListenerSpi listener : listeners)
             {
-                // Content-Lengthとの不一致チェック（圧縮後のデータサイズで比較）
-                // ネットワーク障害やサーバー側の切断で不完全なデータを検出
-                CaptureHolder2.HttpResponse httpResponse = transaction.getResponse();
-                long expectedLength = httpResponse.getContentLength();
-                if (expectedLength > 0)
+                // listener.test()の保護（ユーザー実装の例外をキャッチ）
+                // test()の最適化: cloneを省略してbaseReqを直接使用
+                // 注意: test()内でgetParameterMap()を取得して変更すると、後続リスナーに影響する可能性がある
+                // （既存実装のAPIListener/ImageListenerはgetRequestURI()のみ使用するため現時点では問題なし）
+                boolean isInterested;
+                try
                 {
-                    long actualLength = httpResponse.getBodySize();  // 圧縮後の受信バイト数
-                    
-                    if (actualLength != expectedLength)
-                    {
-                        log.warn("Content-Length mismatch detected - rejecting incomplete data: expected {} bytes, but received {} bytes ({} bytes missing, {}% received). ContentListenerSpi will not be invoked for request {}",
-                            expectedLength, actualLength, expectedLength - actualLength, 
-                            String.format("%.1f", (actualLength * 100.0 / expectedLength)),
-                            baseReq.getRequestURI());
-                        return;
-                    }
+                    isInterested = listener.test(baseReq);
+                }
+                catch (Exception e)
+                {
+                    log.warn("Listener {} failed during test() - skipping this listener", 
+                        listener.getClass().getSimpleName(), e);
+                    continue;
                 }
                 
-                // Initialize listeners on first use
-                initializeListeners();
-                
-                if (listeners.isEmpty())
+                if (!isInterested)
                 {
-                    log.debug("No content listeners registered, skipping processing");
-                    return;
+                    log.debug("Listener {} not interested in request {}", 
+                        listener.getClass().getSimpleName(), baseReq.getRequestURI());
+                    continue;
                 }
                 
-                // Process each listener
-                for (ContentListenerSpi listener : listeners)
-                {
+                // accept()用にclone（並列実行の安全性確保）
+                // clone()は内部でCloneNotSupportedExceptionを処理済みなのでtry不要
+                RequestMetaDataWrapper req = baseReq.clone();
+                ResponseMetaDataWrapper res = baseRes.clone();
+                
+                // Process listener asynchronously
+                Runnable task = () -> {
                     try
                     {
-                        log.debug("requestURI: {}", baseReq.getRequestURI());
+                        log.debug("Processing request {} with listener {}", 
+                            req.getRequestURI(), listener.getClass().getSimpleName());
                         
-                        // Clone request metadata (already includes body from CaptureHolder2)
-                        RequestMetaDataWrapper req = baseReq.clone();
+                        listener.accept(req, res);
                         
-                        // Test if listener is interested in this request
-                        if (!listener.test(req))
-                        {
-                            log.debug("Listener {} not interested in request {}", 
-                                listener.getClass().getSimpleName(), req.getRequestURI());
-                            continue;
-                        }
-                        
-                        // Clone response metadata (already includes body from CaptureHolder2)
-                        ResponseMetaDataWrapper res = baseRes.clone();
-                        
-                        // Capture transaction data size before clearing (for logging)
-                        final long requestBodySize = transaction.getRequest().getBodySize();
-                        final long responseBodySize = transaction.getResponse().getBodySize();
-                        
-                        // Process listener asynchronously
-                        Runnable task = () -> {
-                            try
-                            {
-                                log.debug("Processing request {} with listener {} (req: {} bytes, res: {} bytes)", 
-                                    req.getRequestURI(), listener.getClass().getSimpleName(),
-                                    requestBodySize, responseBodySize);
-                                
-                                listener.accept(req, res);
-                                
-                                log.debug("Successfully processed request {} with listener {}", 
-                                    req.getRequestURI(), listener.getClass().getSimpleName());
-                            }
-                            catch (Exception e)
-                            {
-                                log.warn("Content listener {} failed to process request", 
-                                    listener.getClass().getSimpleName(), e);
-                            }
-                        };
-                        
-                        // シャットダウン中でない場合のみタスクを送信
-                        try
-                        {
-                            ExecutorService executor = ThreadManager.getExecutorService();
-                            if (executor != null && !executor.isShutdown() && !executor.isTerminated())
-                            {
-                                executor.submit(task);
-                            }
-                            else
-                            {
-                                log.debug("Skipping listener {} processing - ExecutorService is shutdown", 
-                                    listener.getClass().getSimpleName());
-                            }
-                        }
-                        catch (RejectedExecutionException e)
-                        {
-                            // シャットダウン中にタスクが拒否された場合（正常なシャットダウン）
-                            log.debug("Listener processing rejected - application is shutting down");
-                        }
+                        log.debug("Successfully processed request {} with listener {}", 
+                            req.getRequestURI(), listener.getClass().getSimpleName());
                     }
                     catch (Exception e)
                     {
-                        log.warn("Failed to process listener {}", 
+                        log.warn("Content listener {} failed to process request", 
                             listener.getClass().getSimpleName(), e);
                     }
+                };
+                
+                // Virtual Thread Executorで非同期実行
+                // Virtual Threadsは常に利用可能なため、null/shutdownチェック不要
+                try
+                {
+                    ThreadManager.getExecutorService().submit(task);
+                }
+                catch (RejectedExecutionException e)
+                {
+                    // アプリケーション終了時のみ発生（稀）
+                    log.debug("Listener {} processing rejected - application is shutting down", 
+                        listener.getClass().getSimpleName());
                 }
             }
-            catch (Exception e)
-            {
-                log.warn("Failed to invoke content listeners for request: {}", 
-                    baseReq.getRequestURI(), e);
-            }
-            // 注: ここでtransaction.clear()を呼び出さない理由:
-            // 1. RequestMetaDataWrapper/ResponseMetaDataWrapperのclone()はInputStreamの浅いコピーのみ実行
-            // 2. トランザクションをクリアすると、非同期タスクで使用中のclonedされたreq/res内のInputStreamが無効化される
-            // 3. トランザクションはすべての非同期タスク完了後にガベージコレクションされる
-            // 4. 次のHTTPメッセージはcompleteTransaction()経由で新しいトランザクションを作成する
         }
     }
     
@@ -1619,10 +1590,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
     public class UpstreamConnection extends TunnelConnection
     {
         private final ConnectContext connectContext;
-        private final List<HttpClientConnectionListener> httpClientListeners = new CopyOnWriteArrayList<>();
+        private HttpClientConnectionListener httpClientListener;
         private HttpParser httpParser;
         private boolean parseHttpResponse = true;  // HTTPレスポンスを常にパース
-        private HttpResponse currentResponse;
 
         public UpstreamConnection(EndPoint endPoint, Executor executor, ByteBufferPool bufferPool, ConnectContext connectContext)
         {
@@ -1656,22 +1626,27 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
         
         /**
-         * Add a connection listener to track HTTP events.
+         * Set the connection listener to track HTTP events.
          * 
-         * @param listener the listener to add
+         * @param listener the listener to set
          */
-        public void addHttpClientListener(HttpClientConnectionListener listener)
+        public void setHttpClientListener(HttpClientConnectionListener listener)
         {
-            httpClientListeners.add(listener);
-            log.debug("Added HTTP client listener {} to {}", listener, this);
+            this.httpClientListener = listener;
+            log.debug("Set HTTP client listener {} to {}", listener, this);
         }
         
         /**
-         * Notify all HttpClientConnectionListener instances of content received.
+         * Notify the HttpClientConnectionListener of content received.
          * Content is stored directly in CaptureHolder2 for efficiency.
          */
         private void notifyContentListeners(ByteBuffer buffer, int offset, int length)
         {
+            if (httpClientListener == null)
+            {
+                return;
+            }
+            
             // Extract bytes from buffer for storing in CaptureHolder2
             byte[] bytes;
             if (buffer.hasArray())
@@ -1689,33 +1664,20 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 buffer.position(savedPosition);
             }
             
-            for (HttpClientConnectionListener listener : httpClientListeners)
-            {
-                try
-                {
-                    // Store response body directly in CaptureHolder2
-                    listener.getCaptureHolder().getCurrentResponse().addBodyChunk(bytes);
-                    
-                    // Also notify listener for backwards compatibility
-                    listener.onContent(buffer, offset, length);
-                }
-                catch (Exception e)
-                {
-                    log.debug("Error notifying listener of content", e);
-                }
-            }
+            // Store response body directly in CaptureHolder2
+            httpClientListener.getCaptureHolder().getCurrentResponse().addBodyChunk(bytes);
         }
         
         /**
-         * Notify all HttpClientConnectionListener instances of successful completion.
+         * Notify the HttpClientConnectionListener of successful completion.
          */
         private void notifySuccessListeners()
         {
-            for (HttpClientConnectionListener listener : httpClientListeners)
+            if (httpClientListener != null)
             {
                 try
                 {
-                    listener.onSuccess();
+                    httpClientListener.onSuccess();
                 }
                 catch (Exception e)
                 {
@@ -1736,14 +1698,11 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 log.debug("HTTP Response: {} {} {}", version, status, reason);
                 
                 // Store response status line directly in CaptureHolder2
-                for (HttpClientConnectionListener listener : httpClientListeners)
+                if (httpClientListener != null)
                 {
-                    listener.getCaptureHolder().getCurrentResponse().setStatusLine(
+                    httpClientListener.getCaptureHolder().getCurrentResponse().setStatusLine(
                         version.toString(), status, reason);
                 }
-                
-                currentResponse = new HttpResponse(null);
-                currentResponse.version(version).status(status).reason(reason);
             }
             
             @Override
@@ -1752,15 +1711,10 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 log.debug("HTTP Response Header: {}: {}", field.getName(), field.getValue());
                 
                 // Store header directly in CaptureHolder2
-                for (HttpClientConnectionListener listener : httpClientListeners)
+                if (httpClientListener != null)
                 {
-                    listener.getCaptureHolder().getCurrentResponse().addHeader(
+                    httpClientListener.getCaptureHolder().getCurrentResponse().addHeader(
                         field.getName(), field.getValue());
-                }
-                
-                if (currentResponse != null)
-                {
-                    currentResponse.headers(headers -> headers.add(field));
                 }
             }
             
@@ -1803,7 +1757,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 // Notify success listeners when HTTP response is complete
                 notifySuccessListeners();
                 
-                currentResponse = null;
                 return false;
             }
             
@@ -1865,7 +1818,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 else
                 {
                     // In tunnel mode, just notify content listeners if any
-                    if (!httpClientListeners.isEmpty())
+                    if (httpClientListener != null)
                     {
                         notifyContentListeners(buffer, positionBefore, read);
                     }
@@ -1928,7 +1881,27 @@ public class ReverseConnectHandler extends Handler.Wrapper
         @Override
         public void onClose(Throwable cause)
         {
-            // Cleanup HTTP parser if present
+            // 正常終了（cause == null）かつHTTPリクエストが受信されている場合、
+            // successリスナーを通知してHTTPトランザクションを完了させる
+            // これはHTTPパーサーがmessageComplete()を呼ばなかった場合のフォールバック処理
+            // 通常は、ResponseParserHandler.messageComplete()で処理済みのため、
+            // onSuccess()内でcurrentRequestURIがnullにクリアされており、重複は発生しない
+            if (cause == null && httpClientListener != null)
+            {
+                if (httpClientListener.hasValidRequest())
+                {
+                    log.debug("Fallback: notifying success listeners on UpstreamConnection close (HTTP parser may not have completed)");
+                    notifySuccessListeners();
+                }
+                else
+                {
+                    log.debug("Skipping notifySuccessListeners() on UpstreamConnection close - no valid HTTP request received");
+                }
+            }
+            // 異常終了（cause != null）の場合は、DownstreamConnection.onClose()で
+            // clientDisconnectedEarlyフラグが既に設定されているため、何もしない
+            
+            // Cleanup HTTP parser if present (正常・異常どちらでも必ず実行)
             if (httpParser != null)
             {
                 try
@@ -1941,27 +1914,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 }
             }
             
-            // If closing without error and HTTP request was received, notify success listeners
-            // Check if any listener has a valid request URI to avoid "null null" logs
-            boolean hasValidRequest = false;
-            for (HttpClientConnectionListener listener : httpClientListeners)
-            {
-                if (listener.hasValidRequest())
-                {
-                    hasValidRequest = true;
-                    break;
-                }
-            }
-            
-            if (cause == null && hasValidRequest)
-            {
-                notifySuccessListeners();
-            }
-            else if (cause == null && !hasValidRequest)
-            {
-                log.debug("Skipping notifySuccessListeners() on UpstreamConnection close - no valid HTTP request received");
-            }
-            
             super.onClose(cause);
         }
     }
@@ -1969,11 +1921,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
     public class DownstreamConnection extends TunnelConnection implements Connection.UpgradeTo
     {
         private ByteBuffer buffer;
-        private final List<HttpClientConnectionListener> httpClientListeners = new CopyOnWriteArrayList<>();
+        private HttpClientConnectionListener httpClientListener;
         private HttpParser httpParser;
         private boolean parseHttpRequest = false;
-        private String currentRequestMethod;
-        private String currentRequestURI;
 
         public DownstreamConnection(EndPoint endPoint, Executor executor, ByteBufferPool bufferPool, ConcurrentMap<String, Object> context)
         {
@@ -2022,22 +1972,27 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
         
         /**
-         * Add a connection listener to track HTTP events.
+         * Set the connection listener to track HTTP events.
          * 
-         * @param listener the listener to add
+         * @param listener the listener to set
          */
-        public void addHttpClientListener(HttpClientConnectionListener listener)
+        public void setHttpClientListener(HttpClientConnectionListener listener)
         {
-            httpClientListeners.add(listener);
-            log.debug("Added HTTP client listener {} to {}", listener, this);
+            this.httpClientListener = listener;
+            log.debug("Set HTTP client listener {} to {}", listener, this);
         }
         
         /**
-         * Notify all HttpClientConnectionListener instances of content received.
+         * Notify the HttpClientConnectionListener of content received.
          * Content is stored directly in CaptureHolder2 for efficiency.
          */
         private void notifyContentListeners(ByteBuffer buffer, int offset, int length)
         {
+            if (httpClientListener == null)
+            {
+                return;
+            }
+            
             // Extract bytes from buffer for storing in CaptureHolder2
             byte[] bytes;
             if (buffer.hasArray())
@@ -2055,20 +2010,10 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 buffer.position(savedPosition);
             }
             
-            for (HttpClientConnectionListener listener : httpClientListeners)
-            {
-                try
-                {
-                    // Store request body directly in CaptureHolder2
-                    listener.getCaptureHolder().getCurrentRequest().addBodyChunk(bytes);
-                    
-                    log.debug("Captured {} bytes of HTTP request content", length);
-                }
-                catch (Exception e)
-                {
-                    log.debug("Error capturing request content", e);
-                }
-            }
+            // Store request body directly in CaptureHolder2
+            httpClientListener.getCaptureHolder().getCurrentRequest().addBodyChunk(bytes);
+            
+            log.debug("Captured {} bytes of HTTP request content", length);
         }
         
         /**
@@ -2082,15 +2027,11 @@ public class ReverseConnectHandler extends Handler.Wrapper
             {
                 log.debug("HTTP Request: {} {} {}", method, uri, version);
                 
-                currentRequestMethod = method;
-                currentRequestURI = uri;
-                
                 // CaptureHolder2にリクエスト行を直接保存
-                for (HttpClientConnectionListener listener : httpClientListeners)
+                if (httpClientListener != null)
                 {
-                    listener.getCaptureHolder().getCurrentRequest().setRequestLine(
+                    httpClientListener.getCaptureHolder().getCurrentRequest().setRequestLine(
                         method, uri, version.toString());
-                    listener.setCurrentRequest(method, uri);
                 }
             }
             
@@ -2100,9 +2041,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 log.debug("HTTP Request Header: {}: {}", field.getName(), field.getValue());
                 
                 // Store header directly in CaptureHolder2
-                for (HttpClientConnectionListener listener : httpClientListeners)
+                if (httpClientListener != null)
                 {
-                    listener.getCaptureHolder().getCurrentRequest().addHeader(
+                    httpClientListener.getCaptureHolder().getCurrentRequest().addHeader(
                         field.getName(), field.getValue());
                 }
             }
@@ -2141,10 +2082,12 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             public boolean messageComplete()
             {
-                log.debug("HTTP Request Message complete: {} {}", currentRequestMethod, currentRequestURI);
+                if (httpClientListener != null)
+                {
+                    var req = httpClientListener.getCaptureHolder().getCurrentRequest();
+                    log.debug("HTTP Request Message complete: {} {}", req.getMethod(), req.getUri());
+                }
                 
-                currentRequestMethod = null;
-                currentRequestURI = null;
                 return false;
             }
             
@@ -2279,7 +2222,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 else
                 {
                     // トンネルモード: リスナーがあればコンテンツを通知
-                    if (!httpClientListeners.isEmpty())
+                    if (httpClientListener != null)
                     {
                         notifyContentListeners(buffer, positionBefore, read);
                     }
@@ -2340,7 +2283,29 @@ public class ReverseConnectHandler extends Handler.Wrapper
         @Override
         public void onClose(Throwable cause)
         {
-            // Cleanup HTTP parser if present
+            // クライアントが異常切断した場合（cause != null）、リスナーに通知
+            // 正常終了（cause == null）の場合は何もしない
+            //
+            // hasValidRequest()で「HTTPトランザクション進行中」かどうかを判定
+            // cause != null と組み合わせることで、
+            // 「HTTPトランザクション進行中に異常終了した」ことを正確に検知
+            //
+            // 重要：hasValidRequest()単独では異常を検知できない
+            // - HTTPトランザクション進行中 && 正常動作中 → hasValidRequest() = true
+            // - HTTPトランザクション進行中 && 異常終了 → hasValidRequest() = true && cause != null ★これを検知
+            // - TLS接続のみ（HTTPなし） && 異常終了 → hasValidRequest() = false && cause != null（フラグ設定不要）
+            if (cause != null && httpClientListener != null)
+            {
+                if (httpClientListener.hasValidRequest())
+                {
+                    var req = httpClientListener.getCaptureHolder().getCurrentRequest();
+                    log.debug("Client (downstream) disconnected with error during HTTP transaction: {} {}", 
+                        req.getMethod(), req.getUri());
+                    httpClientListener.clientDisconnectedEarly = true;
+                }
+            }
+            
+            // Cleanup HTTP parser if present (正常・異常どちらでも必ず実行)
             if (httpParser != null)
             {
                 try

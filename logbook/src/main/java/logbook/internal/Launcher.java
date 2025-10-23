@@ -7,7 +7,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 import logbook.bean.AppConfig;
@@ -97,7 +97,7 @@ public final class Launcher {
      * スレッドプールの終了処理
      */
     private void exitLocalThreadPool() {
-        ScheduledExecutorService executor = ThreadManager.getExecutorService();
+        ExecutorService executor = ThreadManager.getExecutorService();
         executor.shutdownNow();
     }
 
