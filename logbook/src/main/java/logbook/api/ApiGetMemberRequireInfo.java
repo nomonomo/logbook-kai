@@ -25,7 +25,11 @@ public class ApiGetMemberRequireInfo implements APIListenerSpi {
         if (data != null) {
             this.apiBasic(data.getJsonObject("api_basic"));
             this.apiSlotItem(data.getJsonArray("api_slot_item"));
-            this.apiUseitem(data.getJsonArray("api_useitem"));
+            // api_useitem (オプショナル)
+            JsonArray useitemArray = data.getJsonArray("api_useitem");
+            if (useitemArray != null) {
+                this.apiUseitem(useitemArray);
+            }
         }
     }
 
