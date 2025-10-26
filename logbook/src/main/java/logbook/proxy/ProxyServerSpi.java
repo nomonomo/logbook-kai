@@ -1,5 +1,7 @@
 package logbook.proxy;
 
+import logbook.bean.AppConfig;
+
 /**
  * プロキシサーバーの実装を定義するインターフェースです。<br>
  * <br>
@@ -19,5 +21,18 @@ package logbook.proxy;
  * </ul>
  */
 public interface ProxyServerSpi extends Runnable {
+    
+    /**
+     * 設定を再読み込みする。
+     * サーバーを再起動せずに、実行時に設定を反映させる。
+     * 
+     * @param config 適用するアプリケーション設定（変更途中のデータも渡せる）
+     * @return 再読み込みの結果（成功または失敗の詳細情報を含む）
+     */
+    default ConfigReloadResult reloadConfig(AppConfig config) {
+        // デフォルト実装（何もしない）
+        // プラグインで実装されていない場合は失敗を返す
+        return ConfigReloadResult.failure("プラグインで実装されていません");
+    }
 
 }

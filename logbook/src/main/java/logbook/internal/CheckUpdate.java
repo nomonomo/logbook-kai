@@ -178,9 +178,10 @@ public class CheckUpdate {
         alert.setTitle("新しいバージョン");
         alert.setHeaderText("新しいバージョン");
         alert.setContentText(message);
+        // 親ウィンドウを設定（これにより、アラートは親ウィンドウの上に表示される）
         alert.initOwner(stage);
         alert.getButtonTypes().clear();
-        alert.getButtonTypes().addAll(update, visible, no);
+        alert.getButtonTypes().addAll(visible, no); // 自動更新ボタンを非表示
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent()) {
             if (result.get() == update)

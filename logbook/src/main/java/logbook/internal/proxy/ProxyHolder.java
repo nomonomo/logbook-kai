@@ -14,9 +14,11 @@ import logbook.proxy.ProxyServerSpi;
 public class ProxyHolder {
 
     private static final Thread SERVER;
+    private static final ProxyServerSpi PROXY_SERVER_INSTANCE;
 
     static {
         Thread thread = null;
+        ProxyServerSpi proxyInstance = null;
         try {
             List<ProxyServerSpi> proxies = PluginServices.instances(ProxyServerSpi.class)
                     .collect(Collectors.toList());
@@ -29,10 +31,12 @@ public class ProxyHolder {
             }
             thread = new Thread(impl);
             thread.setDaemon(true);
+            proxyInstance = impl;
         } catch (Exception e) {
             LoggerHolder.get().error("プロキシサーバーの初期化中に例外", e);
         }
         SERVER = thread;
+        PROXY_SERVER_INSTANCE = proxyInstance;
     }
 
     /**
@@ -41,5 +45,13 @@ public class ProxyHolder {
      */
     public static Thread getInstance() {
         return SERVER;
+    }
+    
+    /**
+     * プロキシサーバーインスタンスを取得します
+     * @return プロキシサーバーインスタンス
+     */
+    public static ProxyServerSpi getProxyServerInstance() {
+        return PROXY_SERVER_INSTANCE;
     }
 }

@@ -14,17 +14,20 @@ import java.util.function.Supplier;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.RadioButton;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
@@ -37,6 +40,7 @@ import javafx.scene.text.TextFlow;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 import logbook.bean.AppBouyomiConfig;
 import logbook.bean.AppBouyomiConfig.AppBouyomiText;
@@ -53,14 +57,22 @@ import logbook.internal.ThreadManager;
 import logbook.internal.ToStringConverter;
 import logbook.internal.Tuple;
 import logbook.internal.Tuple.Pair;
+import logbook.internal.proxy.ProxyHolder;
+import logbook.internal.ssl.SslCertificateUtil;
 import logbook.plugin.PluginContainer;
 import logbook.plugin.PluginServices;
+import logbook.proxy.ConfigReloadResult;
+import logbook.proxy.ProxyServerSpi;
 
 /**
  * 設定コントローラー
  *
  */
 public class ConfigController extends WindowController {
+
+    /** タブペイン */
+    @FXML
+    private TabPane tabPane;
 
     @FXML
     private ToggleGroup windowStyle;
@@ -289,6 +301,22 @@ public class ConfigController extends WindowController {
     @FXML
     private TextField listenPort;
 
+    /** サーバー証明書ファイルパス */
+    @FXML
+    private TextField serverCertificatePath;
+
+    /** サーバー証明書ファイル参照ボタン */
+    @FXML
+    private Button serverCertificatePathRef;
+
+    /** サーバー証明書内容確認ボタン */
+    @FXML
+    private Button serverCertificateVerify;
+
+    /** 証明書作成ボタン */
+    @FXML
+    private Button createCertificate;
+
     /** ローカルループバックアドレスからの接続のみ受け入れる */
     @FXML
     private CheckBox allowOnlyFromLocalhost;
@@ -387,6 +415,54 @@ public class ConfigController extends WindowController {
     private EnumMap<BouyomiChanUtils.Type, Supplier<String>> bouyomiTextMap = new EnumMap<>(
             BouyomiChanUtils.Type.class);
 
+    /**
+     * 指定されたインデックスのタブを選択する
+     * 
+     * @param tabIndex タブのインデックス（0番から開始）
+     *                 - 0: 一般
+     *                 - 1: 戦闘・艦隊・艦娘
+     *                 - 2: 画像
+     *                 - 3: 通信
+     *                 - 4: キャプチャ
+     *                 - 5: プラグイン
+     *                 - 6: 棒読みちゃん連携
+     */
+    public void selectTab(int tabIndex) {
+        if (this.tabPane != null) {
+            int tabCount = this.tabPane.getTabs().size();
+            
+            // タブインデックスの範囲チェック
+            if (tabIndex < 0 || tabIndex >= tabCount) {
+                LoggerHolder.get().error("タブインデックスが範囲外です: index={}, tabCount={} (0番の一般タブを表示します)", 
+                    tabIndex, tabCount);
+                // 範囲外の場合は0番（一般タブ）を表示
+                this.tabPane.getSelectionModel().select(0);
+            } else {
+                this.tabPane.getSelectionModel().select(tabIndex);
+            }
+        }
+    }
+
+    /**
+     * 設定画面を開いて指定されたタブを表示する
+     * 
+     * @param parent 親ウィンドウ
+     * @param tabIndex 表示するタブのインデックス
+     */
+    public static void openWithTab(Stage parent, int tabIndex) {
+        try {
+            InternalFXMLLoader.showWindow("logbook/gui/config.fxml", parent, "設定",
+                    controller -> {
+                        if (controller instanceof ConfigController) {
+                            ((ConfigController) controller).selectTab(tabIndex);
+                        }
+                    },
+                    null);
+        } catch (Exception ex) {
+            LoggerHolder.get().error("設定画面の表示に失敗しました", ex);
+        }
+    }
+
     @FXML
     void initialize() {
         this.toastLocation.getItems().add(Tuple.of("左上", "TOP_LEFT"));
@@ -465,6 +541,7 @@ public class ConfigController extends WindowController {
         this.visiblePoseImageOnFleetTab.setSelected(conf.isVisiblePoseImageOnFleetTab());
         this.connectionClose.setSelected(conf.isConnectionClose());
         this.listenPort.setText(Integer.toString(conf.getListenPort()));
+        this.serverCertificatePath.setText(conf.getServerCertificatePath() != null ? conf.getServerCertificatePath() : "");
         this.allowOnlyFromLocalhost.setSelected(conf.isAllowOnlyFromLocalhost());
         this.useProxy.setSelected(conf.isUseProxy());
         this.proxyPort.setText(Integer.toString(conf.getProxyPort()));
@@ -588,6 +665,7 @@ public class ConfigController extends WindowController {
         
         conf.setConnectionClose(this.connectionClose.isSelected());
         conf.setListenPort(this.toInt(this.listenPort.getText()));
+        conf.setServerCertificatePath(this.serverCertificatePath.getText());
         conf.setAllowOnlyFromLocalhost(this.allowOnlyFromLocalhost.isSelected());
         conf.setUseProxy(this.useProxy.isSelected());
         conf.setProxyHost(this.proxyHost.getText());
@@ -604,7 +682,98 @@ public class ConfigController extends WindowController {
 
         ThreadManager.getExecutorService()
                 .execute(Config.getDefault()::store);
+        
+        // 設定を再読み込み（パスが同じでもファイル内容が変更されている可能性があるため常に実行）
+        reloadConfig(conf, false);
+        
         this.getWindow().close();
+    }
+    
+    /**
+     * 設定を再読み込みする。
+     * 
+     * @param config 再読み込みする設定
+     * @param showMessage 結果メッセージを表示するかどうか
+     */
+    private void reloadConfig(AppConfig config, boolean showMessage) {
+        LoggerHolder.get().info("設定を再読み込みします");
+        
+        // ProxyServerSpiインスタンスを取得
+        ProxyServerSpi proxyServer = ProxyHolder.getProxyServerInstance();
+        
+        if (proxyServer == null) {
+            LoggerHolder.get().warn("ProxyServerインスタンスが取得できませんでした");
+            return;
+        }
+        
+        // 設定を再読み込み（Java 21のパターンマッチングで結果を処理）
+        ConfigReloadResult result = proxyServer.reloadConfig(config);
+        
+        switch (result) {
+            case ConfigReloadResult.Success() -> {
+                LoggerHolder.get().info("設定の再読み込みが成功しました");
+
+                // コンフィグ全体の再読み込みになったので、成功してれば何も表示しない
+                // if (showMessage) {
+                //     // 成功メッセージを表示
+                //     Platform.runLater(() -> {
+                //         Tools.Controls.alert(AlertType.INFORMATION,
+                //                 "証明書再読み込み成功",
+                //                 "証明書の再読み込みに成功しました。\n今後のHTTPS通信には新しい証明書が使用されます。",
+                //                 this.getWindow());
+                //     });
+                // }
+            }
+            
+            case ConfigReloadResult.Failure failure -> {
+                LoggerHolder.get().warn("設定の再読み込みに失敗しました: {}", failure.message());
+                
+                // fieldNameによって処理を分岐
+                if ("serverCertificatePath".equals(failure.fieldName())) {
+                    // 証明書パスに関するエラーの場合は特別なアラート
+                    Platform.runLater(() -> {
+                        Alert alert = new Alert(AlertType.ERROR);
+                        alert.getDialogPane().getStylesheets().add("logbook/gui/application.css");
+                        InternalFXMLLoader.setGlobal(alert.getDialogPane());
+                        alert.initOwner(this.getWindow());
+                        alert.setTitle("証明書エラー");
+                        alert.setHeaderText("サーバー証明書ファイルのエラー");
+                        
+                        String message = failure.message() + "\n\n" +
+                                "以下を確認してください：\n" +
+                                "  • 証明書ファイル（*.p12, *.pfx）のパスが正しいか\n" +
+                                "  • ファイルが存在するか\n" +
+                                "  • ファイルが破損していないか\n" +
+                                "  • パスワードが正しいか";
+                        
+                        if (showMessage) {
+                            message += "\n\n証明書作成ボタンから新しい証明書を作成することもできます。";
+                        } else {
+                            message += "\n\nHTTPS通信を使用する場合は、アプリケーションを再起動してください。";
+                        }
+                        
+                        alert.setContentText(message);
+                        alert.showAndWait();
+                    });
+                } else {
+                    // 現在は証明書以外のエラーはアラートを表示しない
+                    // 後日サーバーポート変更などは対応する予定
+                    // その他のエラーの場合は通常のアラート
+                    // Platform.runLater(() -> {
+                    //     String baseMessage = failure.getFormattedMessage();
+                    //     String additionalMessage = showMessage 
+                    //         ? "\n\nプロキシサーバーが起動していない場合は、\n" +
+                    //           "「適用」ボタンをクリックしてプロキシサーバーを起動してください。"
+                    //         : "\n\nHTTPS通信を使用する場合は、アプリケーションを再起動してください。";
+                        
+                    //     Tools.Controls.alert(AlertType.WARNING,
+                    //             "設定の再読み込み失敗",
+                    //             baseMessage + additionalMessage,
+                    //             this.getWindow());
+                    // });
+                }
+            }
+        }
     }
 
     @FXML
@@ -683,6 +852,101 @@ public class ConfigController extends WindowController {
                 .filter(File::exists)
                 .map(File::getAbsolutePath)
                 .ifPresent(this.storeApiStart2Dir::setText);
+    }
+
+    /**
+     * サーバー証明書ファイル選択
+     */
+    @FXML
+    void selectServerCertificate(ActionEvent event) {
+        FileChooser fc = new FileChooser();
+        fc.setTitle("サーバー証明書ファイルの選択");
+        fc.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("証明書ファイル (*.p12, *.pfx)", "*.p12", "*.pfx"));
+        
+        // デフォルトフォルダは起動時ディレクトリ
+        String current = this.serverCertificatePath.getText();
+        if (current != null && !current.isEmpty()) {
+            Path path = Paths.get(current);
+            Path parent = path.getParent();
+            if (parent != null && Files.exists(parent)) {
+                fc.setInitialDirectory(parent.toFile());
+            }
+        } else {
+            // 証明書パスが未設定の場合、起動時ディレクトリを使用
+            fc.setInitialDirectory(new File("").getAbsoluteFile());
+        }
+        
+        Optional.ofNullable(fc.showOpenDialog(this.getWindow()))
+                .filter(File::exists)
+                .map(File::getAbsolutePath)
+                .ifPresent(this.serverCertificatePath::setText);
+    }
+
+    /**
+     * 証明書作成
+     */
+    @FXML
+    void createCertificate(ActionEvent event) {
+        try {
+            InternalFXMLLoader.showWindow("logbook/gui/certificate_creator.fxml", this.getWindow(), "証明書作成", null, null);
+        } catch (Exception ex) {
+            LoggerHolder.get().error("証明書作成画面の表示に失敗しました", ex);
+        }
+    }
+
+    /**
+     * サーバー証明書内容確認
+     */
+    @FXML
+    void verifyServerCertificate(ActionEvent event) {
+        String certPath = this.serverCertificatePath.getText();
+        
+        if (certPath == null || certPath.isEmpty()) {
+            Tools.Controls.alert(AlertType.WARNING,
+                    "証明書ファイル未指定",
+                    "証明書ファイルが指定されていません。\n証明書ファイルのパスを入力してください。",
+                    this.getWindow());
+            return;
+        }
+        
+        Path certFile = Paths.get(certPath);
+        if (!Files.exists(certFile)) {
+            Tools.Controls.alert(AlertType.ERROR,
+                    "証明書ファイルが見つかりません",
+                    "指定された証明書ファイルが存在しません。\nファイルパス: " + certPath,
+                    this.getWindow());
+            return;
+        }
+        
+        // SslCertificateUtilで証明書を読み込み、詳細情報を取得
+        String certInfo = SslCertificateUtil.getCertificateInfo(certPath);
+        
+        if (certInfo != null) {
+            // 証明書情報は長いテキストなので、カスタムAlertで横幅を広げる
+            Alert alert = new Alert(AlertType.INFORMATION);
+            alert.getDialogPane().getStylesheets().add("logbook/gui/application.css");
+            InternalFXMLLoader.setGlobal(alert.getDialogPane());
+            alert.initOwner(this.getWindow());
+            alert.setTitle("証明書ファイル情報");
+            alert.setHeaderText("証明書ファイル情報");
+            
+            // TextAreaを使用して長いテキストを表示（スクロール可能）
+            TextArea textArea = new TextArea(certInfo);
+            textArea.setEditable(false);
+            textArea.setWrapText(true);
+            textArea.setPrefWidth(800);  // 横幅を広げる
+            textArea.setPrefHeight(400); // 高さも調整
+            
+            alert.getDialogPane().setContent(textArea);
+            alert.showAndWait();
+        } else {
+            Tools.Controls.alert(AlertType.ERROR,
+                    "証明書情報の取得に失敗しました",
+                    "証明書ファイルの読み込み中にエラーが発生しました。\n" +
+                    "パスワードが正しいか、証明書ファイルが破損していないか確認してください。",
+                    this.getWindow());
+        }
     }
 
     @FXML
