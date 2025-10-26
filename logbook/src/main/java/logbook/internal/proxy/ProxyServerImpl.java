@@ -400,33 +400,34 @@ public final class ProxyServerImpl implements ProxyServerSpi {
         return new SslHandshakeListener() {
             @Override
             public void handshakeFailed(Event event, Throwable failure) {
-                // Java 21のパターンマッチングで簡潔に処理
+                // SSLHandshakeException以外は無視
                 if (!(failure instanceof SSLHandshakeException e)) {
                     return;
                 }
                 
-                String message = e.getMessage();
-                if (message == null || !message.contains("certificate_unknown")) {
-                    log.debug("SSLハンドシェイクエラー: {} (Jetty標準リスナーで検知)", 
-                        message != null ? message : "不明なエラー");
-                    return;
-                }
-                
-                // 証明書信頼エラーを処理
-                handleCertificateUnknownError(event, sslCertErrorCount.incrementAndGet());
+                // SSLハンドシェイク失敗時は、メッセージ内容に関わらず全てカウント対象
+                // （JVM実装やバージョンによってメッセージが異なる可能性があるため）
+                handleSslHandshakeError(event, e, sslCertErrorCount.incrementAndGet());
             }
         };
     }
     
     /**
-     * 証明書信頼エラー（certificate_unknown）を処理する。
+     * SSLハンドシェイクエラーを処理する。
+     * ブラウザとのSSL接続確立に失敗した場合に呼び出される。
      * 
      * @param event SSLハンドシェイクイベント
+     * @param exception SSLハンドシェイク例外
      * @param errorCount エラー発生回数
      */
-    private void handleCertificateUnknownError(SslHandshakeListener.Event event, int errorCount) {
-        log.warn("SSL証明書エラー ({}回目): ブラウザがサーバー証明書を信頼していません。接続: {}", 
-            errorCount, event.getSSLEngine().getPeerHost());
+    private void handleSslHandshakeError(SslHandshakeListener.Event event, 
+                                          SSLHandshakeException exception, 
+                                          int errorCount) {
+        String message = exception.getMessage();
+        log.warn("SSLハンドシェイクエラー ({}回目): {} 接続: {}", 
+            errorCount, 
+            message != null ? message : "不明なエラー",
+            event.getSSLEngine().getPeerHost());
         
         // 閾値を超えたら、ダイアログを表示（1度だけ）
         if (errorCount >= SSL_ERROR_THRESHOLD && sslCertErrorDialogShown.compareAndSet(false, true)) {
