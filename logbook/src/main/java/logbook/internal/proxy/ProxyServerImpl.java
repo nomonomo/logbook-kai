@@ -424,10 +424,39 @@ public final class ProxyServerImpl implements ProxyServerSpi {
                                           SSLHandshakeException exception, 
                                           int errorCount) {
         String message = exception.getMessage();
-        log.warn("SSLハンドシェイクエラー ({}回目): {} 接続: {}", 
+        
+        // 接続先情報を取得（CONNECT先のサーバーアドレス）
+        String targetServerAddress = null;
+        String clientAddress = "不明";
+        
+        try {
+            if (event.getEndPoint() != null) {
+                // 2. ConnectionのAttributesから接続先サーバーアドレスを取得
+                var connection = event.getEndPoint().getConnection();
+                if (connection instanceof ReverseConnectHandler.DownstreamConnection downstreamConnection) {
+                    var attributes = downstreamConnection.getContext();
+                    targetServerAddress = (String) attributes.get("targetServerAddress");
+                }
+                
+                // 3. クライアントアドレス（ブラウザのアドレス）をEndPointから取得
+                var remoteAddr = event.getEndPoint().getRemoteSocketAddress();
+                if (remoteAddr != null) {
+                    clientAddress = remoteAddr.toString();
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Failed to get connection info", e);
+        }
+        
+        // ログ出力：接続先 > クライアントの順で表示
+        String connectionInfo = targetServerAddress != null 
+            ? targetServerAddress + " (from " + clientAddress + ")"
+            : clientAddress;
+        
+        log.warn("SSLハンドシェイクエラー ({}回目): {} 接続先: {}", 
             errorCount, 
             message != null ? message : "不明なエラー",
-            event.getSSLEngine().getPeerHost());
+            connectionInfo);
         
         // 閾値を超えたら、ダイアログを表示（1度だけ）
         if (errorCount >= SSL_ERROR_THRESHOLD && sslCertErrorDialogShown.compareAndSet(false, true)) {

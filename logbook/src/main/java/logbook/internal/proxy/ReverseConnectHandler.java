@@ -447,6 +447,8 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 public void succeeded(SocketChannel channel)
                 {
                     ConnectContext connectContext = new ConnectContext(request, response, callback, request.getTunnelSupport().getEndPoint());
+                    // 接続先情報をAttributesに保存（SSL証明書エラーログで使用）
+                    connectContext.getContext().put("targetServerAddress", serverAddress);
                     log.debug("connected to server: {}", channel.isConnected() ? "connected" : "not connected");
                     if (channel.isConnected())
                         selector.accept(channel, connectContext);
@@ -1434,6 +1436,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
 
         public UpstreamConnection(EndPoint endPoint, Executor executor, ByteBufferPool bufferPool, ConnectContext connectContext)
         {
+            // ConnectContextのcontextを直接共有（コピー不要）
             super(endPoint, executor, bufferPool, connectContext.getContext());
             this.connectContext = connectContext;
         }
