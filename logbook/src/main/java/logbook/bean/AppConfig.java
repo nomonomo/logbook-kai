@@ -139,6 +139,9 @@ public final class AppConfig implements Serializable {
     /** ポート番号 */
     private int listenPort = 8888;
 
+    /** サーバー証明書ファイルパス */
+    private String serverCertificatePath = "kancolle.p12";
+
     /** ローカルループバックアドレスからの接続のみ受け入れる */
     private boolean allowOnlyFromLocalhost = true;
 

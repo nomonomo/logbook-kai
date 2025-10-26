@@ -40,7 +40,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
 import org.eclipse.jetty.client.HttpClient;
@@ -68,12 +67,14 @@ import org.eclipse.jetty.io.AbstractConnection;
 import org.eclipse.jetty.io.ByteBufferPool;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
+import org.eclipse.jetty.io.EofException;
 import org.eclipse.jetty.io.ManagedSelector;
 import org.eclipse.jetty.io.Retainable;
 import org.eclipse.jetty.io.RetainableByteBuffer;
 import org.eclipse.jetty.io.SelectorManager;
 import org.eclipse.jetty.io.SocketChannelEndPoint;
 import org.eclipse.jetty.io.ssl.SslConnection;
+import org.eclipse.jetty.io.ssl.SslHandshakeListener;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpStream;
 import org.eclipse.jetty.server.Request;
@@ -161,7 +162,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
 {
     private final Set<String> whiteList = new HashSet<>();
     private final Set<String> blackList = new HashSet<>();
-    private SSLContext sslContext;
     private SslContextFactory.Server sslContextFactoryServer;  // For downstream (accepting client connections)
     private SslContextFactory.Client sslContextFactoryClient;  // For upstream (connecting to servers)
     private HttpClient httpClient;  // HttpClient for managing connections
@@ -188,6 +188,31 @@ public class ReverseConnectHandler extends Handler.Wrapper
     public ReverseConnectHandler(Handler handler)
     {
         super(handler);
+    }
+    
+    /**
+     * SSL Context Factoryを指定してReverseConnectHandlerを構築する。
+     * 
+     * @param sslServer サーバー証明書用のSSL Context Factory
+     * @param sslClient クライアント接続用のSSL Context Factory
+     */
+    public ReverseConnectHandler(SslContextFactory.Server sslServer, SslContextFactory.Client sslClient)
+    {
+        super(null);
+        this.sslContextFactoryServer = sslServer;
+        this.sslContextFactoryClient = sslClient;
+    }
+    
+    /**
+     * Set the SSL Context Factory for server (downstream) connections.
+     * This is called when the certificate is reloaded.
+     * 
+     * @param sslServer the new SSL Context Factory
+     */
+    public void setSslContextFactoryServer(SslContextFactory.Server sslServer)
+    {
+        this.sslContextFactoryServer = sslServer;
+        log.info("Updated SSL Context Factory for downstream connections");
     }
 
     public Executor getExecutor()
@@ -315,11 +340,8 @@ public class ReverseConnectHandler extends Handler.Wrapper
         addBean(selector = newSelectorManager());
         selector.setConnectTimeout(getConnectTimeout());
 
-        // Load allowed hosts from certificate in resources (wildcard.p12)
-        loadCertificateHosts();
-        
-        // Initialize SSL context for HTTPS connections
-        // initializeSSLContext();
+        // SSL Context Factoryはコンストラクタで設定済み
+        // （ProxyServerImplから渡される）
         
         // Initialize content listeners
         initializeContentListeners();
@@ -424,7 +446,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 @Override
                 public void succeeded(SocketChannel channel)
                 {
-                    ConnectContext connectContext = new ConnectContext(request, response, callback, request.getTunnelSupport().getEndPoint(), sslContext);
+                    ConnectContext connectContext = new ConnectContext(request, response, callback, request.getTunnelSupport().getEndPoint());
                     log.debug("connected to server: {}", channel.isConnected() ? "connected" : "not connected");
                     if (channel.isConnected())
                         selector.accept(channel, connectContext);
@@ -772,7 +794,14 @@ public class ReverseConnectHandler extends Handler.Wrapper
         sslConnection.setRenegotiationAllowed(sslContextFactoryServer.isRenegotiationAllowed());
         sslConnection.setRenegotiationLimit(sslContextFactoryServer.getRenegotiationLimit());
         
-        log.debug("SSL downstream connection prepared, waiting for client handshake");
+        // Jetty標準パターン：親コンテナ（ReverseConnectHandler）からSslHandshakeListenerを自動取得
+        // ProxyServerImplがaddBean()で登録されたSslHandshakeListenerインスタンスを取得し、
+        // SslConnectionに自動的に追加する（SslConnectionFactory.configure()と同じパターン）
+        getBeans(SslHandshakeListener.class)
+            .forEach(sslConnection::addHandshakeListener);
+        
+        log.debug("SSL downstream connection prepared with {} handshake listener(s), waiting for client handshake",
+            getBeans(SslHandshakeListener.class).size());
         
         // Return the SSL endpoint which will handle encryption/decryption
         // Note: The SslConnection will be opened when the DownstreamConnection is set and opened
@@ -1303,150 +1332,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
         return true;
     }
-    /**
-     * 証明書ホスト情報をロードし、SSL接続用のファクトリを初期化する。
-     */
-    private void loadCertificateHosts()
-    {
-        // 複数のパスからkeystoreのロードを試行
-        String[] keystorePaths = {
-            "kancolle.p12",            // カレントディレクトリ
-            "logbook/kancolle.p12",    // logbookディレクトリ（jlink配布版）
-            "config/kancolle.p12",     // configディレクトリ
-            "./kancolle.p12",          // カレントディレクトリ（明示的）
-            "resources/kancolle.p12",  // resourcesディレクトリ
-        };
-        
-        sslContextFactoryServer = null;
-        sslContextFactoryClient = null;
-        
-        // Serverファクトリのロード
-        for (String keystorePath : keystorePaths)
-        {
-            var serverFactory = tryLoadServerFactory(keystorePath);
-            if (serverFactory != null)
-            {
-                logCertificateInfo(serverFactory, keystorePath);
-                this.sslContextFactoryServer = serverFactory;
-                break;
-            }
-        }
-        
-        // Server factoryのロードに失敗した場合は早期return
-        if (sslContextFactoryServer == null)
-        {
-            log.warn("Failed to load keystore from any of the attempted paths. SSL connections will not be available.");
-            return;
-        }
-        
-        // Clientファクトリの初期化
-        initializeClientFactory();
-    }
     
-    /**
-     * 指定されたパスからServerファクトリのロードを試行する。
-     * 
-     * @param keystorePath keystoreファイルのパス
-     * @return ロード成功時はServerファクトリ、失敗時はnull
-     */
-    private SslContextFactory.Server tryLoadServerFactory(String keystorePath)
-    {
-        SslContextFactory.Server serverFactory = new SslContextFactory.Server();
-        serverFactory.setKeyStorePath(keystorePath);
-        serverFactory.setKeyStorePassword("changeit");
-        serverFactory.setKeyStoreType("PKCS12");
-        serverFactory.setCertAlias("kancolle-cert");
-        serverFactory.setSniRequired(false); // SNI検証を無効化
-        
-        try
-        {
-            serverFactory.start();
-            return serverFactory;
-        }
-        catch (Exception e)
-        {
-            log.info("Failed to load keystore from path: {}", keystorePath, e);
-            return null;
-        }
-    }
-    
-    /**
-     * ロード成功した証明書の情報をログ出力する。
-     */
-    private void logCertificateInfo(SslContextFactory.Server serverFactory, String keystorePath)
-    {
-        try
-        {
-            Set<String> aliases = serverFactory.getAliases();
-            log.info("Successfully loaded keystore from: {}", keystorePath);
-            log.info("Certificate aliases in keystore: {}", aliases);
-            
-            // 各エイリアスの証明書情報を表示
-            aliases.forEach(alias -> logCertificateAlias(serverFactory, alias));
-        }
-        catch (Exception e)
-        {
-            log.warn("Failed to log certificate chain details", e);
-        }
-    }
-    
-    /**
-     * 証明書エイリアスの詳細情報をログ出力する。
-     */
-    private void logCertificateAlias(SslContextFactory.Server serverFactory, String alias)
-    {
-        X509 x509 = serverFactory.getX509(alias);
-        if (x509 == null) return;
-        
-        int hostsCount = (x509.getHosts() != null && x509.getHosts().size() > 0) ? x509.getHosts().size() : 0;
-        int wildsCount = (x509.getWilds() != null && x509.getWilds().size() > 0) ? x509.getWilds().size() : 0;
-        
-        log.info("  Alias '{}': SAN hosts={}, SAN wilds={}", alias, hostsCount, wildsCount);
-        
-        if (hostsCount > 0) log.info("    Hosts: {}", x509.getHosts());
-        if (wildsCount > 0) log.info("    Wilds: {}", x509.getWilds());
-    }
-    
-    /**
-     * Clientファクトリを初期化する。
-     */
-    private void initializeClientFactory()
-    {
-        SslContextFactory.Client clientFactory = new SslContextFactory.Client();
-        clientFactory.setTrustAll(true); // リモートサーバーの証明書を検証しない
-        clientFactory.setEndpointIdentificationAlgorithm(null); // ホスト名検証を無効化
-        
-        try
-        {
-            clientFactory.start();
-            this.sslContextFactoryClient = clientFactory;
-        }
-        catch (Exception e)
-        {
-            log.error("Failed to initialize SSL client factory", e);
-            cleanupServerFactory();
-        }
-    }
-    
-    /**
-     * Serverファクトリをクリーンアップする。
-     */
-    private void cleanupServerFactory()
-    {
-        try
-        {
-            if (sslContextFactoryServer != null)
-            {
-                sslContextFactoryServer.stop();
-            }
-        }
-        catch (Exception ex)
-        {
-            log.error("Failed to stop SSL server factory", ex);
-        }
-        this.sslContextFactoryServer = null;
-    }
-
     protected class ConnectManager extends SelectorManager
     {
         protected ConnectManager(Executor executor, Scheduler scheduler, int selectors)
@@ -1503,9 +1389,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
         private final Response response;
         private final Callback callback;
         private final EndPoint endPoint;
-        private final SSLEngine clientSSLEngine;
-        private final SSLEngine serverSSLEngine;
-        private final SSLContext sslContext;
 
         public ConnectContext(Request request, Response response, Callback callback, EndPoint endPoint)
         {
@@ -1513,31 +1396,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
             this.response = response;
             this.callback = callback;
             this.endPoint = endPoint;
-            this.clientSSLEngine = null;
-            this.serverSSLEngine = null;
-            this.sslContext = null;
-        }
-
-        public ConnectContext(Request request, Response response, Callback callback, EndPoint endPoint, SSLEngine clientSSLEngine, SSLEngine serverSSLEngine)
-        {
-            this.request = request;
-            this.response = response;
-            this.callback = callback;
-            this.endPoint = endPoint;
-            this.clientSSLEngine = clientSSLEngine;
-            this.serverSSLEngine = serverSSLEngine;
-            this.sslContext = null;
-        }
-
-        public ConnectContext(Request request, Response response, Callback callback, EndPoint endPoint, SSLContext sslContext)
-        {
-            this.request = request;
-            this.response = response;
-            this.callback = callback;
-            this.endPoint = endPoint;
-            this.clientSSLEngine = null;
-            this.serverSSLEngine = null;
-            this.sslContext = sslContext;
         }
 
         public ConcurrentMap<String, Object> getContext()
@@ -1563,26 +1421,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
         public EndPoint getEndPoint()
         {
             return endPoint;
-        }
-
-        public SSLEngine getClientSSLEngine()
-        {
-            return clientSSLEngine;
-        }
-
-        public SSLEngine getServerSSLEngine()
-        {
-            return serverSSLEngine;
-        }
-
-        public boolean isSSLEnabled()
-        {
-            return clientSSLEngine != null && serverSSLEngine != null;
-        }
-
-        public SSLContext getSslContext()
-        {
-            return sslContext;
         }
 
     }
@@ -2300,7 +2138,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 {
                     var req = httpClientListener.getCaptureHolder().getCurrentRequest();
                     log.debug("Client (downstream) disconnected with error during HTTP transaction: {} {}", 
-                        req.getMethod(), req.getUri());
+                            req.getMethod(), req.getUri());
                     httpClientListener.clientDisconnectedEarly = true;
                 }
             }
@@ -2391,34 +2229,43 @@ public class ReverseConnectHandler extends Handler.Wrapper
             protected Action process()
             {
                 buffer = bufferPool.acquire(getInputBufferSize(), true);
+                ByteBuffer byteBuffer = buffer.getByteBuffer();
+                int filled;
+                
+                // read()を実行
+                // SSL handshakeエラーは、SslConnection.SslHandshakeListenerで既に処理済み
                 try
                 {
-                    ByteBuffer byteBuffer = buffer.getByteBuffer();
-                    int filled = this.filled = read(getEndPoint(), byteBuffer);
-                    if (filled > 0)
-                    {
-                        write(connection.getEndPoint(), byteBuffer, this);
-                        return Action.SCHEDULED;
-                    }
-
-                    buffer = Retainable.release(buffer);
-
-                    if (filled == 0)
-                    {
-                        fillInterested(this);
-                        return Action.SCHEDULED;
-                    }
-
-                        connection.getEndPoint().shutdownOutput();
-                        return Action.SUCCEEDED;
+                    filled = this.filled = read(getEndPoint(), byteBuffer);
                 }
                 catch (IOException x)
                 {
+                    // read()でのIO例外（SSL handshakeエラーを含む）
                     log.debug("Could not fill {}", TunnelConnection.this, x);
                     buffer.release();
                     disconnect(x);
                     return Action.SUCCEEDED;
                 }
+                
+                // read()成功後の処理
+                // 注: write(), fillInterested(), shutdownOutput()は例外をスローせず、
+                //     エラーはonFailure()コールバックで通知される
+                if (filled > 0)
+                {
+                    write(connection.getEndPoint(), byteBuffer, this);
+                    return Action.SCHEDULED;
+                }
+
+                buffer = Retainable.release(buffer);
+
+                if (filled == 0)
+                {
+                    fillInterested(this);
+                    return Action.SCHEDULED;
+                }
+
+                connection.getEndPoint().shutdownOutput();
+                return Action.SUCCEEDED;
             }
 
             @Override
@@ -2431,6 +2278,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             protected void onFailure(Throwable x)
             {
+                // write()コールバック失敗時のエラー処理
                 // Java 21のpattern matchingでより簡潔に例外タイプを処理
                 switch (x)
                 {
@@ -2440,6 +2288,8 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     case ClosedChannelException e -> 
                         log.debug("Connection closed while writing {} bytes {}", 
                             filled, TunnelConnection.this);
+                    case EofException e -> 
+                        log.debug("Connection closed while writing {} bytes {}", filled, TunnelConnection.this);
                     default -> 
                         log.debug("Failed to write {} bytes {}", filled, TunnelConnection.this, x);
                 }
@@ -3134,4 +2984,3 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
     }
 }
-

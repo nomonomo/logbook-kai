@@ -15,6 +15,8 @@ module logbook {
     requires com.aayushatharva.brotli4j;
     requires org.eclipse.jetty.compression.gzip;
     requires org.eclipse.jetty.compression.brotli;
+    requires org.bouncycastle.provider;
+    requires org.bouncycastle.pkix;
     
     requires transitive com.fasterxml.jackson.annotation;
     requires transitive jakarta.json;
