@@ -40,7 +40,7 @@ public final class SslCertificateUtil {
             serverFactory.start();
             logCertificateInfo(serverFactory, keystorePath);
         } catch (Exception e) {
-            log.info("Failed to load keystore from path: {}", keystorePath, e);
+            log.info("証明書の読み込みに失敗しました（パス: {}）", keystorePath, e);
             return null;
         }
         return serverFactory;
@@ -56,13 +56,13 @@ public final class SslCertificateUtil {
     public static SslContextFactory.Server reloadServerFactory(String keystorePath, 
                                                                 SslContextFactory.Server existingFactory) {
         if (keystorePath == null || keystorePath.isEmpty()) {
-            log.warn("Certificate path is empty");
+            log.warn("証明書パスが空です");
             return null;
         }
         
         if (existingFactory == null) {
             // ファクトリが初期化されていない場合、新規に作成
-            log.info("SSL server factory is not initialized, creating new instance");
+            log.debug("SSLサーバーファクトリが未初期化のため、新規作成します");
             return tryLoadServerFactory(keystorePath);
         }
 
@@ -74,14 +74,14 @@ public final class SslCertificateUtil {
                 scf.setKeyStorePassword("changeit");
                 scf.setKeyStoreType("PKCS12");
                 scf.setCertAlias("kancolle-cert");
-                log.debug("Updated server SSL configuration with new certificate path: {}", keystorePath);
+                log.debug("新しい証明書パスでSSL設定を更新しました: {}", keystorePath);
             });
                 
-            log.info("Server certificate reloaded successfully using Jetty reload() API");
+            log.info("証明書を正常にリロードしました");
             logCertificateInfo(existingFactory, keystorePath);
             return existingFactory;
         } catch (Exception e) {
-            log.error("Failed to reload server certificate", e);
+            log.error("サーバー証明書のリロードに失敗しました", e);
             return null;
         }
     }
@@ -95,13 +95,13 @@ public final class SslCertificateUtil {
     public static void logCertificateInfo(SslContextFactory.Server serverFactory, String keystorePath) {
         try {
             Set<String> aliases = serverFactory.getAliases();
-            log.info("Successfully loaded keystore from: {}", keystorePath);
-            log.info("Certificate aliases in keystore: {}", aliases);
+            log.info("証明書を読み込みました（パス: {}）", keystorePath);
+            log.info("証明書エイリアス: {}", aliases);
             
             // 各エイリアスの証明書情報を表示
             aliases.forEach(alias -> logCertificateAlias(serverFactory, alias));
         } catch (Exception e) {
-            log.warn("Failed to log certificate chain details", e);
+            log.warn("証明書チェーンの詳細情報のログ出力に失敗しました", e);
         }
     }
     
@@ -118,10 +118,10 @@ public final class SslCertificateUtil {
         int hostsCount = (x509.getHosts() != null && x509.getHosts().size() > 0) ? x509.getHosts().size() : 0;
         int wildsCount = (x509.getWilds() != null && x509.getWilds().size() > 0) ? x509.getWilds().size() : 0;
         
-        log.info("  Alias '{}': SAN hosts={}, SAN wilds={}", alias, hostsCount, wildsCount);
+        log.info("  エイリアス '{}': SANホスト={}, SANワイルドカード={}", alias, hostsCount, wildsCount);
         
-        if (hostsCount > 0) log.info("    Hosts: {}", x509.getHosts());
-        if (wildsCount > 0) log.info("    Wilds: {}", x509.getWilds());
+        if (hostsCount > 0) log.info("    ホスト: {}", x509.getHosts());
+        if (wildsCount > 0) log.info("    ワイルドカード: {}", x509.getWilds());
     }
     
     /**
@@ -163,7 +163,7 @@ public final class SslCertificateUtil {
                     allAliases.add(aliasEnum.nextElement());
                 }
             } catch (Exception e) {
-                log.warn("Failed to get aliases from keystore", e);
+                log.warn("キーストアからエイリアスの取得に失敗しました", e);
                 return null;
             }
             
@@ -198,7 +198,7 @@ public final class SslCertificateUtil {
                             }
                         }
                     } catch (Exception e) {
-                        log.debug("Failed to get certificate for alias: {}", alias, e);
+                        log.debug("エイリアスの証明書取得に失敗しました: {}", alias, e);
                     }
                     
                     // 証明書詳細情報の構築
@@ -210,7 +210,7 @@ public final class SslCertificateUtil {
                             info.append("有効期限: ").append(cert.getNotBefore()).append(" ～ ").append(cert.getNotAfter()).append("\n");
                             info.append("署名アルゴリズム: ").append(cert.getSigAlgName()).append("\n");
                         } catch (Exception e) {
-                            log.debug("Failed to get certificate details for alias: {}", alias, e);
+                            log.debug("証明書の詳細情報取得に失敗しました（エイリアス: {}）", alias, e);
                             info.append("証明書詳細の取得に失敗しました\n");
                         }
                         
@@ -232,14 +232,14 @@ public final class SslCertificateUtil {
                                     info.append("  (なし)\n");
                                 }
                             } catch (Exception e) {
-                                log.debug("Failed to get SAN info for alias: {}", alias, e);
+                                log.debug("SAN情報の取得に失敗しました（エイリアス: {}）", alias, e);
                             }
                         }
                     }
                     
                     info.append("\n");
                 } catch (Exception e) {
-                    log.warn("Failed to process alias: {}", alias, e);
+                    log.warn("エイリアスの処理に失敗しました: {}", alias, e);
                     info.append("エイリアス情報の取得に失敗しました\n\n");
                 }
             }
@@ -250,7 +250,7 @@ public final class SslCertificateUtil {
             try {
                 tempFactory.stop();
             } catch (Exception stopEx) {
-                log.debug("Failed to stop temporary SslContextFactory", stopEx);
+                log.debug("一時的なSslContextFactoryの停止に失敗しました", stopEx);
             }
         }
     }

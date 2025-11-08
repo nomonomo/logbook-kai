@@ -11,6 +11,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.SSLHandshakeException;
 
+import logbook.internal.Version;
+
 import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee11.servlet.ServletHolder;
 import org.eclipse.jetty.server.HttpConfiguration;
@@ -18,6 +20,7 @@ import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.ConnectHandler;
+import org.eclipse.jetty.io.ArrayByteBufferPool;
 import org.eclipse.jetty.io.ssl.SslHandshakeListener;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
@@ -65,11 +68,29 @@ public final class ProxyServerImpl implements ProxyServerSpi {
     @Override
     public void run() {
         try {
+            // JVMバージョン情報をログ出力
+            logJvmInfo();
+            
+            // 航海日誌のバージョン情報をログ出力（brotli4j情報も含む）
+            logApplicationVersion();
+            
             // SSL Context Factoryの初期化（証明書の存在確認を含む）
             initializeSslFactories();
             
-            this.server = new Server();
-
+            // バッファプールの設定（オプション）
+            ArrayByteBufferPool bufferPool = new ArrayByteBufferPool(
+                0,              // minCapacity
+                4096,           // factor
+                262144,          // maxCapacity (256KB)
+                64,            // maxBucketSize
+                0,              // maxHeapMemory (デフォルト)
+                0               // maxDirectMemory (デフォルト)
+            );
+            
+            // Serverをバッファプール指定で作成
+            // これにより、getServer().getByteBufferPool()でこのバッファプールが返される
+            this.server = new Server(null, null, bufferPool);
+            
             boolean allowLocalOnly = AppConfig.get()
                     .isAllowOnlyFromLocalhost();
 
@@ -138,7 +159,6 @@ public final class ProxyServerImpl implements ProxyServerSpi {
      * 設定画面の通信タブを開く
      */
     private static void openConfigCommunicationTab() {
-        log.info("設定画面の通信タブを開きます");
         try {
             // 通信タブのインデックスは3（一般=0, 戦闘・艦隊・艦娘=1, 画像=2, 通信=3）
             ConfigController.openWithTab(Main.getPrimaryStage(), 3);
@@ -180,6 +200,118 @@ public final class ProxyServerImpl implements ProxyServerSpi {
     }
     
     /**
+     * JVMバージョン情報をログ出力する。
+     * 起動時に一度だけ呼び出される。
+     */
+    private static void logJvmInfo() {
+        Runtime runtime = Runtime.getRuntime();
+        
+        // JVMバージョン情報
+        String javaVersion = System.getProperty("java.version");
+        String javaVendor = System.getProperty("java.vendor");
+        String javaVmName = System.getProperty("java.vm.name");
+        String javaVmVersion = System.getProperty("java.vm.version");
+        String javaVmVendor = System.getProperty("java.vm.vendor");
+        
+        // OS情報
+        String osName = System.getProperty("os.name");
+        String osVersion = System.getProperty("os.version");
+        String osArch = System.getProperty("os.arch");
+        
+        // JVMヒープメモリ情報（MB単位）
+        // - maxMemory: JVMが使用可能な最大ヒープサイズ（-Xmxで指定された値）
+        // - totalMemory: JVMが現在割り当てているヒープサイズ（OSから割り当て済み）
+        // - freeMemory: JVMの未使用ヒープメモリ（totalMemory内で未使用）
+        // - usedMemory: JVMの使用中ヒープメモリ（totalMemory - freeMemory）
+        long maxMemory = runtime.maxMemory() / (1024 * 1024);
+        long totalMemory = runtime.totalMemory() / (1024 * 1024);
+        long freeMemory = runtime.freeMemory() / (1024 * 1024);
+        long usedMemory = (totalMemory - freeMemory);
+        
+        // ログ出力（INFOレベル）
+        log.info("==================== JVM Information ====================");
+        log.info("Java Version    : {} ({})", javaVersion, javaVendor);
+        log.info("Java VM         : {} {} ({})", javaVmName, javaVmVersion, javaVmVendor);
+        log.info("OS              : {} {} ({})", osName, osVersion, osArch);
+        log.info("Heap Max        : {} MB ", maxMemory);
+        log.info("Heap Total      : {} MB ", totalMemory);
+        log.info("Heap Used       : {} MB ", usedMemory);
+        log.info("Heap Free       : {} MB ", freeMemory);
+    }
+    
+    /**
+     * 航海日誌のバージョン情報をログ出力する。
+     * 起動時に一度だけ呼び出される。
+     */
+    private static void logApplicationVersion() {
+        Version version = Version.getCurrent();
+        String title = version.getTitle();
+        String vendor = version.getVendor();
+        
+        // Applicationの表示形式: title(vendor) version
+        String applicationInfo;
+        if (title != null && vendor != null && !vendor.isEmpty()) {
+            applicationInfo = String.format("%s(%s) %s", title, vendor, version.toString());
+        } else if (title != null) {
+            applicationInfo = String.format("%s %s", title, version.toString());
+        } else if (vendor != null && !vendor.isEmpty()) {
+            applicationInfo = String.format("航海日誌(%s) %s", vendor, version.toString());
+        } else {
+            applicationInfo = String.format("航海日誌 %s", version.toString());
+        }
+        
+        log.info("================ Application Information ================");
+        log.info("Application     : {}", applicationInfo);
+        configureBrotliNativeLibraryPath();
+        log.info("=========================================================");
+    }
+    
+    /**
+     * brotli4jのネイティブライブラリパスを設定する。
+     * jlinkで作成されたランタイムイメージの場合、libディレクトリからbrotli.dllを読み込む。
+     */
+    private static void configureBrotliNativeLibraryPath() {
+        // 既に設定されている場合はスキップ（システムプロパティや環境変数で設定済みの場合）
+        if (System.getProperty("brotli4j.library.path") != null) {
+            log.debug("brotli4j.library.path is already set: {}", System.getProperty("brotli4j.library.path"));
+            return;
+        }
+        
+        // java.homeからlibディレクトリのパスを構築
+        // jlinkで作成されたランタイムイメージの場合、java.homeはランタイムイメージのルートディレクトリ
+        String javaHome = System.getProperty("java.home");
+        if (javaHome == null) {
+            log.warn("java.home is not set, cannot configure brotli4j.library.path");
+            return;
+        }
+        
+        // プラットフォームごとのネイティブライブラリ名を決定
+        String osName = System.getProperty("os.name", "").toLowerCase();
+        String nativeLibName;
+        if (osName.contains("win")) {
+            nativeLibName = "brotli.dll";
+        } else if (osName.contains("linux")) {
+            nativeLibName = "libbrotli.so";
+        } else if (osName.contains("mac")) {
+            nativeLibName = "libbrotli.dylib";
+        } else {
+            log.debug("Unsupported OS for brotli native library: {}", osName);
+            return;
+        }
+        
+        // libディレクトリのパスを構築
+        Path libPath = Paths.get(javaHome, "lib", nativeLibName);
+        
+        // ファイルが存在するか確認
+        if (Files.exists(libPath)) {
+            System.setProperty("brotli4j.library.path", libPath.toAbsolutePath().toString());
+            log.info("Brotli4j        : Loaded from lib directory: {}", nativeLibName);
+        } else {
+            log.info("Brotli4j        : Loaded from temp directory: {}", nativeLibName);
+        }
+    }
+    
+    /**
      * SSL Context Factoryを初期化する。
      * 証明書ファイルの存在確認と初期化を行う。
      */
@@ -209,13 +341,11 @@ public final class ProxyServerImpl implements ProxyServerSpi {
         }
         
         // 設定されたパスから証明書をロード
-        log.info("Loading certificate from configured path: {}", configuredPath);
         var serverFactory = SslCertificateUtil.tryLoadServerFactory(configuredPath);
         if (serverFactory != null) {
-            SslCertificateUtil.logCertificateInfo(serverFactory, configuredPath);
             this.sslContextFactoryServer = serverFactory;
         } else {
-            log.error("Failed to load certificate from configured path: {}. SSL connections will not be available.", configuredPath);
+            log.error("証明書の読み込みに失敗しました（パス: {}）。SSL接続は利用できません。", configuredPath);
         }
     }
     
@@ -268,7 +398,7 @@ public final class ProxyServerImpl implements ProxyServerSpi {
     
     @Override
     public synchronized ConfigReloadResult reloadConfig(AppConfig config) {
-        log.info("Reloading configuration");
+        log.info("設定をリロードします");
         
         // 引数から証明書パスを取得
         String certificatePath = config.getServerCertificatePath();
@@ -313,7 +443,7 @@ public final class ProxyServerImpl implements ProxyServerSpi {
         // SSL証明書エラーカウンターをリセット
         resetSslCertificateErrorCounter();
         
-        log.info("Configuration reloaded successfully");
+        log.info("設定が正常にリロードされました");
         return ConfigReloadResult.success();
     }
     
@@ -322,16 +452,30 @@ public final class ProxyServerImpl implements ProxyServerSpi {
      * ServerFactoryとは独立して動作し、リモートサーバーへの接続用に使用される。
      */
     private void initializeClientFactory() {
-        SslContextFactory.Client clientFactory = new SslContextFactory.Client();
-        clientFactory.setTrustAll(true); // リモートサーバーの証明書を検証しない
-        clientFactory.setEndpointIdentificationAlgorithm(null); // ホスト名検証を無効化
+        // プロキシとしてリモートサーバー（DMM等）に接続する際、
+        // 証明書検証とホスト名検証を無効化する（意図的な設定）
+        // checkTrustAll()とcheckEndPointIdentificationAlgorithm()をオーバーライドして警告を抑制
+        SslContextFactory.Client clientFactory = new SslContextFactory.Client() {
+            @Override
+            protected void checkTrustAll() {
+                // プロキシとして意図的にTrustAllを使用しているため警告を抑制
+            }
+            
+            @Override
+            protected void checkEndPointIdentificationAlgorithm() {
+                // プロキシとして意図的にホスト名検証を無効化しているため警告を抑制
+            }
+        };
+        
+        clientFactory.setTrustAll(true);
+        clientFactory.setEndpointIdentificationAlgorithm(null);
         
         try {
             clientFactory.start();
             this.sslContextFactoryClient = clientFactory;
-            log.info("SSL client factory initialized successfully");
+            log.info("SSLクライアントファクトリを初期化しました（証明書検証: 無効）");
         } catch (Exception e) {
-            log.error("Failed to initialize SSL client factory", e);
+            log.error("SSLクライアントファクトリの初期化に失敗しました", e);
         }
     }
     
@@ -352,11 +496,9 @@ public final class ProxyServerImpl implements ProxyServerSpi {
      * @return 再読み込みに成功した場合true、失敗した場合false
      */
     public synchronized SslContextFactory.Server reloadCertificate(String newCertificatePath, SslContextFactory.Server sslContextFactoryServer) {
-        log.info("Reloading certificate from path: {}", newCertificatePath);
-        
         // サーバー起動状態の確認
         if (!isServerRunning()) {
-            log.warn("Proxy server is not running, cannot reload certificate");
+            log.warn("プロキシサーバーが起動していないため、証明書をリロードできません");
             return null;
         }
         

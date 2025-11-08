@@ -86,6 +86,8 @@ import org.eclipse.jetty.util.IteratingCallback;
 import org.eclipse.jetty.util.Promise;
 import org.eclipse.jetty.util.TypeUtil;
 import org.eclipse.jetty.util.thread.Scheduler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.ssl.X509;
 
@@ -212,7 +214,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
     public void setSslContextFactoryServer(SslContextFactory.Server sslServer)
     {
         this.sslContextFactoryServer = sslServer;
-        log.info("Updated SSL Context Factory for downstream connections");
     }
 
     public Executor getExecutor()
@@ -824,7 +825,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         {
             contentListeners = PluginServices.instances(ContentListenerSpi.class)
                 .collect(Collectors.toList());
-            log.info("Initialized {} content listeners", contentListeners.size());
+            log.debug("コンテンツリスナーを初期化しました（{}個）", contentListeners.size());
         }
         catch (Exception e)
         {
@@ -871,10 +872,13 @@ public class ReverseConnectHandler extends Handler.Wrapper
      */
     public static class HttpClientConnectionListener implements Connection.Listener
     {
-        private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(HttpClientConnectionListener.class);
+        private static final Logger log = LoggerFactory.getLogger(HttpClientConnectionListener.class);
+        private static final Logger accessLog = LoggerFactory.getLogger("logbook.internal.proxy.AccessLog");
+        
         private final ConnectContext connectContext;
         private final HttpClient httpClient;
         private final CaptureHolder2 captureHolder;
+        private final long startTimeMillis;
         
         /**
          * クライアント（ダウンストリーム）がHTTPトランザクション進行中に異常終了したことを示すフラグ。
@@ -910,6 +914,8 @@ public class ReverseConnectHandler extends Handler.Wrapper
             this.httpClient = httpClient;
             // Create CaptureHolder2 for this tunnel (manages all HTTP transactions)
             this.captureHolder = new CaptureHolder2();
+            // リクエスト開始時刻を記録（アクセスログ用）
+            this.startTimeMillis = System.currentTimeMillis();
             
             log.debug("Created CaptureHolder2 for tunnel: {}", connectContext.getRequest().getHttpURI());
         }
@@ -1030,7 +1036,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                         
                         if (actualLength != expectedLength)
                         {
-                            log.warn("Content-Length mismatch detected - rejecting incomplete data: expected {} bytes, but received {} bytes ({} bytes missing, {}% received). ContentListenerSpi will not be invoked for request {} {}",
+                            log.debug("Content-Length mismatch detected - rejecting incomplete data: expected {} bytes, but received {} bytes ({} bytes missing, {}% received). ContentListenerSpi will not be invoked for request {} {}",
                                 expectedLength, actualLength, expectedLength - actualLength, 
                                 String.format("%.1f", (actualLength * 100.0 / expectedLength)),
                                 httpRequest.getMethod(), httpRequest.getUri());
@@ -1090,12 +1096,69 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     // invoke()自体は軽量（リスナーループ + test() + clone()のみ）なので同期的に実行
                     // 各リスナーの実際の処理（JSONパース、ファイルI/Oなど）は invoke()内で非同期化される
                     this.invoke(req, res);
+                    
+                    // アクセスログの出力
+                    logAccess(httpRequest, httpResponse);
                 }
             }
             catch (Exception e)
             {
                 log.warn("Failed to process HTTP transaction data", e);
             }
+        }
+        
+        /**
+         * アクセスログを出力する。
+         * HTTPSプロキシのトンネル内のHTTPリクエスト/レスポンスの詳細を記録。
+         * 
+         * @param httpRequest HTTPリクエスト情報
+         * @param httpResponse HTTPレスポンス情報
+         */
+        private void logAccess(CaptureHolder2.HttpRequest httpRequest, CaptureHolder2.HttpResponse httpResponse)
+        {
+            // クライアントアドレスの取得
+            String clientAddr = "unknown";
+            if (connectContext.getEndPoint() != null && 
+                connectContext.getEndPoint().getRemoteSocketAddress() != null)
+            {
+                clientAddr = connectContext.getEndPoint().getRemoteSocketAddress().toString();
+                // "/127.0.0.1:12345" -> "127.0.0.1"
+                if (clientAddr.startsWith("/"))
+                {
+                    clientAddr = clientAddr.substring(1);
+                }
+                int colonIndex = clientAddr.indexOf(':');
+                if (colonIndex > 0)
+                {
+                    clientAddr = clientAddr.substring(0, colonIndex);
+                }
+            }
+            
+            // 処理時間の計算（ミリ秒）
+            // keep-alive対応: 各トランザクションの開始時刻を使用
+            CaptureHolder2.HttpTransaction currentTransaction = captureHolder.getCurrentTransaction();
+            long requestStartTime = currentTransaction.getRequestStartTime();
+            long elapsedTime;
+            if (requestStartTime > 0) {
+                // トランザクション開始時刻が記録されている場合（keep-alive対応）
+                elapsedTime = System.currentTimeMillis() - requestStartTime;
+            } else {
+                // フォールバック: 接続開始時刻を使用（後方互換性）
+                elapsedTime = System.currentTimeMillis() - startTimeMillis;
+            }
+            
+            // HTTPメソッドとURIの取得
+            String method = httpRequest.getMethod() != null ? httpRequest.getMethod() : "UNKNOWN";
+            String uri = httpRequest.getUri() != null ? httpRequest.getUri() : "/";
+            
+            // レスポンスステータスとサイズの取得
+            int status = httpResponse.getStatus();
+            long responseSize = httpResponse.getBodySize();
+            
+            // アクセスログの出力
+            // フォーマット: {client_addr} {method} {uri} {status} {response_size} bytes {time} ms
+            accessLog.info("{} {} {} {} {} bytes {} ms", 
+                clientAddr, method, uri, status, responseSize, elapsedTime);
         }
         
         public ConnectContext getConnectContext()
@@ -1871,8 +1934,11 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 // CaptureHolder2にリクエスト行を直接保存
                 if (httpClientListener != null)
                 {
-                    httpClientListener.getCaptureHolder().getCurrentRequest().setRequestLine(
+                    CaptureHolder2 captureHolder = httpClientListener.getCaptureHolder();
+                    captureHolder.getCurrentRequest().setRequestLine(
                         method, uri, version.toString());
+                    // リクエスト開始時刻を記録（keep-alive対応）
+                    captureHolder.getCurrentTransaction().setRequestStartTime(System.currentTimeMillis());
                 }
             }
             
@@ -2986,4 +3052,5 @@ public class ReverseConnectHandler extends Handler.Wrapper
             }
         }
     }
+    
 }
