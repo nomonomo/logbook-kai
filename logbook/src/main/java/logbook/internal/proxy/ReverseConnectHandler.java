@@ -1199,7 +1199,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             
             // アクセスログの出力
             // フォーマット: {client_addr} {method} {uri} {status} {response_size} bytes {time} ms
-            accessLog.info("{} {} {} {} {} bytes {} ms", 
+            accessLog.debug("{} {} {} {} {} bytes {} ms", 
                 clientAddr, method, uri, status, responseSize, elapsedTime);
         }
         
