@@ -4,11 +4,21 @@
     <parent>
         <groupId>logbook-kai</groupId>
         <artifactId>logbook-kai</artifactId>
-        <version>25.10.4</version>
+        <version>25.11.1</version>
     </parent>
     <artifactId>logbook</artifactId>
     <properties>
         <maven.test.skip>true</maven.test.skip>
+        <!-- os-maven-pluginで設定されるプロパティ（例）:
+             os.detected.name: windows, linux, osx
+             os.detected.arch: x86_64, aarch64
+             os.detected.classifier: windows-x86_64, linux-x86_64, osx-x86_64 など
+        -->
+        <!-- brotli4jの命名規則に合わせた分類子マッピング -->
+        <brotli4j.os.name>${os.detected.name}</brotli4j.os.name>
+        <brotli4j.os.arch>${os.detected.arch}</brotli4j.os.arch>
+        <!-- brotli4jのartifact名は "native-{os}-{arch}" 形式 -->
+        <brotli4j.classifier>native-${brotli4j.os.name}-${brotli4j.os.arch}</brotli4j.classifier>
     </properties>
     <build>
         <plugins>
@@ -37,7 +47,7 @@
                     <archive>
                         <manifestEntries>
                             <Bundle-License>The MIT License (MIT)</Bundle-License>
-                            <Implementation-Title>航海日誌</Implementation-Title>
+                            <Implementation-Title>航海日誌改</Implementation-Title>
                             <Implementation-Vendor>nomonomo</Implementation-Vendor>
                             <Built-By>nomonomo</Built-By>
                         </manifestEntries>
@@ -70,6 +80,33 @@
                         <configuration>
                             <outputDirectory>${project.build.directory}/lib</outputDirectory>
                             <includeScope>runtime</includeScope>
+                        </configuration>
+                    </execution>
+                    <!-- プラットフォーム固有のbrotli4jネイティブJARからネイティブライブラリを抽出 -->
+                    <!-- すべてのプラットフォーム用のJARを展開（存在しないものはスキップ） -->
+                    <execution>
+                        <id>extract-brotli-native</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>com.aayushatharva.brotli4j</groupId>
+                                    <artifactId>${brotli4j.classifier}</artifactId>
+                                    <version>1.17.0</version>
+                                    <type>jar</type>
+                                    <outputDirectory>${project.build.directory}/native-libs</outputDirectory>
+                                    <includes>lib/**</includes>
+                                    <fileMappers>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>^lib/[^/]+</pattern>
+                                            <replacement>./</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                    </fileMappers>
+                                </artifactItem>
+                            </artifactItems>
                         </configuration>
                     </execution>
                 </executions>
@@ -195,13 +232,13 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-base</artifactId>
-            <version>23.0.2</version>
+            <version>${javafx.version}</version>
             <classifier>${javafx.platform}</classifier>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
-            <version>23.0.2</version>
+            <version>${javafx.version}</version>
             <classifier>${javafx.platform}</classifier>
             <exclusions>
                 <exclusion>
@@ -217,7 +254,7 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-graphics</artifactId>
-            <version>23.0.2</version>
+            <version>${javafx.version}</version>
             <classifier>${javafx.platform}</classifier>
             <exclusions>
                 <exclusion>
@@ -229,7 +266,7 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-media</artifactId>
-            <version>23.0.2</version>
+            <version>${javafx.version}</version>
             <classifier>${javafx.platform}</classifier>
             <exclusions>
                 <exclusion>
@@ -245,7 +282,7 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-fxml</artifactId>
-            <version>23.0.2</version>
+            <version>${javafx.version}</version>
             <classifier>${javafx.platform}</classifier>
             <exclusions>
                 <exclusion>
@@ -261,7 +298,7 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-swing</artifactId>
-            <version>23.0.2</version>
+            <version>${javafx.version}</version>
             <classifier>${javafx.platform}</classifier>
             <exclusions>
                 <exclusion>
@@ -277,7 +314,7 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-web</artifactId>
-            <version>23.0.2</version>
+            <version>${javafx.version}</version>
             <classifier>${javafx.platform}</classifier>
             <exclusions>
                 <exclusion>
