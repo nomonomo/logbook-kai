@@ -242,6 +242,8 @@ public class CaptureHolder2 {
     public static class HttpTransaction {
         private final HttpRequest request = new HttpRequest();
         private final HttpResponse response = new HttpResponse();
+        /** リクエスト開始時刻（ミリ秒、keep-alive対応用） */
+        private long requestStartTimeMillis = 0;
         
         public HttpRequest getRequest() {
             return request;
@@ -251,9 +253,26 @@ public class CaptureHolder2 {
             return response;
         }
         
+        /**
+         * リクエスト開始時刻を設定します。
+         * @param startTimeMillis リクエスト開始時刻（ミリ秒）
+         */
+        public void setRequestStartTime(long startTimeMillis) {
+            this.requestStartTimeMillis = startTimeMillis;
+        }
+        
+        /**
+         * リクエスト開始時刻を取得します。
+         * @return リクエスト開始時刻（ミリ秒）、未設定の場合は0
+         */
+        public long getRequestStartTime() {
+            return requestStartTimeMillis;
+        }
+        
         public void clear() {
             request.clear();
             response.clear();
+            requestStartTimeMillis = 0;
         }
     }
     

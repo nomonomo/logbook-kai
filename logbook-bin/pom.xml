@@ -4,7 +4,7 @@
     <parent>
         <groupId>logbook-kai</groupId>
         <artifactId>logbook-kai</artifactId>
-        <version>25.10.4</version>
+        <version>25.11.1</version>
     </parent>
     <artifactId>logbook-jlink</artifactId>
     <properties>
@@ -12,25 +12,6 @@
     <packaging>jlink</packaging>
     <build>
         <plugins>
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>create-release</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                        <configuration>
-                            <descriptors>
-                                <descriptor>assembly.xml</descriptor>
-                            </descriptors>
-                            <finalName>logbook-${javafx.platform}</finalName>
-                            <appendAssemblyId>false</appendAssemblyId>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -49,20 +30,52 @@
                         <addOption>--add-exports=javafx.base/com.sun.javafx.event=org.controlsfx.controls</addOption>
                     </addOptions>
                     <launcher>logbook=logbook/logbook.internal.Launcher</launcher>
-                    <!-- JVMデフォルトオプション設定 -->
-                    <jvmOptions>
-                        <!-- GC設定 -->
-                        <jvmOption>-XX:+UseG1GC</jvmOption>
-                        <jvmOption>-XX:MaxGCPauseMillis=200</jvmOption>
-                        <jvmOption>-XX:G1HeapRegionSize=2M</jvmOption>
-                        <!-- メモリ設定 -->
-                        <jvmOption>-Xms256M</jvmOption>
-                        <jvmOption>-Xmx2G</jvmOption>
-                        <!-- 文字列重複排除 -->
-                        <jvmOption>-XX:+UseStringDeduplication</jvmOption>
-                    </jvmOptions>
                     <noHeaderFiles>true</noHeaderFiles>
                 </configuration>
+            </plugin>
+            <!-- logbookモジュールで抽出されたネイティブライブラリをjlink出力のlibディレクトリにコピー -->
+            <!-- maven-jlink-pluginの実行後、maven-assembly-pluginの実行前に実行 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-brotli-native-to-jlink</id>
+                        <!-- jlinkプラグインの実行後、maven-assembly-pluginの実行前に実行 -->
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <resources>
+                                <resource>
+                                    <directory>../logbook/target/native-libs</directory>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
+                            <outputDirectory>${project.build.directory}/maven-jlink/default/lib</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>create-release</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>assembly.xml</descriptor>
+                            </descriptors>
+                            <finalName>logbook-${javafx.platform}</finalName>
+                            <appendAssemblyId>false</appendAssemblyId>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

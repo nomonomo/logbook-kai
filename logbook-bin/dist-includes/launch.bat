@@ -1,18 +1,31 @@
 SETLOCAL
 
+cd /d %~dp0
+
 REM ======================================
-REM 推奨設定: G1 GC + メモリ最適化
+REM �����X�V�`�F�b�N
 REM ======================================
-REM 注: jlinkビルド時に設定されたデフォルト値を使用
-REM     必要に応じてここで上書き可能
+if exist "update\logbook" (
+    if exist "update_apply.bat" (
+        echo �X�V��K�p���܂�...
+        call update_apply.bat
+        if %ERRORLEVEL% NEQ 0 (
+            echo �X�V�̓K�p�Ɏ��s���܂����B
+            pause
+            exit /b %ERRORLEVEL%
+        )
+        REM �X�V������A���̂܂܋N���ɐi��
+    )
+)
 
-REM カスタム設定（コメントアウトされています）
-REM SET CUSTOM_OPT=-Xms256M -Xmx2G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:G1HeapRegionSize=2M -XX:+UseStringDeduplication
+REM ======================================
+REM �����ݒ�: G1 GC + �������œK��
+REM ======================================
 
-REM デフォルト設定を使用（jlinkビルド時に設定済み）
-SET JVM_OPT=
+REM �J�X�^���ݒ�
+SET CUSTOM_OPT=-Xms256M -Xmx2G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:G1HeapRegionSize=2M -XX:+UseStringDeduplication
 
-REM カスタム設定を有効にする場合は以下をアンコメント
-REM SET JVM_OPT=%CUSTOM_OPT%
-
+REM �J�X�^���ݒ�𖳌��ɂ���ꍇ�͈ȉ����R�����g
+SET JVM_OPT=%CUSTOM_OPT%
+chcp 65001
 %~dp0\logbook\bin\javaw %JVM_OPT% -m logbook

@@ -274,18 +274,7 @@ public class CertificateCreatorController extends WindowController {
             String caPassword = this.caCertPassword.getText();
             String outputDirPath = this.outputDirectory.getText();
             
-            log.info("証明書作成開始:");
-            log.info("  Common Name: {}", cn);
-            log.info("  Organization: {}", org);
-            log.info("  Output Directory: {}", outputDirPath);
-            log.info("  Server Password: {}", serverPassword);
-            log.info("  CA Password: {}", caPassword);
-            log.info("  Use Root Certificate: {}", this.useRootCertificate.isSelected());
-            
             if (this.useRootCertificate.isSelected()) {
-                log.info("  Root Certificate: {}", this.rootCertificatePath.getText());
-                log.info("  Root Certificate Password: {}", this.rootCertificatePassword.getText());
-                
                 // 既存のルート証明書を使用してサーバー証明書を作成
                 this.certificateService.createServerCertificateWithExistingCA(
                     this.rootCertificatePath.getText(),
