@@ -132,6 +132,9 @@ public final class ProxyServerImpl implements ProxyServerSpi {
 
             proxy2.setHandler(context);
            
+            // proxy.pacファイルを返すservletを登録（/*より前に登録する必要がある）
+            context.addServlet(ProxyPacServlet.class, "/proxy.pac");
+            
             ServletHolder holder = context.addServlet(ReverseProxyServlet.class, "/*");
             holder.setInitParameter("maxThreads", "256");
             holder.setInitParameter("timeout", "600000");
