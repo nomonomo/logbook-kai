@@ -1,6 +1,7 @@
 package logbook.internal;
 
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -167,14 +168,41 @@ public class Items {
 
     /**
      * 装備アイコンを返します
+     * <p>
+     * slotパラメータによる処理の違い：
+     * <ul>
+     * <li>slot=falseの場合：
+     *   <ul>
+     *   <li>ファイルが存在しない場合：デフォルトアイコン（加工なし）を返す</li>
+     *   <li>ファイルが存在する場合：optimizeItemIconの結果をそのまま返す（加工なし）</li>
+     *   </ul>
+     * </li>
+     * <li>slot=trueの場合：
+     *   <ul>
+     *   <li>ファイルが存在しない場合：スロット背景付きの加工済みデフォルトアイコンを返す</li>
+     *   <li>ファイルが存在する場合：optimizeItemIconの結果にスロット背景（楕円形の背景色）を追加して返す。
+     *       結果は"slotItemIcon#type"のキーでキャッシュされる</li>
+     *   </ul>
+     * </li>
+     * </ul>
      *
-     * @param type 装備
-     * @param slot スロット背景
+     * @param type 装備タイプ
+     * @param slot スロット背景を追加する場合はtrue、追加しない場合はfalse
      * @return 装備アイコン
      * @throws IllegalStateException このメソッドがJavaFXアプリケーション・スレッド以外のスレッドで呼び出された場合
      */
     private static Image itemIcon(int type, boolean slot) {
         Image image = optimizeItemIcon(type);
+        
+        // ファイルが存在しない場合
+        if (image == null) {
+            if (slot) {
+                return getDefaultSlotItemIcon();
+            }
+            return defaultItemIcon();
+        }
+        
+        // ファイルが存在する場合
         if (slot) {
             return CACHE.get("slotItemIcon#" + type, key -> {
                 double width = image.getWidth();
@@ -195,18 +223,25 @@ public class Items {
     /**
      * 装備アイコンを調節します
      *
-     * @param p 装備アイコンへのパス
-     * @return 装備アイコン
+     * @param type 装備タイプ
+     * @return 装備アイコン、ファイルが存在しない場合はnull
      */
     private static Image optimizeItemIcon(int type) {
         Path dir = Paths.get(AppConfig.get().getResourcesDir());
         Path p = dir.resolve(Paths.get("common", "common_icon_weapon/common_icon_weapon_id_" + type + ".png"));
 
-        return CACHE.get(p.toUri().toString(), (url, status) -> {
+        // ファイル存在チェック
+        if (!Files.isReadable(p)) {
+            return null; // キャッシュしない
+        }
+
+        String cacheKey = p.toUri().toString();
+
+        return CACHE.get(cacheKey, (url, status) -> {
             Image image = new Image(url);
             if (image.isError()) {
                 status.setDoCache(false);
-                return defaultItemIcon();
+                return null;
             }
             double width = image.getWidth();
             double height = image.getHeight();
@@ -236,6 +271,27 @@ public class Items {
     private static Image defaultItemIcon() {
         return CACHE.get("defaultItemIcon", key -> {
             return new WritableImage(ITEM_ICON_SIZE, ITEM_ICON_SIZE);
+        });
+    }
+
+    /**
+     * 加工済みデフォルト装備アイコン（スロット背景付き）を取得します
+     *
+     * @return 加工済みデフォルト装備アイコン
+     */
+    private static Image getDefaultSlotItemIcon() {
+        return CACHE.get("defaultSlotItemIcon", key -> {
+            Image defaultIcon = defaultItemIcon();
+            double width = defaultIcon.getWidth();
+            double height = defaultIcon.getHeight();
+            Canvas canvas = new Canvas(width, height);
+            GraphicsContext gc = canvas.getGraphicsContext2D();
+            gc.setFill(Color.rgb(44, 58, 59));
+            gc.fillOval(2, 2, width - 2, height - 2);
+            gc.drawImage(defaultIcon, 0, 0);
+            SnapshotParameters sp = new SnapshotParameters();
+            sp.setFill(Color.TRANSPARENT);
+            return canvas.snapshot(sp, null);
         });
     }
 
