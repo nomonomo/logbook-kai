@@ -302,8 +302,11 @@ class ShipImage {
                 Ship ship = chara.asShip();
                 Integer sallyArea = ship.getSallyArea();
                 if (sallyArea != null && sallyArea.intValue() != 0) {
-                    Path p = Paths.get("common", JOIN_BANNER.replace("{0}", Integer.toString(SeaArea.fromArea(sallyArea).getImageId())));
-                    layers.add(new Layer(50, -3, p));
+                    SeaArea area = SeaArea.fromArea(sallyArea);
+                    if (area != null) {
+                        Path p = Paths.get("common", JOIN_BANNER.replace("{0}", Integer.toString(area.getImageId())));
+                        layers.add(new Layer(50, -3, p));
+                    }
                 }
             }
             // 装備画像
