@@ -46,6 +46,7 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.compression.brotli.BrotliCompression;
 import org.eclipse.jetty.compression.gzip.GzipCompression;
 
+import logbook.bean.AppConfig;
 import logbook.internal.ThreadManager;
 import logbook.plugin.PluginServices;
 import logbook.proxy.ContentListenerSpi;
@@ -404,7 +405,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 // 証明書にマッチしないホストは、後続のConnectHandler（proxy2）で処理される
                 if (serverAddress != null && !isHostAllowedBySslContext(serverAddress))
                 {
-                    log.debug("CONNECT host {} not allowed by SSL certificate validation, passing to next handler", serverAddress);
+                    log.trace("CONNECT host {} not allowed by SSL certificate validation, passing to next handler", serverAddress);
                     return super.handle(request, response, callback);
                 }
                 
@@ -484,10 +485,26 @@ public class ReverseConnectHandler extends Handler.Wrapper
         SocketChannel channel = null;
         try
         {
+            // 接続先を決定（上位Proxy経由の場合はProxy、直接接続の場合はサーバー）
+            String connectHost;
+            int connectPort;
+            if (AppConfig.get().isUseProxy())
+            {
+                connectHost = AppConfig.get().getProxyHost();
+                connectPort = AppConfig.get().getProxyPort();
+                log.debug("Connecting to {}:{} via upstream proxy {}:{}", host, port, connectHost, connectPort);
+            }
+            else
+            {
+                connectHost = host;
+                connectPort = port;
+                log.debug("Connecting to {}:{}", host, port);
+            }
+            
             channel = SocketChannel.open();
             channel.socket().setTcpNoDelay(true);
             channel.configureBlocking(false);
-            InetSocketAddress address = newConnectAddress(host, port);
+            InetSocketAddress address = newConnectAddress(connectHost, connectPort);
             channel.connect(address);
             promise.succeeded(channel);
         }
@@ -528,6 +545,154 @@ public class ReverseConnectHandler extends Handler.Wrapper
         ConcurrentMap<String, Object> context = connectContext.getContext();
         Request request = connectContext.getRequest();
         prepareContext(request, context);
+
+        if (AppConfig.get().isUseProxy())
+        {
+            // UpstreamConnectionからEndPointを取得
+            EndPoint upstreamEndPoint = upstreamConnection.getEndPoint();
+    
+            // SSLを回避するために、SslEndPointの場合はunwrap()を使用
+            EndPoint unwrappedEndPoint;
+            SocketChannel socketChannel = null;
+            if (upstreamEndPoint instanceof EndPoint.Wrapper)
+            {
+                log.debug("Unwrapping upstream end point");
+                unwrappedEndPoint = ((EndPoint.Wrapper)upstreamEndPoint).unwrap();
+                // unwrappedEndPointは元のEndPoint（例：SocketChannelEndPoint）を返す
+                
+                socketChannel = ((SocketChannelEndPoint)unwrappedEndPoint).getChannel();
+            } else {
+                log.debug("Upstream end point is not a wrapper");
+                // SSLが設定されていない場合、upstreamEndPointがそのまま元のEndPoint
+                unwrappedEndPoint = upstreamEndPoint;
+                socketChannel = ((SocketChannelEndPoint)unwrappedEndPoint).getChannel();
+            }
+
+            // Requestオブジェクトからターゲットサーバーのhostとportを取得
+            HttpURI httpURI = request.getHttpURI();
+            String serverAddress = httpURI.getAuthority();
+            HostPort hostPort = new HostPort(serverAddress);
+            String targetHost = hostPort.getHost();
+            int targetPort = hostPort.getPort(443);  // HTTPSのデフォルトポート
+
+            // CONNECTリクエストを構築
+            StringBuilder connectRequestBuilder = new StringBuilder();
+            connectRequestBuilder.append(String.format("CONNECT %s:%d HTTP/1.1\r\n", targetHost, targetPort));
+            connectRequestBuilder.append(String.format("Host: %s:%d\r\n", targetHost, targetPort));
+        
+            // 元のリクエストのヘッダーから必要なものを追加
+            request.getHeaders().forEach(field -> {
+                String name = field.getName();
+                if (!name.equalsIgnoreCase("Host"))
+                {
+                    connectRequestBuilder.append(String.format("%s: %s\r\n", name, field.getValue()));
+                }
+            });
+        
+            connectRequestBuilder.append("\r\n");
+            log.debug("CONNECT request: {}", connectRequestBuilder.toString());
+            ByteBuffer connectRequest = ByteBuffer.wrap(connectRequestBuilder.toString().getBytes(StandardCharsets.UTF_8));
+
+            // 書き込みはendPointを使用
+            try {
+                boolean flushed = unwrappedEndPoint.flush(connectRequest);
+            } catch (IOException e) {
+                log.error("Failed to flush CONNECT request to upstream proxy", e);
+                upstreamConnection.close(e);
+                return;
+            }
+            log.debug("flush: Connected to upstream proxy");
+
+            // CONNECTレスポンス専用のResponseHandlerを作成
+            ConnectResponseHandler connectHandler = new ConnectResponseHandler();
+            HttpParser connectParser = new HttpParser(connectHandler);
+            // HEADのみリクエストがありうるので要設定
+            connectParser.setHeadResponse(true);
+                
+            ByteBuffer responseBuffer = ByteBuffer.allocate(4096);
+            long timeout = System.currentTimeMillis() + 10000; // 10秒のタイムアウト
+                
+            // 応答が完全に受信されるまで読み取る
+            while (!connectHandler.isComplete())
+            {
+                // タイムアウトチェック
+                if (System.currentTimeMillis() > timeout)
+                {
+                    upstreamConnection.close(new IOException("Timeout waiting for CONNECT response"));
+                    return;
+                }
+                    
+                // エラーチェック
+                if (connectHandler.hasError())
+                {
+                    upstreamConnection.close(connectHandler.getError());
+                    return;
+                }
+
+                responseBuffer.clear();
+                int read;
+                try
+                {
+                    read = socketChannel.read(responseBuffer);
+                    log.debug("socketChannel.read() called, read={} bytes", read);
+                }
+                catch (IOException e)
+                {
+                    log.error("Failed to read from socketChannel", e);
+                    upstreamConnection.close(e);
+                    return;
+                }
+                    
+                if (read < 0)
+                {
+                    log.debug("Connection closed (read < 0)");
+                    upstreamConnection.close(new IOException("Connection closed"));
+                    return;
+                }
+                    
+                if (read == 0)
+                {
+                    // log.debug("No data available, starting adaptive polling...");
+                    try
+                    {
+                        Thread.sleep(50);
+                    }
+                    catch (InterruptedException e)
+                    {
+                        Thread.currentThread().interrupt();
+                        upstreamConnection.close(new IOException("Interrupted while waiting for CONNECT response", e));
+                        return;
+                    }
+                }
+                    
+                log.debug("read: Connected to upstream proxy: read={} Bytes", read);
+                    
+                // HttpParserにデータを渡す
+                responseBuffer.flip();
+                boolean complete = connectParser.parseNext(responseBuffer);
+                responseBuffer.compact(); // 未処理のデータを保持
+                    
+                log.debug("HttpParser.parseNext() returned: complete={}, handler.isComplete()={}", complete, connectHandler.isComplete());
+                    
+                if (complete && connectHandler.hasError())
+                {
+                    upstreamConnection.close(connectHandler.getError());
+                    return;
+                }
+            }
+
+            log.debug("Received CONNECT response from upstream proxy: {} {}", 
+                connectHandler.getVersion(), connectHandler.getStatus());
+        
+            // 応答を確認
+            if (connectHandler.getStatus() != HttpStatus.OK_200)
+            {
+                String errorMsg = "Upstream proxy returned error: " + connectHandler.getStatus() + " " + connectHandler.getReason();
+                log.warn(errorMsg);
+                upstreamConnection.close(new IOException(errorMsg));
+                return;
+            }
+        }
 
         EndPoint downstreamEndPoint = connectContext.getEndPoint();
         DownstreamConnection downstreamConnection = newDownstreamConnection(downstreamEndPoint, context);
@@ -609,6 +774,182 @@ public class ReverseConnectHandler extends Handler.Wrapper
     protected boolean handleAuthentication(Request request, Response response, String address)
     {
         return true;
+    }
+
+    /**
+     * CONNECTレスポンス解析用のResponseHandler
+     */
+    private static class ConnectResponseHandler implements HttpParser.ResponseHandler
+    {
+        private HttpVersion version;
+        private int status = -1;
+        private String reason;
+        private volatile boolean messageComplete = false;
+        private volatile Throwable error;
+        private String contentLength = null;
+        private String transferEncoding = null;
+
+        /**
+         * レスポンスの開始行が解析された際に呼び出される
+         * 
+         * @param version HTTPバージョン
+         * @param status ステータスコード
+         * @param reason ステータスの理由句
+         */
+        @Override
+        public void startResponse(HttpVersion version, int status, String reason)
+        {
+            this.version = version;
+            this.status = status;
+            this.reason = reason;
+            log.debug("CONNECT response: {} {} {}", version, status, reason);
+        }
+
+        /**
+         * HTTPボディの一部が解析された際に呼び出される
+         * CONNECTレスポンスには通常ボディがないため、falseを返す
+         * 
+         * @param item ボディの一部
+         * @return false（コンテンツを消費しない）
+         */
+        @Override
+        public boolean content(ByteBuffer item)
+        {
+            log.debug("content() called");
+            // CONNECTレスポンスには通常ボディがない
+            return false;
+        }
+
+        /**
+         * HTTPヘッダーの解析が完了した際に呼び出される
+         * 
+         * - true :パースが中断される
+         * - false:パースが中断されない
+         * 
+         * @return false（パースを継続する）
+         */
+        @Override
+        public boolean headerComplete()
+        {
+            log.debug("headerComplete() called (Content-Length: {}, Transfer-Encoding: {})", contentLength, transferEncoding);
+            return false;
+        }
+        
+        /**
+         * HTTPヘッダーが解析された際に呼び出される
+         * 
+         * @param field 解析されたヘッダーフィールド
+         */
+        @Override
+        public void parsedHeader(HttpField field)
+        {
+            // ヘッダーを収集して、ボディの有無を判定するために使用
+            String name = field.getName();
+            String value = field.getValue();
+            
+            if (HttpHeader.CONTENT_LENGTH.is(name))
+            {
+                contentLength = value;
+                log.trace("CONNECT response header: {}: {}", name, value);
+            }
+            else if (HttpHeader.TRANSFER_ENCODING.is(name))
+            {
+                transferEncoding = value;
+                log.trace("CONNECT response header: {}: {}", name, value);
+            }
+            else
+            {
+                log.trace("CONNECT response header: {}: {}", name, value);
+            }
+        }
+
+        /**
+         * HTTPコンテンツの解析が完了した際に呼び出される
+         * 
+         * - true :パースが中断される
+         * - false:パースが中断されない
+         * 
+         * @return false（パースを継続する）
+         */
+        @Override
+        public boolean contentComplete()
+        {
+            log.debug("contentComplete() called");
+            return false;
+        }
+
+        /**
+         * HTTPメッセージ全体の解析が完了した際に呼び出される
+         * 
+         * @return true（メッセージ解析完了）
+         */
+        @Override
+        public boolean messageComplete()
+        {
+            log.debug("messageComplete() called");
+            // メッセージ完了フラグを設定
+            messageComplete = true;
+            
+            return true;
+        }
+
+
+        @Override
+        public void parsedTrailer(HttpField field)
+        {
+            // CONNECTレスポンスには通常トレーラーがない
+        }
+
+        @Override
+        public void earlyEOF()
+        {
+            error = new IOException("Early EOF while parsing CONNECT response");
+        }
+
+        @Override
+        public void badMessage(HttpException failure)
+        {
+            if (failure != null)
+            {
+                String reason = failure.getReason();
+                int code = failure.getCode();
+                error = new IOException("Bad HTTP message: " + code + " " + (reason != null ? reason : ""), failure instanceof Throwable ? (Throwable)failure : null);
+            }
+            else
+            {
+                error = new IOException("Bad HTTP message");
+            }
+        }
+
+        public HttpVersion getVersion()
+        {
+            return version;
+        }
+
+        public int getStatus()
+        {
+            return status;
+        }
+
+        public String getReason()
+        {
+            return reason;
+        }
+
+        public boolean isComplete()
+        {
+            return messageComplete;
+        }
+
+        public boolean hasError()
+        {
+            return error != null;
+        }
+
+        public Throwable getError()
+        {
+            return error;
+        }
     }
 
     protected DownstreamConnection newDownstreamConnection(EndPoint endPoint, ConcurrentMap<String, Object> context)
@@ -1395,12 +1736,12 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 X509 x509 = sslContextFactoryServer.getX509(alias);
                 if (x509 != null && x509.matches(h))
                 {
-                    log.debug("ホスト {} は証明書エイリアス {} に一致します", h, alias);
+                    log.trace("ホスト {} は証明書エイリアス {} に一致します", h, alias);
                     return true;
                 }
             }
             
-            log.debug("ホスト {} はいずれの証明書にも一致しません", h);
+            log.trace("ホスト {} はいずれの証明書にも一致しません", h);
             
             return false;
         }
@@ -1464,18 +1805,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
             // Create upstream connection (potentially SSL-wrapped)
             UpstreamConnection connection = newUpstreamConnection(endpoint, connectContext);
             connection.setInputBufferSize(getBufferSize());
-            
-            // If the endpoint is SSL-wrapped, we need to handle the SSL connection lifecycle
-            if (endpoint instanceof SslConnection.SslEndPoint sslEndPoint)
-            {
-                // Get the parent SslConnection and ensure it's opened
-                SslConnection sslConnection = sslEndPoint.getSslConnection();
-                
-                // The SslConnection itself needs to be opened
-                sslConnection.onOpen();
-                
-                ReverseConnectHandler.log.debug("SSL connection established for upstream");
-            }
             
             return connection;
         }
@@ -1654,7 +1983,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             public void parsedHeader(HttpField field)
             {
-                log.debug("HTTP Response Header: {}: {}", field.getName(), field.getValue());
+                log.trace("HTTP Response Header: {}: {}", field.getName(), field.getValue());
                 
                 // Store header directly in CaptureHolder2
                 if (httpClientListener != null)
@@ -1675,7 +2004,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             public boolean content(ByteBuffer buffer)
             {
                 int length = buffer.remaining();
-                log.debug("HTTP Response Content: {} bytes", length);
+                log.trace("HTTP Response Content: {} bytes", length);
                 
                 // Notify listeners and store content in CaptureHolder2
                 notifyContentListeners(buffer, buffer.position(), length);
@@ -1987,7 +2316,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             public void parsedHeader(HttpField field)
             {
-                log.debug("HTTP Request Header: {}: {}", field.getName(), field.getValue());
+                log.trace("HTTP Request Header: {}: {}", field.getName(), field.getValue());
                 
                 // Store header directly in CaptureHolder2
                 if (httpClientListener != null)
@@ -2382,7 +2711,12 @@ public class ReverseConnectHandler extends Handler.Wrapper
             @Override
             protected void onSuccess()
             {
-                log.debug("Wrote {} bytes {}", filled, TunnelConnection.this);
+                // filled > 0の場合のみ書き込みログを出力
+                // filled == 0の場合はfillInterested()完了時のコールバックなのでログを出さない
+                if (filled > 0)
+                {
+                    log.trace("Wrote {} bytes {}", filled, TunnelConnection.this);
+                }
                 buffer = Retainable.release(buffer);
             }
 
