@@ -4,7 +4,7 @@
     <parent>
         <groupId>logbook-kai</groupId>
         <artifactId>logbook-kai</artifactId>
-        <version>25.11.1</version>
+        <version>25.11.2</version>
     </parent>
     <artifactId>logbook</artifactId>
     <properties>
@@ -19,7 +19,9 @@
         <brotli4j.os.arch>${os.detected.arch}</brotli4j.os.arch>
         <!-- brotli4jのartifact名は "native-{os}-{arch}" 形式 -->
         <brotli4j.classifier>native-${brotli4j.os.name}-${brotli4j.os.arch}</brotli4j.classifier>
+        <build.Implementation-Version>${project.version}</build.Implementation-Version>
     </properties>
+
     <build>
         <plugins>
             <plugin>
@@ -50,11 +52,12 @@
                             <Implementation-Title>航海日誌改</Implementation-Title>
                             <Implementation-Vendor>nomonomo</Implementation-Vendor>
                             <Built-By>nomonomo</Built-By>
+                            <Implementation-Version>${build.Implementation-Version}</Implementation-Version>
                         </manifestEntries>
                         <manifest>
                             <mainClass>logbook.internal.Launcher</mainClass>
+                            <addBuildEnvironmentEntries>true</addBuildEnvironmentEntries>
                             <addExtensions>false</addExtensions>
-                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
                         </manifest>
                     </archive>
                 </configuration>
@@ -131,35 +134,14 @@
             <version>12.1.2</version>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-server</artifactId>
-            <version>12.1.2</version>
-            <classifier>sources</classifier>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>org.eclipse.jetty.ee11</groupId>
             <artifactId>jetty-ee11-servlet</artifactId>
             <version>12.1.2</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.ee11</groupId>
-            <artifactId>jetty-ee11-servlet</artifactId>
-            <version>12.1.2</version>
-            <classifier>sources</classifier>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty.ee11</groupId>
             <artifactId>jetty-ee11-proxy</artifactId>
             <version>12.1.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty.ee11</groupId>
-            <artifactId>jetty-ee11-proxy</artifactId>
-            <version>12.1.2</version>
-            <classifier>sources</classifier>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.compression</groupId>
@@ -168,22 +150,8 @@
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.compression</groupId>
-            <artifactId>jetty-compression-client</artifactId>
-            <version>12.1.2</version>
-            <classifier>sources</classifier>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty.compression</groupId>
             <artifactId>jetty-compression-common</artifactId>
             <version>12.1.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty.compression</groupId>
-            <artifactId>jetty-compression-common</artifactId>
-            <version>12.1.2</version>
-            <classifier>sources</classifier>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.compression</groupId>
@@ -192,22 +160,8 @@
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.compression</groupId>
-            <artifactId>jetty-compression-brotli</artifactId>
-            <version>12.1.2</version>
-            <classifier>sources</classifier>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty.compression</groupId>
             <artifactId>jetty-compression-gzip</artifactId>
             <version>12.1.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty.compression</groupId>
-            <artifactId>jetty-compression-gzip</artifactId>
-            <version>12.1.2</version>
-            <classifier>sources</classifier>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.controlsfx</groupId>
@@ -348,15 +302,28 @@
     <!-- 手動実行用のプロファイル -->
     <profiles>
         <profile>
+            <id>dev</id>
+            <properties>
+                <build.Implementation-Version>${project.version}-${maven.build.timestamp}</build.Implementation-Version>
+            </properties>
+        </profile>
+        <profile>
             <id>extract-sources</id>
             <build>
                 <defaultGoal>generate-sources</defaultGoal>
                 <plugins>
                     <!-- ソース展開前に既存のsrc/libディレクトリを削除（バージョンアップ時の古いファイル残存を防ぐ） -->
+                    <!-- デフォルトのclean動作（targetディレクトリの削除）を無効化 -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-clean-plugin</artifactId>
                         <executions>
+                            <!-- デフォルトのclean実行を無効化（targetディレクトリを削除しない） -->
+                            <execution>
+                                <id>default-clean</id>
+                                <phase>none</phase>
+                            </execution>
+                            <!-- src/libディレクトリのみを削除 -->
                             <execution>
                                 <id>clean-lib-sources</id>
                                 <phase>initialize</phase>
@@ -393,7 +360,7 @@
                                     <outputDirectory>${project.basedir}/src/lib</outputDirectory>
                                     <classifier>sources</classifier>
                                     <!-- compileスコープを指定してprovided依存関係も含める -->
-                                    <includeScope>compile</includeScope>
+                                    <!-- <includeScope>compile</includeScope> -->
                                     <excludeTransitive>false</excludeTransitive>
                                     <stripVersion>true</stripVersion>
                                     <stripClassifier>true</stripClassifier>
