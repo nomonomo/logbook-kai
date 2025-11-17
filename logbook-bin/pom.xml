@@ -4,10 +4,12 @@
     <parent>
         <groupId>logbook-kai</groupId>
         <artifactId>logbook-kai</artifactId>
-        <version>25.11.1</version>
+        <version>25.11.2</version>
     </parent>
     <artifactId>logbook-jlink</artifactId>
     <properties>
+        <!-- デバッグ時にアセンブリ処理をスキップする場合は -DskipAssembly=true を指定 -->
+        <skipAssembly>false</skipAssembly>
     </properties>
     <packaging>jlink</packaging>
     <build>
@@ -18,6 +20,20 @@
                 <configuration>
                     <useSystemClassLoader>false</useSystemClassLoader>
                 </configuration>
+            </plugin>
+            <!-- module-info.javaをコンパイルするためにcompiler-pluginを追加 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>compile-module-info</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -68,6 +84,7 @@
                             <goal>single</goal>
                         </goals>
                         <configuration>
+                            <skipAssembly>${skipAssembly}</skipAssembly>
                             <descriptors>
                                 <descriptor>assembly.xml</descriptor>
                             </descriptors>
