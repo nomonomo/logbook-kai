@@ -35,7 +35,7 @@ jobs:
         id: release-drafter
         with:
           version: ${{ env.version }}
-          commitish: ${{ github.ref }}
+          commitish: ${{ github.event.workflow_run.head_sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - id: tagname
@@ -71,7 +71,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Release
         run: |
-          gh release upload ${{ env.TAGNAME }} logbook-${{ env.FILENAME }}.zip
+          gh release upload ${{ env.TAGNAME }} logbook-${{ env.FILENAME }}.zip --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAGNAME: ${{ needs.update_release_draft.outputs.tagname }}
