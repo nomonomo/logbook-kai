@@ -51,6 +51,15 @@ public class SortieAirbattle implements ISortieBattle, IFormation, IAirbattle, I
     /** api_midnight_flag */
     private Boolean midnightFlag;
 
+    /** api_smoke_type */
+    private Integer smokeType;
+
+    /** api_balloon_cell */
+    private Integer balloonCell;
+
+    /** api_atoll_cell */
+    private Integer atollCell;
+
     /** api_eSlot */
     private List<List<Integer>> eSlot;
 
@@ -109,6 +118,9 @@ public class SortieAirbattle implements ISortieBattle, IFormation, IAirbattle, I
                 .setIntegerList("api_e_nowhps", bean::setENowhps)
                 .setIntegerList("api_e_maxhps", bean::setEMaxhps)
                 .setBoolean("api_midnight_flag", bean::setMidnightFlag)
+                .setInteger("api_smoke_type", bean::setSmokeType)
+                .setInteger("api_balloon_cell", bean::setBalloonCell)
+                .setInteger("api_atoll_cell", bean::setAtollCell)
                 .set("api_eSlot", bean::setESlot, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_fParam", bean::setFParam, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_eParam", bean::setEParam, JsonHelper.toList(JsonHelper::toIntegerList))

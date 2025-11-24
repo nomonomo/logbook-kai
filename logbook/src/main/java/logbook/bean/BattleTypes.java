@@ -86,6 +86,33 @@ public class BattleTypes {
          */
         List<List<Integer>> getEParam();
 
+        /**
+         * api_smoke_typeを取得します。
+         * 煙幕タイプを持たない戦闘クラスはnullを返します。
+         * @return api_smoke_type (0: 無し, 1: 一重煙幕, 2: 二重煙幕, 3: 三重煙幕)
+         */
+        default Integer getSmokeType() {
+            return null;
+        }
+
+        /**
+         * api_balloon_cellを取得します。
+         * バルーンセルを持たない戦闘クラスはnullを返します。
+         * @return api_balloon_cell
+         */
+        default Integer getBalloonCell() {
+            return null;
+        }
+
+        /**
+         * api_atoll_cellを取得します。
+         * 環礁セルを持たない戦闘クラスはnullを返します。
+         * @return api_atoll_cell
+         */
+        default Integer getAtollCell() {
+            return null;
+        }
+
         @JsonIgnore
         default boolean isIAirBaseAttack() {
             return false;

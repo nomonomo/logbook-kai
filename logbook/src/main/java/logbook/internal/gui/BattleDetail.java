@@ -151,6 +151,10 @@ public class BattleDetail extends WindowController {
     @FXML
     private Label tykuCI;
 
+    /** 煙幕発動 */
+    @FXML
+    private Label smokeType;
+
     /** 評価 */
     @FXML
     private Label judge;
@@ -337,6 +341,7 @@ public class BattleDetail extends WindowController {
         this.eTouchPlaneImage.setFitHeight(0);
         this.eTouchPlane.setText("");
         this.tykuCI.setText("");
+        this.smokeType.setText("");
 
         if (this.battle.isIKouku()) {
             Kouku kouku = this.battle.asIKouku().getKouku();
@@ -400,6 +405,23 @@ public class BattleDetail extends WindowController {
                     }
                 }
             }
+        }
+        // 煙幕発動
+        if (this.battle != null) {
+            Integer smokeTypeValue = this.battle.getSmokeType();
+            String smokeTypeText;
+            if (smokeTypeValue != null) {
+                smokeTypeText = switch (smokeTypeValue) {
+                    case 0 -> "なし";
+                    case 1 -> "一重煙幕";
+                    case 2 -> "二重煙幕";
+                    case 3 -> "三重煙幕";
+                    default -> "不明(" + smokeTypeValue + ")";
+                };
+            } else {
+                smokeTypeText = "不明";
+            }
+            this.smokeType.setText(smokeTypeText);
         }
     }
 

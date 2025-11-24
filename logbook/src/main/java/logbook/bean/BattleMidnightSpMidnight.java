@@ -64,6 +64,15 @@ public class BattleMidnightSpMidnight implements IMidnightBattle, IFormation, IN
     /** api_flare_pos */
     private List<Integer> flarePos;
 
+    /** api_smoke_type */
+    private Integer smokeType;
+
+    /** api_balloon_cell */
+    private Integer balloonCell;
+
+    /** api_atoll_cell */
+    private Integer atollCell;
+
     /** api_hougeki */
     private BattleTypes.MidnightHougeki hougeki;
 
@@ -98,6 +107,9 @@ public class BattleMidnightSpMidnight implements IMidnightBattle, IFormation, IN
                 .set("api_friendly_battle", bean::setFriendlyBattle, BattleTypes.FriendlyBattle::toFriendlyBattle)
                 .setIntegerList("api_touch_plane", bean::setTouchPlane)
                 .setIntegerList("api_flare_pos", bean::setFlarePos)
+                .setInteger("api_smoke_type", bean::setSmokeType)
+                .setInteger("api_balloon_cell", bean::setBalloonCell)
+                .setInteger("api_atoll_cell", bean::setAtollCell)
                 .set("api_hougeki", bean::setHougeki, BattleTypes.MidnightHougeki::toMidnightHougeki)
                 .setInteger("api_n_support_flag", bean::setNSupportFlag)
                 .set("api_n_support_info", bean::setNSupportInfo, BattleTypes.SupportInfo::toSupportInfo);

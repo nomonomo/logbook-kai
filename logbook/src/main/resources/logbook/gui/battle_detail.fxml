@@ -54,6 +54,7 @@
                                     <RowConstraints vgrow="SOMETIMES" />
                                     <RowConstraints vgrow="SOMETIMES" />
                                     <RowConstraints vgrow="SOMETIMES" />
+                                    <RowConstraints vgrow="SOMETIMES" />
                                 </rowConstraints>
                                  <children>
                                     <HBox>
@@ -138,20 +139,30 @@
                                     </HBox>
                                     <HBox GridPane.rowIndex="4">
                                        <children>
-                                          <Label text="対空CI:" />
+                                          <Label text="煙幕発動:" />
                                        </children>
                                     </HBox>
                                     <HBox GridPane.columnIndex="1" GridPane.columnSpan="7" GridPane.rowIndex="4">
                                        <children>
+                                          <Label fx:id="smokeType" />
+                                       </children>
+                                    </HBox>
+                                    <HBox GridPane.rowIndex="5">
+                                       <children>
+                                          <Label text="対空CI:" />
+                                       </children>
+                                    </HBox>
+                                    <HBox GridPane.columnIndex="1" GridPane.columnSpan="7" GridPane.rowIndex="5">
+                                       <children>
                                           <Label fx:id="tykuCI" />
                                        </children>
                                     </HBox>
-                                    <HBox alignment="CENTER_LEFT" GridPane.rowIndex="5">
+                                    <HBox alignment="CENTER_LEFT" GridPane.rowIndex="6">
                                        <children>
                                           <Label text="評価:" />
                                        </children>
                                     </HBox>
-                                    <HBox alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.columnSpan="7" GridPane.rowIndex="5">
+                                    <HBox alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.columnSpan="7" GridPane.rowIndex="6">
                                        <children>
                                           <Label fx:id="judge" styleClass="bold" />
                                        </children>
