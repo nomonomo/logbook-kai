@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import logbook.internal.JsonHelper;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 戦闘で使用される型
@@ -1659,6 +1660,7 @@ public class BattleTypes {
      * 攻撃種別
      *
      */
+    @Slf4j
     public enum SortieAtType implements AtType {
         通常攻撃("通常攻撃"),
         レーザー攻撃("レーザー攻撃"),
@@ -1674,11 +1676,13 @@ public class BattleTypes {
         ColoradoTouch("特殊攻撃(Colorado)"),
         僚艦夜戦突撃("僚艦夜戦突撃"),   // 夜戦専用だが念のため
         RicheliueTouch("Richelieuよ！圧倒しなさいっ！"),
+        QE級Touch("姉妹艦連携砲撃"),
         瑞雲立体攻撃("瑞雲立体攻撃"),
         海空立体攻撃("海空立体攻撃"),
         潜水艦隊攻撃("潜水艦隊攻撃"),
         大和改二特殊砲撃_3隻("大和改二特殊砲撃(3隻)"),
-        大和改二特殊砲撃_2隻("大和改二特殊砲撃(2隻)");
+        大和改二特殊砲撃_2隻("大和改二特殊砲撃(2隻)"),
+        未対応攻撃("未対応攻撃");
 
         private String name;
 
@@ -1692,48 +1696,32 @@ public class BattleTypes {
         }
 
         public static SortieAtType toSortieAtType(int i) {
-            switch (i) {
-            case 0:
-                return 通常攻撃;
-            case 1:
-                return レーザー攻撃;
-            case 2:
-                return 連撃;
-            case 3:
-                return 主砲副砲CI;
-            case 4:
-                return 主砲電探CI;
-            case 5:
-                return 主砲徹甲弾CI;
-            case 6:
-                return 主砲主砲CI;
-            case 7:
-                return 戦爆連合CI;
-            case 100:
-                return NelsonTouch;
-            case 101:
-                return 胸熱CI;
-            case 102:
-                return 陸奥タッチ;
-            case 103:
-                return ColoradoTouch;
-            case 104:
-                return 僚艦夜戦突撃;
-            case 105:
-                return RicheliueTouch;
-            case 200:
-                return 瑞雲立体攻撃;
-            case 201:
-                return 海空立体攻撃;
-            case 300:
-                return 潜水艦隊攻撃;
-            case 400:
-                return 大和改二特殊砲撃_3隻;
-            case 401:
-                return 大和改二特殊砲撃_2隻;
-            default:
-                return 通常攻撃;
-            }
+            return switch (i) {
+                case 0 -> 通常攻撃;
+                case 1 -> レーザー攻撃;
+                case 2 -> 連撃;
+                case 3 -> 主砲副砲CI;
+                case 4 -> 主砲電探CI;
+                case 5 -> 主砲徹甲弾CI;
+                case 6 -> 主砲主砲CI;
+                case 7 -> 戦爆連合CI;
+                case 100 -> NelsonTouch;
+                case 101 -> 胸熱CI;
+                case 102 -> 陸奥タッチ;
+                case 103 -> ColoradoTouch;
+                case 104 -> 僚艦夜戦突撃;
+                case 105 -> RicheliueTouch;
+                case 106 -> QE級Touch;
+                case 200 -> 瑞雲立体攻撃;
+                case 201 -> 海空立体攻撃;
+                case 300 -> 潜水艦隊攻撃;
+                case 400 -> 大和改二特殊砲撃_3隻;
+                case 401 -> 大和改二特殊砲撃_2隻;
+                default -> {
+                    log.warn("未対応のSortieAtTypeが検出されました: {}", i);
+                    yield 未対応攻撃;
+                }
+            };
         }
     }
 
@@ -1750,6 +1738,7 @@ public class BattleTypes {
      * 攻撃種別
      *
      */
+    @Slf4j
     public enum MidnightSpList implements AtType {
         通常攻撃("通常攻撃"),
         連撃("連撃"),
@@ -1773,11 +1762,13 @@ public class BattleTypes {
         ColoradoTouch("特殊攻撃(Colorado)"),
         僚艦夜戦突撃("僚艦夜戦突撃"),
         RicheliueTouch("Richelieuよ！圧倒しなさいっ！"),
+        QE級Touch("姉妹艦連携砲撃"),
         夜間瑞雲CI("夜間瑞雲CI"),   // ID: 200 瑞雲立体攻撃と同じID
         海空立体攻撃("海空立体攻撃"),   // 夜戦では発動しないと思われるが念のため
         潜水艦隊攻撃("潜水艦隊攻撃"),
         大和改二特殊砲撃_3隻("大和改二特殊砲撃(3隻)"),
-        大和改二特殊砲撃_2隻("大和改二特殊砲撃(2隻)");
+        大和改二特殊砲撃_2隻("大和改二特殊砲撃(2隻)"),
+        未対応攻撃("未対応攻撃");
 
         private String name;
 
@@ -1791,64 +1782,40 @@ public class BattleTypes {
         }
 
         public static MidnightSpList toMidnightSpList(int i) {
-            switch (i) {
-            case 0:
-                return 通常攻撃;
-            case 1:
-                return 連撃;
-            case 2:
-                return 主砲魚雷CI;
-            case 3:
-                return 魚雷魚雷CI;
-            case 4:
-                return 主砲副砲CI;
-            case 5:
-                return 主砲主砲CI;
-            case 6:
-                return 夜襲CI;
-            case 7:
-                return 主砲魚雷電探CI;
-            case 8:
-                return 魚雷見張員電探CI;
-            case 9:
-                return 魚雷魚雷見張員CI;
-            case 10:
-                return ドラム缶CI;
-            case 11:
-                return 主砲電探魚雷CI2;
-            case 12:
-                return 魚雷見張員電探CI2;
-            case 13:
-                return 魚雷魚雷CI2;
-            case 14:
-                return CI_14;
-            case 15:
-                return CI_15;
-            case 100:
-                return NelsonTouch;
-            case 101:
-                return 胸熱CI;
-            case 102:
-                return 陸奥タッチ;
-            case 103:
-                return ColoradoTouch;
-            case 104:
-                return 僚艦夜戦突撃;
-            case 105:
-                return RicheliueTouch;
-            case 200:
-                return 夜間瑞雲CI;
-            case 201:
-                return 海空立体攻撃;
-            case 300:
-                return 潜水艦隊攻撃;
-            case 400:
-                return 大和改二特殊砲撃_3隻;
-            case 401:
-                return 大和改二特殊砲撃_2隻;
-            default:
-                return 通常攻撃;
-            }
+            return switch (i) {
+                case 0 -> 通常攻撃;
+                case 1 -> 連撃;
+                case 2 -> 主砲魚雷CI;
+                case 3 -> 魚雷魚雷CI;
+                case 4 -> 主砲副砲CI;
+                case 5 -> 主砲主砲CI;
+                case 6 -> 夜襲CI;
+                case 7 -> 主砲魚雷電探CI;
+                case 8 -> 魚雷見張員電探CI;
+                case 9 -> 魚雷魚雷見張員CI;
+                case 10 -> ドラム缶CI;
+                case 11 -> 主砲電探魚雷CI2;
+                case 12 -> 魚雷見張員電探CI2;
+                case 13 -> 魚雷魚雷CI2;
+                case 14 -> CI_14;
+                case 15 -> CI_15;
+                case 100 -> NelsonTouch;
+                case 101 -> 胸熱CI;
+                case 102 -> 陸奥タッチ;
+                case 103 -> ColoradoTouch;
+                case 104 -> 僚艦夜戦突撃;
+                case 105 -> RicheliueTouch;
+                case 106 -> QE級Touch;
+                case 200 -> 夜間瑞雲CI;
+                case 201 -> 海空立体攻撃;
+                case 300 -> 潜水艦隊攻撃;
+                case 400 -> 大和改二特殊砲撃_3隻;
+                case 401 -> 大和改二特殊砲撃_2隻;
+                default -> {
+                    log.warn("未対応のMidnightSpListが検出されました: {}", i);
+                    yield 未対応攻撃;
+                }
+            };
         }
     }
 }
