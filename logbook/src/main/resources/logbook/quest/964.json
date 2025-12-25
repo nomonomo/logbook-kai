@@ -1,0 +1,21 @@
+/* [964]【拡張作戦】Xmas戦艦戦隊、堂々進撃せよ！ */
+{
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["2-3", "2-4", "5-1"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["Warspite","Valiant","Nevada","Littorio","Italia","Jean Bart"], "order": 1},
+                {"name": ["Warspite","Valiant","Nevada","Littorio","Italia","Jean Bart"], "count": 1, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["2-3"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["2-4"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["5-1"], "rank": ["S"], "count": 2}
+    ]
+}
+

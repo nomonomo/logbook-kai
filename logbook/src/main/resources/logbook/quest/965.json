@@ -1,0 +1,19 @@
+/* [965]【拡張作戦】Xmas巡洋艦級、今冬も大暴れッ！ */
+{
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["2-2", "5-3", "5-5"],
+        "fleet": {
+            "name": ["衣笠","鈴谷","熊野","大淀","球磨","鹿島","矢矧改二","酒匂","Sheffield","Atlanta"],
+            "count": 3,
+            "operator": "GE"
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["2-2"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["5-3"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["5-5"], "rank": ["S"], "count": 2}
+    ]
+}
+
