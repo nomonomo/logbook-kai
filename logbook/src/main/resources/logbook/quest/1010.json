@@ -1,0 +1,19 @@
+/* [1010]防空駆逐艦「秋月改二」、推参します！ */
+{
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["1-4", "2-4", "5-4", "7-1", "7-2"],
+        "fleet": {
+            "name": ["秋月改二"],
+            "order": 1
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["1-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["7-1"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["7-2"], "cell": "M", "rank": ["S"], "count": 1}
+    ]
+}

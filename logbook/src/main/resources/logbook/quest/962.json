@@ -1,0 +1,18 @@
+/* [962]【Xmas限定】Xmas 健康駆逐隊、抜錨です！ */
+{
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["1-1", "1-3"],
+        "fleet": {
+            "name": ["萩風","親潮","霰","朧","漣","潮","曙","夕雲","早波","浜波","巻波","岸波","狭霧","Johnston"],
+            "count": 4,
+            "operator": "GE"
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["1-1"], "rank": ["S"], "count": 3},
+        {"boss": true, "area": ["1-3"], "rank": ["S"], "count": 3}
+    ]
+}
+

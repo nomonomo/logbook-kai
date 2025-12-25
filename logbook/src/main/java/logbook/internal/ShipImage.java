@@ -60,7 +60,7 @@ class ShipImage {
     private static final String MC_BANNER_ICON1 = "common_misc/common_misc_105.png";
 
     /** 大破バナーアイコン */
-    private static final String MC_BANNER_ICON2 = "common_misc/common_misc_115.png";
+    private static final String MC_BANNER_ICON2 = "common_misc/common_misc_117.png";
 
     /** 撃沈バナーアイコン */
     private static final String MC_BANNER_ICON3 = "common_misc/common_misc_108.png";
