@@ -76,6 +76,9 @@ public class ApiReqSortieBattleresult implements APIListenerSpi {
                                     .filter(Objects::nonNull)
                                     .collect(Collectors.toMap(Ship::getId, v -> v)));
                 }
+                // 戦闘結果更新を通知（結果が設定されたため）
+                // logを引数として渡すことで、battleResultConfirmに設定されたlogをリスナーに渡す
+                AppCondition.get().notifyBattleResultUpdated(log);
             }
             if (result.achievementGimmick1()) {
                 Platform.runLater(

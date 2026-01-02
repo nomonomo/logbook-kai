@@ -57,6 +57,8 @@ public class ApiReqSortieLdAirbattle implements APIListenerSpi {
                                     .filter(Objects::nonNull)
                                     .collect(Collectors.toMap(Ship::getId, v -> v)));
                 }
+                // 戦闘結果更新を通知
+                condition.notifyBattleResultUpdated();
             }
         }
     }

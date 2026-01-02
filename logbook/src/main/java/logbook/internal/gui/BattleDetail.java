@@ -24,6 +24,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.WindowEvent;
+import logbook.bean.AppCondition;
 import logbook.bean.BattleLog;
 import logbook.bean.BattleResult;
 import logbook.bean.BattleTypes;
@@ -52,14 +53,16 @@ import logbook.internal.PhaseState;
 import logbook.internal.Rank;
 import logbook.internal.Ships;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 戦況表示
  *
  */
+@Slf4j
 public class BattleDetail extends WindowController {
     /** 戦闘ログ */
-    private BattleLog log;
+    private BattleLog battleLog;
 
     /** 出撃/進撃 */
     private MapStartNext last;
@@ -174,17 +177,26 @@ public class BattleDetail extends WindowController {
     /** 演習かどうか */
     private boolean isPractice;
 
-    /** 周期タイマー */
+    /** 周期タイマー（後方互換性のため保持、使用は非推奨） */
     private Timeline timeline = new Timeline();
 
     /** ハッシュ・コード */
     private int hashCode;
 
+    /** 戦闘結果更新リスナー（登録解除用） */
+    private AppCondition.BattleResultUpdateListener battleResultUpdateListener;
+
+    /** 演習結果更新リスナー（登録解除用） */
+    private AppCondition.PracticeBattleResultUpdateListener practiceBattleResultUpdateListener;
+
+
     /**
      * 戦況表示を定期的に更新して表示します。
+     * （後方互換性のため保持、新規実装ではsetEventDrivenUpdateを使用）
      *
      * @param supplier 戦闘ログのサプライヤー
      */
+    @Deprecated
     void setInterval(Supplier<BattleLog> supplier) {
         this.timeline.setCycleCount(Animation.INDEFINITE);
         this.timeline.getKeyFrames().add(new KeyFrame(javafx.util.Duration.millis(1000),
@@ -193,27 +205,117 @@ public class BattleDetail extends WindowController {
     }
 
     /**
+     * イベント駆動型の更新を設定します。
+     * API処理完了時に自動的に更新されます。
+     * リスナーはAppCondition側でJavaFXアプリケーションスレッドで実行されるため、
+     * ここではPlatform.runLater()を呼ぶ必要はありません。
+     * 一度だけEvent登録を行い、ウィンドウが閉じられた時に解除されます。
+     */
+    void setEventDrivenUpdate() {
+        this.setEventDrivenUpdate(null);
+    }
+
+    /**
+     * イベント駆動型の更新を設定します。
+     * API処理完了時に自動的に更新されます。
+     * リスナーはAppCondition側でJavaFXアプリケーションスレッドで実行されるため、
+     * ここではPlatform.runLater()を呼ぶ必要はありません。
+     * 一度だけEvent登録を行い、ウィンドウが閉じられた時に解除されます。
+     *
+     * @param initialLog 初期表示用の戦闘ログ（nullの場合は初期表示を行わない）
+     */
+    void setEventDrivenUpdate(BattleLog initialLog) {
+        // 既存のリスナーを解除
+        if (this.battleResultUpdateListener != null) {
+            log.debug("setEventDrivenUpdate: 既存のリスナーを解除");
+            AppCondition.get().removeBattleResultUpdateListener(this.battleResultUpdateListener);
+            this.battleResultUpdateListener = null;
+        }
+
+        // 新しいリスナーを登録
+        // AppCondition側でPlatform.runLater()が呼ばれるため、ここでは直接setData()を呼ぶ
+        // notifyBattleResultUpdated()で渡されたBattleLogを直接setData()に渡す
+        this.battleResultUpdateListener = (BattleLog battleLog) -> {
+            log.debug("setEventDrivenUpdate: リスナーが呼ばれました - battleLog={}, battle={}", 
+                    battleLog != null ? "not null" : "null",
+                    battleLog != null && battleLog.getBattle() != null ? "not null" : "null");
+            if (battleLog != null) {
+                this.setData(battleLog);
+            }
+        };
+        AppCondition.get().addBattleResultUpdateListener(this.battleResultUpdateListener, "BattleDetail-戦闘結果");
+        log.debug("setEventDrivenUpdate: リスナーを登録しました");
+
+        // 初期表示データが指定されている場合は、setData()を呼び出す
+        if (initialLog != null) {
+            log.debug("setEventDrivenUpdate: 初期表示データを設定します");
+            this.setData(initialLog);
+        }
+    }
+
+    /**
+     * 演習結果のイベント駆動型の更新を設定します。
+     * API処理完了時に自動的に更新されます。
+     * リスナーはAppCondition側でJavaFXアプリケーションスレッドで実行されるため、
+     * ここではPlatform.runLater()を呼ぶ必要はありません。
+     * 一度だけEvent登録を行い、ウィンドウが閉じられた時に解除されます。
+     *
+     * @param initialLog 初期表示用の戦闘ログ（nullの場合は初期表示を行わない）
+     */
+    void setEventDrivenUpdateForPractice(BattleLog initialLog) {
+        // 既存のリスナーを解除
+        if (this.practiceBattleResultUpdateListener != null) {
+            log.debug("setEventDrivenUpdateForPractice: 既存のリスナーを解除");
+            AppCondition.get().removePracticeBattleResultUpdateListener(this.practiceBattleResultUpdateListener);
+            this.practiceBattleResultUpdateListener = null;
+        }
+
+        // 新しいリスナーを登録
+        // AppCondition側でPlatform.runLater()が呼ばれるため、ここでは直接setData()を呼ぶ
+        // notifyPracticeBattleResultUpdated()で渡されたBattleLogを直接setData()に渡す
+        this.practiceBattleResultUpdateListener = (BattleLog battleLog) -> {
+            log.debug("setEventDrivenUpdateForPractice: リスナーが呼ばれました - battleLog={}, battle={}", 
+                    battleLog != null ? "not null" : "null",
+                    battleLog != null && battleLog.getBattle() != null ? "not null" : "null");
+            if (battleLog != null) {
+                this.setData(battleLog);
+            }
+        };
+        AppCondition.get().addPracticeBattleResultUpdateListener(this.practiceBattleResultUpdateListener, "BattleDetail-演習結果");
+        log.debug("setEventDrivenUpdateForPractice: リスナーを登録しました");
+
+        // 初期表示データが指定されている場合は、setData()を呼び出す
+        if (initialLog != null) {
+            log.debug("setEventDrivenUpdateForPractice: 初期表示データを設定します");
+            this.setData(initialLog);
+        }
+    }
+
+    /**
      * 戦況表示
      *
-     * @param log 戦闘ログ
+     * @param battleLog 戦闘ログ
      */
-    void setData(BattleLog log) {
-        if (log != null && log.getBattle() != null) {
-            this.log = log;
+    void setData(BattleLog battleLog) {
+        if (battleLog != null && battleLog.getBattle() != null) {
+            this.battleLog = battleLog;
         }
-        if (this.log != null) {
-            MapStartNext last = this.log.getNext().size() > 0 ? this.log.getNext().get(this.log.getNext().size() - 1) : null;
-            CombinedType combinedType = this.log.getCombinedType();
-            Map<Integer, List<Ship>> deckMap = this.log.getDeckMap();
-            Map<Integer, SlotItem> itemMap = this.log.getItemMap();
-            IFormation battle = this.log.getBattle();
-            IMidnightBattle midnight = this.log.getMidnight();
-            Set<Integer> escape = this.log.getEscape();
-            BattleResult result = this.log.getResult();
-            Integer battleCount = this.log.getBattleCount();
-            List<String> route = this.log.getRoute();
-            boolean isPractice = this.log.isPractice();
+        if (this.battleLog != null) {
+            log.debug("setData(BattleLog): this.battleLogからデータを取得して更新処理を実行");
+            MapStartNext last = this.battleLog.getNext().size() > 0 ? this.battleLog.getNext().get(this.battleLog.getNext().size() - 1) : null;
+            CombinedType combinedType = this.battleLog.getCombinedType();
+            Map<Integer, List<Ship>> deckMap = this.battleLog.getDeckMap();
+            Map<Integer, SlotItem> itemMap = this.battleLog.getItemMap();
+            IFormation battle = this.battleLog.getBattle();
+            IMidnightBattle midnight = this.battleLog.getMidnight();
+            Set<Integer> escape = this.battleLog.getEscape();
+            BattleResult result = this.battleLog.getResult();
+            Integer battleCount = this.battleLog.getBattleCount();
+            List<String> route = this.battleLog.getRoute();
+            boolean isPractice = this.battleLog.isPractice();
             this.setData(last, combinedType, deckMap, escape, itemMap, battle, midnight, result, battleCount, route, isPractice);
+        } else {
+            log.debug("setData(BattleLog): this.battleLogがnullのため更新処理をスキップ");
         }
     }
 
@@ -236,8 +338,10 @@ public class BattleDetail extends WindowController {
             Integer battleCount, List<String> route, boolean isPractice) {
         int hashCode = Objects.hash(last, battle, midnight, result);
         if (this.hashCode == hashCode) {
+            log.debug("setData(詳細): ハッシュコードが同じため更新をスキップ");
             return;
         }
+        log.debug("setData(詳細): ハッシュコードが異なるため更新を実行");
         this.hashCode = hashCode;
 
         this.last = last;
@@ -833,6 +937,15 @@ public class BattleDetail extends WindowController {
     protected void onWindowHidden(WindowEvent e) {
         if (this.timeline != null) {
             this.timeline.stop();
+        }
+        // イベント駆動更新のリスナーを解除
+        if (this.battleResultUpdateListener != null) {
+            AppCondition.get().removeBattleResultUpdateListener(this.battleResultUpdateListener);
+            this.battleResultUpdateListener = null;
+        }
+        if (this.practiceBattleResultUpdateListener != null) {
+            AppCondition.get().removePracticeBattleResultUpdateListener(this.practiceBattleResultUpdateListener);
+            this.practiceBattleResultUpdateListener = null;
         }
     }
 

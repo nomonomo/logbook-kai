@@ -23,6 +23,8 @@ public class ApiReqPracticeMidnightBattle implements APIListenerSpi {
             BattleLog log = AppCondition.get().getPracticeBattleResult();
             if (log != null) {
                 log.setMidnight(BattleMidnightBattle.toBattle(data));
+                // 演習結果更新を通知
+                AppCondition.get().notifyPracticeBattleResultUpdated();
             }
         }
     }
