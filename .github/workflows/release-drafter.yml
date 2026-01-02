@@ -34,10 +34,14 @@ jobs:
       - name: Check existing releases
         id: check
         run: |
+          echo "Current version: ${{ env.version }}"
           # 最新リリースのタグを取得（JSON形式で取得し、vプレフィックスを除去）
           RELEASES_JSON=$(gh release --repo ${{ github.repository }} list --limit 1 --json tagName)
+          echo "Releases JSON: $RELEASES_JSON"
           if [ -n "$RELEASES_JSON" ] && [ "$RELEASES_JSON" != "[]" ]; then
             LATEST_TAG=$(echo "$RELEASES_JSON" | jq -r '.[0].tagName // empty' | sed 's/^v//')
+            echo "Latest tag (raw): $(echo "$RELEASES_JSON" | jq -r '.[0].tagName // empty')"
+            echo "Latest tag (without v): $LATEST_TAG"
             echo "latest_tag=$LATEST_TAG" >> $GITHUB_ENV
   
             # リリースが存在し、かつ同じバージョンが存在するなら +1
@@ -49,7 +53,7 @@ jobs:
               echo "version=$NEXT" >> $GITHUB_ENV
               echo "Version incremented to: $NEXT"
             else
-              echo "No version conflict. Using: ${{ env.version }}"
+              echo "No version conflict. Latest: '$LATEST_TAG', Current: '${{ env.version }}'"
             fi
           else
             echo "No existing releases found. Using: ${{ env.version }}"
