@@ -31,6 +31,9 @@ jobs:
           V=$(cat version.txt)
           echo "version=${V%-SNAPSHOT}" >> $GITHUB_ENV # -SNAPSHOTを削除
           cat $GITHUB_ENV
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: 'false'
       - name: Check existing releases
         id: check
         run: |
