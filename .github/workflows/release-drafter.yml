@@ -34,14 +34,33 @@ jobs:
       - name: Check existing releases
         id: check
         run: |
-          echo "Current version: ${{ env.version }}"
+          set -e
           # 最新リリースのタグを取得（JSON形式で取得し、vプレフィックスを除去）
-          RELEASES_JSON=$(gh release --repo ${{ github.repository }} list --limit 1 --json tagName)
-          echo "Releases JSON: $RELEASES_JSON"
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          RELEASES_JSON=""
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if RELEASES_JSON=$(gh release --repo ${{ github.repository }} list --limit 1 --json tagName 2>&1); then
+              break
+            fi
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "Retry $RETRY_COUNT/$MAX_RETRIES: Failed to get releases list, retrying in 2 seconds..."
+              sleep 2
+            else
+              echo "Error: Failed to get releases list after $MAX_RETRIES attempts"
+              echo "$RELEASES_JSON"
+              exit 1
+            fi
+          done
+          
           if [ -n "$RELEASES_JSON" ] && [ "$RELEASES_JSON" != "[]" ]; then
-            LATEST_TAG=$(echo "$RELEASES_JSON" | jq -r '.[0].tagName // empty' | sed 's/^v//')
-            echo "Latest tag (raw): $(echo "$RELEASES_JSON" | jq -r '.[0].tagName // empty')"
-            echo "Latest tag (without v): $LATEST_TAG"
+            if ! LATEST_TAG=$(echo "$RELEASES_JSON" | jq -r '.[0].tagName // empty' | sed 's/^v//'); then
+              echo "Error: Failed to parse releases JSON"
+              echo "JSON: $RELEASES_JSON"
+              exit 1
+            fi
             echo "latest_tag=$LATEST_TAG" >> $GITHUB_ENV
   
             # リリースが存在し、かつ同じバージョンが存在するなら +1
@@ -51,12 +70,8 @@ jobs:
               COUNT=$(echo $LATEST_TAG | cut -d. -f3)
               NEXT=$BASE.$((COUNT+1))
               echo "version=$NEXT" >> $GITHUB_ENV
-              echo "Version incremented to: $NEXT"
-            else
-              echo "No version conflict. Latest: '$LATEST_TAG', Current: '${{ env.version }}'"
+              echo "Version incremented: ${{ env.version }} -> $NEXT"
             fi
-          else
-            echo "No existing releases found. Using: ${{ env.version }}"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -97,7 +112,23 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Release
         run: |
-          gh release --repo ${{ github.repository }} upload ${{ env.TAGNAME }} logbook-${{ env.FILENAME }}.zip --clobber
+          set -e
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if gh release --repo ${{ github.repository }} upload ${{ env.TAGNAME }} logbook-${{ env.FILENAME }}.zip --clobber 2>&1; then
+              break
+            fi
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "Retry $RETRY_COUNT/$MAX_RETRIES: Failed to upload release artifact, retrying in 2 seconds..."
+              sleep 2
+            else
+              echo "Error: Failed to upload release artifact after $MAX_RETRIES attempts"
+              exit 1
+            fi
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAGNAME: ${{ needs.update_release_draft.outputs.tagname }}
