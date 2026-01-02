@@ -37,17 +37,25 @@ jobs:
       - name: Check existing releases
         id: check
         run: |
-          # 最新リリースのタグを取得
-          LATEST=$(gh release list --limit 1 | awk '{print $1}')
-          echo "latest=$LATEST" >> $GITHUB_ENV
+          # 最新リリースのタグを取得（JSON形式で取得し、vプレフィックスを除去）
+          RELEASES_JSON=$(gh release list --limit 1 --json tagName)
+          if [ -n "$RELEASES_JSON" ] && [ "$RELEASES_JSON" != "[]" ]; then
+            LATEST_TAG=$(echo "$RELEASES_JSON" | jq -r '.[0].tagName // empty' | sed 's/^v//')
+            echo "latest_tag=$LATEST_TAG" >> $GITHUB_ENV
   
-          # もし同じバージョンが存在するなら +1
-          if [ "$LATEST" = "${{ env.version }}" ]; then
-            # yy.mm.count の count をインクリメント
-            BASE=$(echo $LATEST | cut -d. -f1-2)
-            COUNT=$(echo $LATEST | cut -d. -f3)
-            NEXT=$BASE.$((COUNT+1))
-            echo "version=$NEXT" >> $GITHUB_ENV
+            # リリースが存在し、かつ同じバージョンが存在するなら +1
+            if [ -n "$LATEST_TAG" ] && [ "$LATEST_TAG" = "${{ env.version }}" ]; then
+              # yy.mm.count の count をインクリメント
+              BASE=$(echo $LATEST_TAG | cut -d. -f1-2)
+              COUNT=$(echo $LATEST_TAG | cut -d. -f3)
+              NEXT=$BASE.$((COUNT+1))
+              echo "version=$NEXT" >> $GITHUB_ENV
+              echo "Version incremented to: $NEXT"
+            else
+              echo "No version conflict. Using: ${{ env.version }}"
+            fi
+          else
+            echo "No existing releases found. Using: ${{ env.version }}"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
