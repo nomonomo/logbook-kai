@@ -1,0 +1,28 @@
+/* [1024]【年末年始】出撃！海防戦艦、海上戦闘哨戒！ */
+{
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["1-3", "1-4", "2-1", "3-1"],
+        "fleet": {
+            "operator": "OR",
+            "conditions": [
+                {"name": ["Thonburi"], "order": 1},
+                {
+                    "operator": "AND",
+                    "conditions": [
+                        {"name": ["Norge", "Eidsvold", "Thonburi"], "order": 1},
+                        {"name": ["Norge", "Eidsvold", "Thonburi"], "count": 1, "operator": "GE"}
+                    ]
+                }
+            ]
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["1-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["1-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-1"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["3-1"], "rank": ["S"], "count": 1}
+    ]
+}
+
