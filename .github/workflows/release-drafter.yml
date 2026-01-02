@@ -31,14 +31,11 @@ jobs:
           V=$(cat version.txt)
           echo "version=${V%-SNAPSHOT}" >> $GITHUB_ENV # -SNAPSHOTを削除
           cat $GITHUB_ENV
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: 'false'
       - name: Check existing releases
         id: check
         run: |
           # 最新リリースのタグを取得（JSON形式で取得し、vプレフィックスを除去）
-          RELEASES_JSON=$(gh release list --limit 1 --json tagName)
+          RELEASES_JSON=$(gh release --repo ${{ github.repository }} list --limit 1 --json tagName)
           if [ -n "$RELEASES_JSON" ] && [ "$RELEASES_JSON" != "[]" ]; then
             LATEST_TAG=$(echo "$RELEASES_JSON" | jq -r '.[0].tagName // empty' | sed 's/^v//')
             echo "latest_tag=$LATEST_TAG" >> $GITHUB_ENV
@@ -88,9 +85,6 @@ jobs:
           - os: windows-latest
             platform: win
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: 'false'
       - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
@@ -99,7 +93,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Release
         run: |
-          gh release upload ${{ env.TAGNAME }} logbook-${{ env.FILENAME }}.zip --clobber
+          gh release --repo ${{ github.repository }} upload ${{ env.TAGNAME }} logbook-${{ env.FILENAME }}.zip --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAGNAME: ${{ needs.update_release_draft.outputs.tagname }}
