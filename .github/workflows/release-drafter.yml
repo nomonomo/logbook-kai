@@ -35,13 +35,13 @@ jobs:
         id: check
         run: |
           set -e
-          # 最新リリースのタグを取得（JSON形式で取得し、vプレフィックスを除去）
+          # 公開リリースのタグリストを取得（JSON形式で取得し、vプレフィックスを除去）
           MAX_RETRIES=3
           RETRY_COUNT=0
           RELEASES_JSON=""
           
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            if RELEASES_JSON=$(gh release --repo ${{ github.repository }} list --limit 1 --json tagName 2>&1); then
+            if RELEASES_JSON=$(gh release --repo ${{ github.repository }} list --limit 100 --json tagName,isDraft 2>&1); then
               break
             fi
             RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -55,23 +55,45 @@ jobs:
             fi
           done
           
-          if [ -n "$RELEASES_JSON" ] && [ "$RELEASES_JSON" != "[]" ]; then
-            if ! LATEST_TAG=$(echo "$RELEASES_JSON" | jq -r '.[0].tagName // empty' | sed 's/^v//'); then
+          # Draftリリースを除外して公開リリースのタグリストを取得（vプレフィックスを除去）
+          if [ -n "$RELEASES_JSON" ] && [ "$RELEASES_JSON" != "[]" ] && [ "$RELEASES_JSON" != "null" ]; then
+            # Draftでないリリースのタグ名リストを取得（vプレフィックスを除去して改行区切り）
+            if ! PUBLISHED_TAGS=$(echo "$RELEASES_JSON" | jq -r '[.[] | select(.isDraft == false) | .tagName] | .[]' | sed 's/^v//' | sort -u); then
               echo "Error: Failed to parse releases JSON"
               echo "JSON: $RELEASES_JSON"
               exit 1
             fi
-            echo "latest_tag=$LATEST_TAG" >> $GITHUB_ENV
-  
-            # リリースが存在し、かつ同じバージョンが存在するなら +1
-            if [ -n "$LATEST_TAG" ] && [ "$LATEST_TAG" = "${{ env.version }}" ]; then
-              # yy.mm.count の count をインクリメント
-              BASE=$(echo $LATEST_TAG | cut -d. -f1-2)
-              COUNT=$(echo $LATEST_TAG | cut -d. -f3)
-              NEXT=$BASE.$((COUNT+1))
-              echo "version=$NEXT" >> $GITHUB_ENV
-              echo "Version incremented: ${{ env.version }} -> $NEXT"
+            
+            CURRENT_VERSION="${{ env.version }}"
+            echo "Initial version: $CURRENT_VERSION"
+            
+            # 現在のバージョンが公開リリースタグに含まれている限り、インクリメントを繰り返す
+            MAX_ITERATIONS=100  # 無限ループ防止
+            ITERATION=0
+            while [ $ITERATION -lt $MAX_ITERATIONS ]; do
+              # 公開リリースタグの中に現在のバージョンが含まれているか確認
+              if echo "$PUBLISHED_TAGS" | grep -Fxq "$CURRENT_VERSION"; then
+                # yy.mm.count の count をインクリメント
+                BASE=$(echo $CURRENT_VERSION | cut -d. -f1-2)
+                COUNT=$(echo $CURRENT_VERSION | cut -d. -f3)
+                CURRENT_VERSION=$BASE.$((COUNT+1))
+                echo "Version exists in releases, incrementing to: $CURRENT_VERSION"
+                ITERATION=$((ITERATION + 1))
+              else
+                break
+              fi
+            done
+            
+            if [ $ITERATION -ge $MAX_ITERATIONS ]; then
+              echo "Error: Maximum iterations reached. Possible infinite loop."
+              exit 1
             fi
+            
+            # 最終的なバージョンを設定
+            echo "version=$CURRENT_VERSION" >> $GITHUB_ENV
+            echo "Final version: $CURRENT_VERSION"
+          else
+            echo "No published releases found, using initial version: ${{ env.version }}"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
