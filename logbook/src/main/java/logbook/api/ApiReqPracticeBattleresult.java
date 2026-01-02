@@ -35,6 +35,8 @@ public class ApiReqPracticeBattleresult implements APIListenerSpi {
                             .orElse(1);
                     // 艦隊スナップショットを作る
                     BattleLog.snapshot(log, dockId);
+                    // 演習結果更新を通知
+                    AppCondition.get().notifyPracticeBattleResultUpdated();
                 }
             }
         } catch (Throwable e) {

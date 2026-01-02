@@ -45,6 +45,8 @@ public class ApiReqBattleMidnightBattle implements APIListenerSpi {
                                     .filter(Objects::nonNull)
                                     .collect(Collectors.toMap(Ship::getId, v -> v)));
                 }
+                // 戦闘結果更新を通知
+                AppCondition.get().notifyBattleResultUpdated();
             }
         }
     }

@@ -22,8 +22,8 @@ import logbook.bean.BattleLog;
 import logbook.internal.BattleLogs;
 import logbook.internal.BattleLogs.SimpleBattleLog;
 import logbook.internal.CheckUpdate;
-import logbook.internal.LoggerHolder;
 import logbook.internal.log.BattleResultLogFormat;
+import lombok.extern.slf4j.Slf4j;
 import logbook.internal.log.LogWriter;
 import logbook.plugin.gui.MainCalcMenu;
 import logbook.plugin.gui.MainCommandMenu;
@@ -34,6 +34,7 @@ import logbook.plugin.gui.Plugin;
  * UIコントローラー
  *
  */
+@Slf4j
 public class MainMenuController extends WindowController {
 
     // メイン画面のコントローラ
@@ -59,7 +60,7 @@ public class MainMenuController extends WindowController {
             this.addMenuItem(MainCalcMenu.class, this.calc.getItems());
             this.addMenuItem(MainExtMenu.class, this.ext.getItems());
         } catch (Exception e) {
-            LoggerHolder.get().error("FXMLの初期化に失敗しました", e);
+            log.error("FXMLの初期化に失敗しました", e);
         }
     }
 
@@ -77,7 +78,7 @@ public class MainMenuController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/capture.fxml", this.parentController.getWindow(), "キャプチャ");
         } catch (Exception ex) {
-            LoggerHolder.get().error("キャプチャの初期化に失敗しました", ex);
+            log.error("キャプチャの初期化に失敗しました", ex);
         }
     }
 
@@ -89,36 +90,39 @@ public class MainMenuController extends WindowController {
     @FXML
     void battleStatus(ActionEvent e) {
         try {
-            BattleLog log = AppCondition.get()
+            BattleLog battleLog = AppCondition.get()
                     .getBattleResult();
-            if (log == null || log.getBattle() == null) {
+            if (battleLog == null || battleLog.getBattle() == null) {
                 Path dir = Paths.get(AppConfig.get().getReportPath());
                 Path path = dir.resolve(new BattleResultLogFormat().fileName());
                 if (Files.exists(path)) {
                     try (Stream<String> lines = Files.lines(path, LogWriter.DEFAULT_CHARSET)) {
-                        SimpleBattleLog battleLog = lines.skip(1).reduce((first, second) -> second)
+                        SimpleBattleLog simpleBattleLog = lines.skip(1).reduce((first, second) -> second)
                                 .map(SimpleBattleLog::new)
                                 .orElse(null);
-                        if (battleLog != null) {
-                            log = BattleLogs.read(BattleLogDetail.toBattleLogDetail(battleLog).getDate());
+                        if (simpleBattleLog != null) {
+                            battleLog = BattleLogs.read(BattleLogDetail.toBattleLogDetail(simpleBattleLog).getDate());
                         }
                     } catch (Exception ex) {
-                        log = null;
+                        battleLog = null;
                     }
                 }
             }
-            if (log != null && log.getBattle() != null) {
-                BattleLog sendlog = log;
+            if (battleLog != null && battleLog.getBattle() != null) {
+                BattleLog sendlog = battleLog;
                 InternalFXMLLoader.showWindow("logbook/gui/battle_detail.fxml", this.parentController.getWindow(),
                         "現在の戦闘", c -> {
-                            ((BattleDetail) c).setInterval(() -> AppCondition.get().getBattleResult());
-                            ((BattleDetail) c).setData(sendlog);
+                            BattleDetail battleDetail = (BattleDetail) c;
+                            // イベント駆動型の更新を設定（API処理完了時に自動更新）
+                            // 一度だけEvent登録を行い、ウィンドウが閉じられた時に解除される
+                            battleDetail.setEventDrivenUpdate(sendlog);
+                            log.debug("battleStatus: setEventDrivenUpdate完了");
                         }, null);
             } else {
                 Tools.Controls.alert(AlertType.INFORMATION, "現在の戦闘", "戦闘のデータがありません", this.parentController.getWindow());
             }
         } catch (Exception ex) {
-            LoggerHolder.get().error("詳細の表示に失敗しました", ex);
+            log.error("現在の戦闘の表示に失敗しました", ex);
         }
     }
 
@@ -130,19 +134,19 @@ public class MainMenuController extends WindowController {
     @FXML
     void practiceStatus(ActionEvent e) {
         try {
-            BattleLog log = AppCondition.get().getPracticeBattleResult();
-            if (log != null && log.getBattle() != null) {
-                BattleLog sendlog = log;
+            BattleLog battleLog = AppCondition.get().getPracticeBattleResult();
+            if (battleLog != null && battleLog.getBattle() != null) {
+                BattleLog sendlog = battleLog;
                 InternalFXMLLoader.showWindow("logbook/gui/battle_detail.fxml", this.parentController.getWindow(),
                         "演習詳細", "practice", null, c -> {
-                            ((BattleDetail) c).setInterval(() -> AppCondition.get().getPracticeBattleResult());
-                            ((BattleDetail) c).setData(sendlog);
+                            // イベント駆動型の更新を設定（初期表示データも設定）
+                            ((BattleDetail) c).setEventDrivenUpdateForPractice(sendlog);
                         }, null);
             } else {
                 Tools.Controls.alert(AlertType.INFORMATION, "演習詳細", "演習のデータがありません", this.parentController.getWindow());
             }
         } catch (Exception ex) {
-            LoggerHolder.get().error("詳細の表示に失敗しました", ex);
+            log.error("演習詳細の表示に失敗しました", ex);
         }
     }
 
@@ -156,7 +160,7 @@ public class MainMenuController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/battlelog.fxml", this.parentController.getWindow(), "戦闘ログ");
         } catch (Exception ex) {
-            LoggerHolder.get().error("戦闘ログの初期化に失敗しました", ex);
+            log.error("戦闘ログの初期化に失敗しました", ex);
         }
     }
 
@@ -170,7 +174,7 @@ public class MainMenuController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/missionlog.fxml", this.parentController.getWindow(), "遠征ログ");
         } catch (Exception ex) {
-            LoggerHolder.get().error("遠征ログの初期化に失敗しました", ex);
+            log.error("遠征ログの初期化に失敗しました", ex);
         }
     }
 
@@ -184,7 +188,7 @@ public class MainMenuController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/createitemlog.fxml", this.parentController.getWindow(), "開発ログ");
         } catch (Exception ex) {
-            LoggerHolder.get().error("開発ログの初期化に失敗しました", ex);
+            log.error("開発ログの初期化に失敗しました", ex);
         }
     }
 
@@ -198,7 +202,7 @@ public class MainMenuController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/airbase.fxml", this.parentController.getWindow(), "基地航空隊");
         } catch (Exception ex) {
-            LoggerHolder.get().error("基地航空隊の初期化に失敗しました", ex);
+            log.error("基地航空隊の初期化に失敗しました", ex);
         }
     }
 
@@ -242,7 +246,7 @@ public class MainMenuController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/require_ndock.fxml", this.parentController.getWindow(), "お風呂に入りたい艦娘");
         } catch (Exception ex) {
-            LoggerHolder.get().error("お風呂に入りたい艦娘の初期化に失敗しました", ex);
+            log.error("お風呂に入りたい艦娘の初期化に失敗しました", ex);
         }
     }
 
@@ -256,7 +260,7 @@ public class MainMenuController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/calc_exp.fxml", this.parentController.getWindow(), "経験値計算機");
         } catch (Exception ex) {
-            LoggerHolder.get().error("経験値計算機の初期化に失敗しました", ex);
+            log.error("経験値計算機の初期化に失敗しました", ex);
         }
     }
 
@@ -270,7 +274,7 @@ public class MainMenuController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/missioncheck.fxml", this.parentController.getWindow(), "遠征条件確認");
         } catch (Exception ex) {
-            LoggerHolder.get().error("遠征条件確認の初期化に失敗しました", ex);
+            log.error("遠征条件確認の初期化に失敗しました", ex);
         }
     }
 
@@ -284,7 +288,7 @@ public class MainMenuController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/resource_chart.fxml", this.parentController.getWindow(), "資材チャート");
         } catch (Exception ex) {
-            LoggerHolder.get().error("資材チャートの初期化に失敗しました", ex);
+            log.error("資材チャートの初期化に失敗しました", ex);
         }
     }
 
@@ -298,7 +302,7 @@ public class MainMenuController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/exp_chart.fxml", this.parentController.getWindow(), "経験値チャート");
         } catch (Exception ex) {
-            LoggerHolder.get().error("経験値チャートの初期化に失敗しました", ex);
+            log.error("経験値チャートの初期化に失敗しました", ex);
         }
     }
 
@@ -312,7 +316,7 @@ public class MainMenuController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/deck.fxml", this.parentController.getWindow(), "編成記録");
         } catch (Exception ex) {
-            LoggerHolder.get().error("編成記録の初期化に失敗しました", ex);
+            log.error("編成記録の初期化に失敗しました", ex);
         }
     }
 
@@ -326,7 +330,7 @@ public class MainMenuController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/create_pac_file.fxml", this.parentController.getWindow(), "自動プロキシ構成スクリプトファイル生成");
         } catch (Exception ex) {
-            LoggerHolder.get().error("自動プロキシ構成スクリプトファイル生成の初期化に失敗しました", ex);
+            log.error("自動プロキシ構成スクリプトファイル生成の初期化に失敗しました", ex);
         }
     }
 
@@ -340,7 +344,7 @@ public class MainMenuController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/config.fxml", this.parentController.getWindow(), "設定");
         } catch (Exception ex) {
-            LoggerHolder.get().error("設定の初期化に失敗しました", ex);
+            log.error("設定の初期化に失敗しました", ex);
         }
     }
 
@@ -354,7 +358,7 @@ public class MainMenuController extends WindowController {
         try {
             CheckUpdate.getInstance().run(this.parentController.getWindow());
         } catch (Exception ex) {
-            LoggerHolder.get().error("更新情報の取得に失敗しました", ex);
+            log.error("更新情報の取得に失敗しました", ex);
         }
     }
 
@@ -378,7 +382,7 @@ public class MainMenuController extends WindowController {
                         });
                     });
         } catch (Exception ex) {
-            LoggerHolder.get().error("設定の初期化に失敗しました", ex);
+            log.error("設定の初期化に失敗しました", ex);
         }
     }
 
