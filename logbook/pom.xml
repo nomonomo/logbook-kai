@@ -8,7 +8,6 @@
     </parent>
     <artifactId>logbook</artifactId>
     <properties>
-        <maven.test.skip>true</maven.test.skip>
         <!-- os-maven-pluginで設定されるプロパティ（例）:
              os.detected.name: windows, linux, osx
              os.detected.arch: x86_64, aarch64
@@ -66,7 +65,10 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
+                    <!-- システムクラスローダーを使用しない（モジュールシステムとの互換性のため） -->
                     <useSystemClassLoader>false</useSystemClassLoader>
+                    <!-- モジュールパスを使用（Java 9以降） -->
+                    <useModulePath>true</useModulePath>
                 </configuration>
             </plugin>
             <plugin>
@@ -293,8 +295,8 @@
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.13.4</version>
+            <artifactId>junit-jupiter</artifactId>
+            <version>6.0.1</version>
             <scope>test</scope>
         </dependency>
       </dependencies>
