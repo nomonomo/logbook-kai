@@ -84,10 +84,11 @@ jobs:
 #      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
 
     - name: Build with Maven
-      run: mvn clean package --batch-mode --show-version --file pom.xml -Djavafx.platform=${{ matrix.platform }} -X
+      # shell: bashを指定することで、Windows環境でもbashが使用され、
+      # -Dオプションがタスクとして誤認識されることを防ぐ
+      shell: bash
+      run: mvn clean package --batch-mode --show-version --file pom.xml -Djavafx.platform=${{ matrix.platform }}
 #      run: mvn -B package --file pom.xml -Drevision=${{ env.RELEASE_VERSION }}
-#      env: 
-#        MAVEN_OPTS: -Djavafx.platform=${{ matrix.platform }}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
