@@ -16,6 +16,37 @@ concurrency:
 permissions: {}
       
 jobs:
+  version:
+    name: Get Version
+    #Push or Pull_Requestでforkしてない場合
+    if: ( github.event_name == 'push' || ( github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork ) )
+    
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: 'false'
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'microsoft'
+        server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
+        settings-path: ${{ github.workspace }} # location for the settings.xml file
+        cache: 'maven'
+
+    - name: Build with Version
+      run: mvn --batch-mode --non-recursive help:evaluate -Dexpression=project.version -Doutput=target/version.txt
+
+    - name: Upload artifacts Version
+      uses: actions/upload-artifact@v4
+      with:
+        name: version
+        path: target/version.txt
+        compression-level: 0 # 非圧縮
+
   build:
     name: ${{ matrix.os }}
     #Push or Pull_Requestでforkしてない場合
@@ -30,10 +61,12 @@ jobs:
         include:
           - os: windows-latest
             platform: win
-#          - os: macos-latest
-#            platform: mac-aarch64
+          - os: macos-15-intel
+            platform: mac
+          - os: macos-latest
+            platform: mac-aarch64
         # ターゲットの OS(Runner) , macos-latest, ubuntu-latest
-        # javafx.platform mac-aarch64
+        # javafx.platform: win, mac (Intel Mac), mac-aarch64 (Apple Silicon)
     steps:
     - uses: actions/checkout@v4
       with:
@@ -61,18 +94,6 @@ jobs:
       with:
         name: logbook_${{ matrix.os }}
         path: logbook-bin/target/logbook-${{ matrix.platform }}.zip
-        compression-level: 0 # 非圧縮
-
-    - name: Build with Version
-      run: mvn --batch-mode --non-recursive help:evaluate 
-      env: 
-        MAVEN_OPTS: -Dexpression=project.version -Doutput=target/version.txt
-
-    - name: Upload artifacts Version
-      uses: actions/upload-artifact@v4
-      with:
-        name: version
-        path: target/version.txt
         compression-level: 0 # 非圧縮
 
 #  release:

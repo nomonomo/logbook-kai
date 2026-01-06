@@ -1,7 +1,5 @@
 package logbook.internal;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.module.ModuleDescriptor;
 import java.util.Arrays;
@@ -40,6 +38,9 @@ public final class Version implements Comparable<Version>, Serializable {
     /** revision */
     private final int revision;
     
+    /** buildTimestamp ビルド日時（"-"以降の文字列をそのまま保持、例: "24.12.15 10.30.45"） */
+    private final String buildTimestamp;
+    
     /** title */
     private final String title;
     
@@ -54,7 +55,7 @@ public final class Version implements Comparable<Version>, Serializable {
      * @param revision Revision
      */
     public Version(int major, int minor, int revision) {
-        this(major, minor, revision, null, null);
+        this(major, minor, revision, null, null, null);
     }
     
     /**
@@ -67,9 +68,24 @@ public final class Version implements Comparable<Version>, Serializable {
      * @param vendor Vendor
      */
     public Version(int major, int minor, int revision, String title, String vendor) {
+        this(major, minor, revision, null, title, vendor);
+    }
+    
+    /**
+     * Version constructor
+     *
+     * @param major Major
+     * @param minor Minor
+     * @param revision Revision
+     * @param buildTimestamp ビルド日時（"-"以降の文字列をそのまま保持）
+     * @param title Title
+     * @param vendor Vendor
+     */
+    public Version(int major, int minor, int revision, String buildTimestamp, String title, String vendor) {
         this.major = major;
         this.minor = minor;
         this.revision = revision;
+        this.buildTimestamp = buildTimestamp;
         this.title = title;
         this.vendor = vendor;
     }
@@ -86,14 +102,24 @@ public final class Version implements Comparable<Version>, Serializable {
     /**
      * Version constructor
      *
-     * @param version Version String
+     * @param version Version String（例: "25.11.1" または "25.11.1-24.12.15 10.30.45"）
      * @param title Title
      * @param vendor Vendor
      */
     public Version(String version, String title, String vendor) {
         int major = 0, minor = 0, revision = 0;
+        String buildTimestamp = null;
         try {
-            Iterator<String> ite = Arrays.asList(version.trim().split("\\.")).iterator(); //$NON-NLS-1$
+            String versionPart = version.trim();
+            // "-"以降を文字列としてそのまま保持（日時情報など）
+            int dashIndex = versionPart.indexOf('-');
+            if (dashIndex >= 0) {
+                buildTimestamp = versionPart.substring(dashIndex + 1).trim();
+                versionPart = versionPart.substring(0, dashIndex).trim();
+            }
+            
+            // バージョン番号部分をパース
+            Iterator<String> ite = Arrays.asList(versionPart.split("\\.")).iterator(); //$NON-NLS-1$
             if (ite.hasNext()) {
                 major = Integer.parseInt(ite.next());
             }
@@ -107,10 +133,12 @@ public final class Version implements Comparable<Version>, Serializable {
             major = Integer.MAX_VALUE;
             minor = 0;
             revision = 0;
+            buildTimestamp = null;
         }
         this.major = major;
         this.minor = minor;
         this.revision = revision;
+        this.buildTimestamp = buildTimestamp;
         this.title = title;
         this.vendor = vendor;
     }
@@ -154,6 +182,14 @@ public final class Version implements Comparable<Version>, Serializable {
     public String getVendor() {
         return this.vendor;
     }
+    
+    /**
+     * buildTimestampを取得します。
+     * @return buildTimestamp（"-"以降の文字列、nullの場合は日時情報なし）
+     */
+    public String getBuildTimestamp() {
+        return this.buildTimestamp;
+    }
 
     @Override
     public String toString() {
@@ -163,6 +199,10 @@ public final class Version implements Comparable<Version>, Serializable {
         String version = this.major + "." + this.minor; //$NON-NLS-1$
         if (this.revision > 0) {
             version += "." + this.revision; //$NON-NLS-1$
+        }
+        // ビルド日時がある場合は追加（常に含まれる）
+        if (this.buildTimestamp != null && !this.buildTimestamp.isEmpty()) {
+            version += "-" + this.buildTimestamp; //$NON-NLS-1$
         }
         return version;
     }
@@ -217,8 +257,7 @@ public final class Version implements Comparable<Version>, Serializable {
         String source = null;
         
         // MANIFEST.MFを直接読み取る（Package.getImplementationVersion()はモジュールシステムでは機能しないため）
-        // getManifestFromClassPath()は既に例外を処理しているため、try-catchは不要
-        Manifest manifest = getManifestFromClassPath();
+        Manifest manifest = ManifestUtil.getManifest(Version.class);
         if (manifest != null) {
             Attributes attrs = manifest.getMainAttributes();
             version = attrs.getValue(Attributes.Name.IMPLEMENTATION_VERSION);
@@ -260,32 +299,4 @@ public final class Version implements Comparable<Version>, Serializable {
         return UNKNOWN;
     }
     
-    /**
-     * クラスパスからMANIFEST.MFを取得する。
-     * モジュールシステム対応: Module.getResourceAsStream()またはClass.getResourceAsStream()を使用。
-     * 
-     * @return Manifestオブジェクト、取得できない場合はnull
-     */
-    private static Manifest getManifestFromClassPath() {
-        Module module = Version.class.getModule();
-        if (module != null && module.isNamed()) {
-            try (InputStream is = module.getResourceAsStream("META-INF/MANIFEST.MF")) {
-                if (is != null) {
-                    return new Manifest(is);
-                }
-            } catch (IOException e) {
-                log.debug("Module.getResourceAsStream()でMANIFEST.MFの読み取りに失敗しました", e);
-            }
-        }
-        
-        try (InputStream is = Version.class.getResourceAsStream("/META-INF/MANIFEST.MF")) {
-            if (is != null) {
-                return new Manifest(is);
-            }
-        } catch (IOException e) {
-            log.debug("Class.getResourceAsStream()でMANIFEST.MFの読み取りに失敗しました", e);
-        }
-        
-        return null;
-    }
 }
