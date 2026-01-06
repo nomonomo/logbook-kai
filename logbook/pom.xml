@@ -52,6 +52,7 @@
                             <Implementation-Vendor>nomonomo</Implementation-Vendor>
                             <Built-By>nomonomo</Built-By>
                             <Implementation-Version>${build.Implementation-Version}</Implementation-Version>
+                            <Build-Platform>${javafx.platform}</Build-Platform>
                         </manifestEntries>
                         <manifest>
                             <mainClass>logbook.internal.Launcher</mainClass>

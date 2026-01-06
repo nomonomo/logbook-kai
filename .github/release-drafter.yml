@@ -20,3 +20,5 @@ categories:
     label: 'docs'
   - title: '依存関係の更新'
     label: 'dependencies'
+
+prerelease: true

@@ -23,6 +23,10 @@ import java.util.stream.Stream;
 
 import javax.imageio.ImageIO;
 
+import java.awt.Taskbar;
+import java.awt.Taskbar.Feature;
+import java.awt.image.BufferedImage;
+
 import org.controlsfx.control.Notifications;
 
 import javafx.beans.property.ObjectProperty;
@@ -92,9 +96,37 @@ public class Tools {
                     "logbook/gui/icon_32x32.png",
                     "logbook/gui/icon_16x16.png" };
 
+            Image taskbarIcon = null;
             for (String uri : uris) {
                 try (InputStream is = PluginServices.getResourceAsStream(uri)) {
-                    stage.getIcons().add(new Image(is));
+                    Image icon = new Image(is);
+                    stage.getIcons().add(icon);
+                    // タスクバー/Dock用に最大サイズのアイコンを保存
+                    if (taskbarIcon == null || icon.getWidth() > taskbarIcon.getWidth()) {
+                        taskbarIcon = icon;
+                    }
+                }
+            }
+            
+            // タスクバー/Dockにアイコンを設定
+            setTaskbarIcon(taskbarIcon);
+        }
+        
+        /**
+         * タスクバー/Dockにアイコンを設定します
+         * @param icon JavaFXのImage
+         */
+        private static void setTaskbarIcon(Image icon) {
+            // java.awt.TaskbarはJava 9以降で利用可能
+            if (Taskbar.isTaskbarSupported()) {
+                Taskbar taskbar = Taskbar.getTaskbar();
+                // ICON_IMAGE機能がサポートされているか確認
+                if (taskbar.isSupported(Feature.ICON_IMAGE)) {
+                    // JavaFXのImageをBufferedImageに変換
+                    BufferedImage bufferedImage = SwingFXUtils.fromFXImage(icon, null);
+                    if (bufferedImage != null) {
+                        taskbar.setIconImage(bufferedImage);
+                    }
                 }
             }
         }

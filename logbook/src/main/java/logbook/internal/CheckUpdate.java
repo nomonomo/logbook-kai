@@ -253,7 +253,7 @@ public class CheckUpdate {
      * バージョン情報（アセット情報を含む）
      * アセット情報は、プラットフォームに応じたアセットが見つかった場合のみ設定される
      */
-    private record VersionInfo(String tagname, Version version, String downloadUrl, long fileSize, String body) {
+    record VersionInfo(String tagname, Version version, String downloadUrl, long fileSize, String body) {
         /**
          * アセット情報が設定されているかどうか
          */
@@ -282,7 +282,7 @@ public class CheckUpdate {
      * @param tags tagsのJsonNode（配列形式）
      * @return 新しいバージョンのリスト（新しい順にソート済み、見つからなかった場合は空リスト）
      */
-    private List<VersionInfo> processTags(JsonNode tags) {
+    List<VersionInfo> processTags(JsonNode tags) {
         if (tags == null || !tags.isArray()) {
             return Collections.emptyList();
         }
@@ -416,33 +416,12 @@ public class CheckUpdate {
                     }
 
                     // プラットフォームに応じたアセットを取得
-                    OsPlatform platform = detectPlatform();
-                    List<String> prefixes = getAssetPrefixes(platform);
-
-                    // Stream APIを使用してアセットを検索（優先順位順）
-                    Optional<JsonNode> foundAssetOpt = prefixes.stream()
-                            .flatMap(prefix -> StreamSupport.stream(assets.spliterator(), false)
-                                    .filter(assetNode -> {
-                                        String name = assetNode.get("name").asText("");
-                                        return name.startsWith(prefix) && name.endsWith(".zip");
-                                    })
-                                    .findFirst()
-                                    .stream())
-                            .findFirst();
-
-                    // プラットフォーム固有のアセットが見つからない場合、汎用アセットを検索
-                    if (foundAssetOpt.isEmpty()) {
-                        foundAssetOpt = StreamSupport.stream(assets.spliterator(), false)
-                                .filter(assetNode -> {
-                                    String name = assetNode.get("name").asText("");
-                                    return name.startsWith("logbook") && name.endsWith(".zip");
-                                })
-                                .findFirst();
-                    }
+                    String buildPlatform = SystemPlatform.getBuildPlatform();
+                    Optional<JsonNode> foundAssetOpt = findAssetForPlatform(assets, buildPlatform);
 
                     // プラットフォームに応じたアセットが見つからない場合は更新対象外
                     if (foundAssetOpt.isEmpty()) {
-                        log.debug("プラットフォーム {} に対応するアセットが見つかりません: {}", platform, versionInfo.tagname());
+                        log.debug("プラットフォーム {} に対応するアセットが見つかりません: {}", buildPlatform, versionInfo.tagname());
                         onInvalid.run();
                         return;
                     }
@@ -1178,7 +1157,7 @@ public class CheckUpdate {
                     }
 
                     // 実行権限を復元（Unix系）
-                    if (detectPlatform() != OsPlatform.WINDOWS && entryPath.toString().contains("/bin/")) {
+                    if (SystemPlatform.getOs() != SystemPlatform.OsType.WINDOWS && entryPath.toString().contains("/bin/")) {
                         entryPath.toFile().setExecutable(true, false);
                     }
                 }
@@ -1348,42 +1327,64 @@ public class CheckUpdate {
     }
 
     /**
-     * プラットフォーム種別
-     */
-    private enum OsPlatform {
-        WINDOWS, MAC, LINUX, UNKNOWN
-    }
-
-    /**
-     * 現在のプラットフォームを検出
+     * プラットフォームに応じたアセットを検索します。
      * 
-     * @return プラットフォーム種別
+     * <p>プラットフォーム固有のアセットを優先的に検索し、
+     * 見つからない場合は汎用アセットを検索します。</p>
+     * 
+     * @param assets アセットのJSONノード配列
+     * @param buildPlatform ビルドプラットフォーム（win, mac, mac-aarch64 など）
+     * @return 見つかったアセットのOptional、見つからない場合は空のOptional
      */
-    private OsPlatform detectPlatform() {
-        String osName = System.getProperty("os.name").toLowerCase();
-        if (osName.contains("windows")) {
-            return OsPlatform.WINDOWS;
-        } else if (osName.contains("mac")) {
-            return OsPlatform.MAC;
-        } else if (osName.contains("linux") || osName.contains("ubuntu") || osName.contains("debian")) {
-            return OsPlatform.LINUX;
-        } else {
-            return OsPlatform.UNKNOWN;
+    public Optional<JsonNode> findAssetForPlatform(JsonNode assets, String buildPlatform) {
+        if (assets == null || !assets.isArray() || assets.size() == 0) {
+            return Optional.empty();
         }
-    }
+        
+        List<String> prefixes = getAssetPrefixes(buildPlatform);
 
+        // Stream APIを使用してアセットを検索（優先順位順）
+        Optional<JsonNode> foundAssetOpt = prefixes.stream()
+                .flatMap(prefix -> StreamSupport.stream(assets.spliterator(), false)
+                        .filter(assetNode -> {
+                            String name = assetNode.get("name").asText("");
+                            return name.startsWith(prefix) && name.endsWith(".zip");
+                        })
+                        .findFirst()
+                        .stream())
+                .findFirst();
+
+        // プラットフォーム固有のアセットが見つからない場合、汎用アセットを検索
+        if (foundAssetOpt.isEmpty()) {
+            foundAssetOpt = StreamSupport.stream(assets.spliterator(), false)
+                    .filter(assetNode -> {
+                        String name = assetNode.get("name").asText("");
+                        return name.startsWith("logbook") && name.endsWith(".zip");
+                    })
+                    .findFirst();
+        }
+        
+        return foundAssetOpt;
+    }
+    
     /**
      * プラットフォームに応じたアセット名のプレフィックスリストを取得（優先順位順）
      * 
-     * @param platform プラットフォーム
+     * <p>ビルド時のプラットフォーム情報（win, mac, mac-aarch64）に基づいて、
+     * 対応するアセットファイル名のプレフィックスを返します。</p>
+     * 
+     * <p>ファイル名形式: logbook-{platform}.zip</p>
+     * 
+     * @param buildPlatform ビルドプラットフォーム（win, mac, mac-aarch64 など）
      * @return プレフィックスリスト（優先順位順）
      */
-    private List<String> getAssetPrefixes(OsPlatform platform) {
-        return switch (platform) {
-        case WINDOWS -> List.of("logbook-kai-windows_", "logbook-kai-win_");
-        case MAC -> List.of("logbook-kai-macos_", "logbook-kai-mac_");
-        case LINUX -> List.of("logbook-kai-linux_", "logbook-kai-ubuntu_");
-        case UNKNOWN -> List.of("logbook-kai_"); // フォールバック
+    public List<String> getAssetPrefixes(String buildPlatform) {
+        return switch (buildPlatform) {
+        case "win" -> List.of("logbook-win.zip");
+        case "mac" -> List.of("logbook-mac.zip");
+        case "mac-aarch64" -> List.of("logbook-mac-aarch64.zip");
+        case "linux" -> List.of("logbook-linux.zip", "logbook-kai-linux_", "logbook-kai-ubuntu_");
+        default -> List.of(""); // フォールバック
         };
     }
 

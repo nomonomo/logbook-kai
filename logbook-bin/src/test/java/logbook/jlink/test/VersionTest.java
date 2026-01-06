@@ -1,6 +1,7 @@
 package logbook.jlink.test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import org.junit.jupiter.api.Test;
 
@@ -121,13 +122,13 @@ public class VersionTest {
         Version current = Version.getCurrent();
         
         // 少なくともVersionオブジェクトが返されることを確認
-        assertEquals(Version.class, current.getClass());
+        assertEquals(Version.class, current.getClass(), "Version.getCurrent()はVersionオブジェクトを返していません");
         
-        // UNKNOWNでない場合、バージョン情報が取得できていることを確認
-        if (!current.equals(Version.UNKNOWN)) {
-            // バージョン情報が取得できている場合、majorがInteger.MAX_VALUEでないことを確認
-            assertEquals(false, current.getMajor() == Integer.MAX_VALUE);
-        }
+        // UNKNOWNの場合、テストを失敗させる
+        assertNotEquals(Version.UNKNOWN, current, "Version.getCurrent()はUNKNOWNを返してはいけません");
+        
+        // バージョン情報が取得できている場合、majorがInteger.MAX_VALUEでないことを確認
+        assertEquals(false, current.getMajor() == Integer.MAX_VALUE, "majorがInteger.MAX_VALUEであってはいけません");
     }
 
 }
