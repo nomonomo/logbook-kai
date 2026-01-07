@@ -10,14 +10,14 @@
     <properties>
         <!-- os-maven-pluginで設定されるプロパティ（例）:
              os.detected.name: windows, linux, osx
-             os.detected.arch: x86_64, aarch64
+             os.detected.arch: x86_64, aarch_64
              os.detected.classifier: windows-x86_64, linux-x86_64, osx-x86_64 など
         -->
         <!-- brotli4jの命名規則に合わせた分類子マッピング -->
         <brotli4j.os.name>${os.detected.name}</brotli4j.os.name>
         <brotli4j.os.arch>${os.detected.arch}</brotli4j.os.arch>
         <!-- brotli4jのartifact名は "native-{os}-{arch}" 形式 -->
-        <brotli4j.classifier>native-${os.detected.name}-${os.detected.arch}</brotli4j.classifier>
+        <brotli4j.classifier>native-${brotli4j.os.name}-${brotli4j.os.arch}</brotli4j.classifier>
         <build.Implementation-Version>${project.version}</build.Implementation-Version>
     </properties>
 
@@ -381,6 +381,17 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+        <profile>
+            <id>aarch64-mapping</id>
+            <activation>
+                <osy>
+                    <arch>aarch64</arch>
+                </osy>
+            </activation>
+            <properties>
+                <brotli4j.os.arch>aarch64</brotli4j.os.arch>
+            </properties>
         </profile>
     </profiles>
 </project>
