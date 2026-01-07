@@ -385,9 +385,9 @@
         <profile>
             <id>aarch64-mapping</id>
             <activation>
-                <osy>
+                <os>
                     <arch>aarch64</arch>
-                </osy>
+                </os>
             </activation>
             <properties>
                 <brotli4j.os.arch>aarch64</brotli4j.os.arch>
