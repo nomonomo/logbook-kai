@@ -17,7 +17,7 @@
         <brotli4j.os.name>${os.detected.name}</brotli4j.os.name>
         <brotli4j.os.arch>${os.detected.arch}</brotli4j.os.arch>
         <!-- brotli4jのartifact名は "native-{os}-{arch}" 形式 -->
-        <brotli4j.classifier>native-${brotli4j.os.name}-${brotli4j.os.arch}</brotli4j.classifier>
+        <!-- brotli4j.classifier>native-${brotli4j.os.name}-${brotli4j.os.arch}</brotli4j.classifier> -->
         <build.Implementation-Version>${project.version}</build.Implementation-Version>
     </properties>
 
@@ -100,7 +100,7 @@
                             <artifactItems>
                                 <artifactItem>
                                     <groupId>com.aayushatharva.brotli4j</groupId>
-                                    <artifactId>${brotli4j.classifier}</artifactId>
+                                    <artifactId>native-${brotli4j.classifier}</artifactId>
                                     <version>1.17.0</version>
                                     <type>jar</type>
                                     <outputDirectory>${project.build.directory}/native-libs</outputDirectory>
@@ -383,14 +383,54 @@
             </build>
         </profile>
         <profile>
-            <id>aarch64-mapping</id>
+            <id>windows-x86_64</id>
             <activation>
                 <os>
+                    <family>Windows</family>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <properties>
+                <brotli4j.classifier>windows-x86_64</brotli4j.classifier>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>windows-aarch64</id>
+            <activation>
+                <os>
+                    <family>Windows</family>
                     <arch>aarch64</arch>
                 </os>
             </activation>
             <properties>
-                <brotli4j.os.arch>aarch64</brotli4j.os.arch>
+                <brotli4j.classifier>windows-aarch64</brotli4j.classifier>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>osx-x86_64</id>
+            <activation>
+                <os>
+                    <family>Mac</family>
+                    <arch>x86_64</arch>
+                </os>
+            </activation>
+            <properties>
+                <brotli4j.classifier>osx-x86_64</brotli4j.classifier>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>osx-aarch64</id>
+            <activation>
+                <os>
+                    <family>Mac</family>
+                    <arch>x86_64</arch>
+                </os>
+            </activation>
+            <properties>
+                <brotli4j.classifier>osx-aarch64</brotli4j.classifier>
             </properties>
         </profile>
     </profiles>
