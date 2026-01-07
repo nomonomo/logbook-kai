@@ -65,7 +65,6 @@ jobs:
             platform: mac
           - os: macos-latest
             platform: mac-aarch64
-            brotli4j_arch: aarch64
         # ターゲットの OS(Runner) , macos-latest, ubuntu-latest
         # javafx.platform: win, mac (Intel Mac), mac-aarch64 (Apple Silicon)
         # brotli4j_arch: macos-latestの場合のみaarch64を指定
@@ -91,9 +90,6 @@ jobs:
       shell: bash
       run: |
         MAVEN_ARGS="-Djavafx.platform=${{ matrix.platform }}"
-        if [ -n "${{ matrix.brotli4j_arch }}" ]; then
-          MAVEN_ARGS="$MAVEN_ARGS -Dbrotli4j.os.arch=${{ matrix.brotli4j_arch }}"
-        fi
         mvn clean package --batch-mode --show-version --file pom.xml $MAVEN_ARGS
 #      run: mvn -B package --file pom.xml -Drevision=${{ env.RELEASE_VERSION }}
 
