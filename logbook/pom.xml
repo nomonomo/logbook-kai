@@ -17,7 +17,7 @@
         <brotli4j.os.name>${os.detected.name}</brotli4j.os.name>
         <brotli4j.os.arch>${os.detected.arch}</brotli4j.os.arch>
         <!-- brotli4jのartifact名は "native-{os}-{arch}" 形式 -->
-        <brotli4j.classifier>native-${brotli4j.os.name}-${brotli4j.os.arch}</brotli4j.classifier>
+        <brotli4j.classifier>native-${os.detected.name}-${os.detected.arch}</brotli4j.classifier>
         <build.Implementation-Version>${project.version}</build.Implementation-Version>
     </properties>
 
