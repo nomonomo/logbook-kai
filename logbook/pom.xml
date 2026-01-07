@@ -101,7 +101,7 @@
                                 <artifactItem>
                                     <groupId>com.aayushatharva.brotli4j</groupId>
                                     <artifactId>native-${brotli4j.classifier}</artifactId>
-                                    <version>1.17.0</version>
+                                    <version>1.20.0</version>
                                     <type>jar</type>
                                     <outputDirectory>${project.build.directory}/native-libs</outputDirectory>
                                     <includes>lib/**</includes>
