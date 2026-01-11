@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- テスト用のコンソールアペンダー -->
+    <appender name="TEST_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%date{ISO8601} %-5level [%file %method]%msg%n</pattern>
+        </encoder>
+        <!-- stdout に出す -->
+        <target>System.out</target>
+    </appender>
+
+    <!-- logbookパッケージのログレベルをDEBUGに設定（テスト時のみ詳細出力） -->
+    <logger name="logbook" level="DEBUG" />
+
+    <!-- ルートロガーはINFOレベルでコンソールに出力 -->
+    <root level="INFO">
+        <appender-ref ref="TEST_CONSOLE" />
+    </root>
+</configuration>

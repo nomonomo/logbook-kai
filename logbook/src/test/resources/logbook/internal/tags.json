@@ -1,0 +1,302 @@
+[
+  {
+    "name": "v26.1.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v26.1.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v26.1.1",
+    "commit": {
+      "sha": "18564885e7df7d7dd39d9f80e29e22ae66b8e8e8",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/18564885e7df7d7dd39d9f80e29e22ae66b8e8e8"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjI2LjEuMQ"
+  },
+  {
+    "name": "v25.12.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v25.12.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v25.12.1",
+    "commit": {
+      "sha": "1c34715d64ad10a89bf32edb9d31fc894cc25b1f",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/1c34715d64ad10a89bf32edb9d31fc894cc25b1f"
+    },
+    "node_id": "REF_kwDOG6p2_rJyZWZzL3RhZ3MvdjI1LjEyLjE"
+  },
+  {
+    "name": "v25.11.2",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v25.11.2",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v25.11.2",
+    "commit": {
+      "sha": "55f1ef0d9ee6c8dcdf01992be59222853e601054",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/55f1ef0d9ee6c8dcdf01992be59222853e601054"
+    },
+    "node_id": "REF_kwDOG6p2_rJyZWZzL3RhZ3MvdjI1LjExLjI"
+  },
+  {
+    "name": "v25.11.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v25.11.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v25.11.1",
+    "commit": {
+      "sha": "af8bbe8b686937ea85afdddd50fe9a1c689f6178",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/af8bbe8b686937ea85afdddd50fe9a1c689f6178"
+    },
+    "node_id": "REF_kwDOG6p2_rJyZWZzL3RhZ3MvdjI1LjExLjE"
+  },
+  {
+    "name": "v25.10.4",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v25.10.4",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v25.10.4",
+    "commit": {
+      "sha": "0b4a6f72c150057da2b3a05c619cc37b43b2a499",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/0b4a6f72c150057da2b3a05c619cc37b43b2a499"
+    },
+    "node_id": "REF_kwDOG6p2_rJyZWZzL3RhZ3MvdjI1LjEwLjQ"
+  },
+  {
+    "name": "v25.10.3",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v25.10.3",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v25.10.3",
+    "commit": {
+      "sha": "1bfe077a1e4ef5d003b275fac42d59384f7f55e7",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/1bfe077a1e4ef5d003b275fac42d59384f7f55e7"
+    },
+    "node_id": "REF_kwDOG6p2_rJyZWZzL3RhZ3MvdjI1LjEwLjM"
+  },
+  {
+    "name": "v25.10.2",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v25.10.2",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v25.10.2",
+    "commit": {
+      "sha": "3e698fc692348f31ecc068088e9dd43cbf7e71c1",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/3e698fc692348f31ecc068088e9dd43cbf7e71c1"
+    },
+    "node_id": "REF_kwDOG6p2_rJyZWZzL3RhZ3MvdjI1LjEwLjI"
+  },
+  {
+    "name": "v25.10.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v25.10.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v25.10.1",
+    "commit": {
+      "sha": "8ff2fd6d49b4e2a00b59db610da4750ad51be2ca",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/8ff2fd6d49b4e2a00b59db610da4750ad51be2ca"
+    },
+    "node_id": "REF_kwDOG6p2_rJyZWZzL3RhZ3MvdjI1LjEwLjE"
+  },
+  {
+    "name": "v25.9.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v25.9.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v25.9.1",
+    "commit": {
+      "sha": "3d1af8e20fa793dc9bfbca4a922fc7ac6e1cc4e6",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/3d1af8e20fa793dc9bfbca4a922fc7ac6e1cc4e6"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjI1LjkuMQ"
+  },
+  {
+    "name": "v25.4.2",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v25.4.2",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v25.4.2",
+    "commit": {
+      "sha": "140a4d8d71d7cc137ffd2b666f7b5c163af38e5e",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/140a4d8d71d7cc137ffd2b666f7b5c163af38e5e"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjI1LjQuMg"
+  },
+  {
+    "name": "v25.4.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v25.4.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v25.4.1",
+    "commit": {
+      "sha": "40b8d3777397f5e055d9a14c338b55af5c8710df",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/40b8d3777397f5e055d9a14c338b55af5c8710df"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjI1LjQuMQ"
+  },
+  {
+    "name": "v25.2.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v25.2.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v25.2.1",
+    "commit": {
+      "sha": "5479dafd74ce582a1c0b0b55d3291f72a75ea946",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/5479dafd74ce582a1c0b0b55d3291f72a75ea946"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjI1LjIuMQ"
+  },
+  {
+    "name": "v24.4.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v24.4.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v24.4.1",
+    "commit": {
+      "sha": "de9b8772c7cce7a7f97a09486c16bdfa4d1e7a45",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/de9b8772c7cce7a7f97a09486c16bdfa4d1e7a45"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjI0LjQuMQ"
+  },
+  {
+    "name": "v23.4.3",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v23.4.3",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v23.4.3",
+    "commit": {
+      "sha": "9613e5a90fdfcce1f6c797bf271f91e22edb0f79",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/9613e5a90fdfcce1f6c797bf271f91e22edb0f79"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIzLjQuMw"
+  },
+  {
+    "name": "v23.4.2",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v23.4.2",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v23.4.2",
+    "commit": {
+      "sha": "e41121d3832874466bdf420277d5cf4b63640d96",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/e41121d3832874466bdf420277d5cf4b63640d96"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIzLjQuMg"
+  },
+  {
+    "name": "v23.4.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v23.4.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v23.4.1",
+    "commit": {
+      "sha": "65473d04f238f234a0ed9a575d2754b362175ea5",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/65473d04f238f234a0ed9a575d2754b362175ea5"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIzLjQuMQ"
+  },
+  {
+    "name": "v23.3.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v23.3.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v23.3.1",
+    "commit": {
+      "sha": "c6179fe285bffd87a1ebc9e20a9b143973617726",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/c6179fe285bffd87a1ebc9e20a9b143973617726"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIzLjMuMQ"
+  },
+  {
+    "name": "v23.2.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v23.2.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v23.2.1",
+    "commit": {
+      "sha": "dfad325430b2368083b8f2e2070528a6dc4d1b68",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/dfad325430b2368083b8f2e2070528a6dc4d1b68"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIzLjIuMQ"
+  },
+  {
+    "name": "v22.9.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v22.9.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v22.9.1",
+    "commit": {
+      "sha": "2d7449ba4616c577c7c08d54f1e232597680f803",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/2d7449ba4616c577c7c08d54f1e232597680f803"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIyLjkuMQ"
+  },
+  {
+    "name": "v22.7.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v22.7.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v22.7.1",
+    "commit": {
+      "sha": "c462680f557a029b22940df80a25d7ef976d3af5",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/c462680f557a029b22940df80a25d7ef976d3af5"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIyLjcuMQ"
+  },
+  {
+    "name": "v22.5.2",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v22.5.2",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v22.5.2",
+    "commit": {
+      "sha": "427d40d5e0a328a675885353bf027ca53c6427fa",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/427d40d5e0a328a675885353bf027ca53c6427fa"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIyLjUuMg"
+  },
+  {
+    "name": "v22.5.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v22.5.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v22.5.1",
+    "commit": {
+      "sha": "9751625447d495da98ebf3fcdfb0f952ab3739a8",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/9751625447d495da98ebf3fcdfb0f952ab3739a8"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIyLjUuMQ"
+  },
+  {
+    "name": "v22.4.3",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v22.4.3",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v22.4.3",
+    "commit": {
+      "sha": "d50e91600f81a39964d7b9e0a4c57733483e8e30",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/d50e91600f81a39964d7b9e0a4c57733483e8e30"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIyLjQuMw"
+  },
+  {
+    "name": "v22.4.2",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v22.4.2",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v22.4.2",
+    "commit": {
+      "sha": "cdfb792fb92a415cae4788fa5bd808efc6782478",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/cdfb792fb92a415cae4788fa5bd808efc6782478"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIyLjQuMg"
+  },
+  {
+    "name": "v22.4.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v22.4.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v22.4.1",
+    "commit": {
+      "sha": "c64d120bce77238b8e872cf92f59511356bc856b",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/c64d120bce77238b8e872cf92f59511356bc856b"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIyLjQuMQ"
+  },
+  {
+    "name": "v22.2.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v22.2.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v22.2.1",
+    "commit": {
+      "sha": "bd74dc0ac2ff1856af79ccdbf1de6851454a3df2",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/bd74dc0ac2ff1856af79ccdbf1de6851454a3df2"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIyLjIuMQ"
+  },
+  {
+    "name": "v21.8.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v21.8.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v21.8.1",
+    "commit": {
+      "sha": "6b6c62882de761c114c51c32425a885c55992137",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/6b6c62882de761c114c51c32425a885c55992137"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIxLjguMQ"
+  },
+  {
+    "name": "v21.7.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v21.7.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v21.7.1",
+    "commit": {
+      "sha": "61e5fd897ba37f274b02fbeef23badda0f9075d6",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/61e5fd897ba37f274b02fbeef23badda0f9075d6"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIxLjcuMQ"
+  },
+  {
+    "name": "v21.6.1",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v21.6.1",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v21.6.1",
+    "commit": {
+      "sha": "c4ae64341ec56bfc6073d871a2f69616f6deeecd",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/c4ae64341ec56bfc6073d871a2f69616f6deeecd"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIxLjYuMQ"
+  },
+  {
+    "name": "v21.5.2",
+    "zipball_url": "https://api.github.com/repos/nomonomo/logbook-kai/zipball/refs/tags/v21.5.2",
+    "tarball_url": "https://api.github.com/repos/nomonomo/logbook-kai/tarball/refs/tags/v21.5.2",
+    "commit": {
+      "sha": "11b3e1ed997be99f761f7b1747334f84c11fe3f2",
+      "url": "https://api.github.com/repos/nomonomo/logbook-kai/commits/11b3e1ed997be99f761f7b1747334f84c11fe3f2"
+    },
+    "node_id": "REF_kwDOG6p2_rFyZWZzL3RhZ3MvdjIxLjUuMg"
+  }
+]
