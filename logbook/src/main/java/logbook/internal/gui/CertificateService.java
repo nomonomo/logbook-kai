@@ -321,9 +321,9 @@ public class CertificateService {
         
         log.info("サーバー証明書作成: Subject={}, Issuer={}", subject, issuer);
         
-        // 有効期限: 10年
+        // 有効期限: 1年
         Date notBefore = new Date();
-        Date notAfter = new Date(notBefore.getTime() + 3650L * 24L * 60L * 60L * 1000L);
+        Date notAfter = new Date(notBefore.getTime() + 365L * 24L * 60L * 60L * 1000L);
         
         // シリアル番号
         BigInteger serialNumber = new BigInteger(64, new SecureRandom());
