@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,12 +14,15 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * {@link CheckUpdate} のテストクラス。
  * 
  * <p>CheckUpdateクラスの機能をテストします。
  * AssetNameTestの内容も含めて、包括的なテストを提供します。</p>
  */
+@Slf4j
 public class CheckUpdateTest {
 
     /**
@@ -82,7 +86,7 @@ public class CheckUpdateTest {
     
     /**
      * {@link CheckUpdate#getAssetPrefixes(String)} のテスト。
-     * 不明なプラットフォームのアセット名をテストします。
+     * 不明なプラットフォームの場合は空リストを返すことをテストします（更新対象外）。
      */
     @Test
     public void testGetAssetPrefixesUnknown() {
@@ -90,8 +94,7 @@ public class CheckUpdateTest {
         List<String> prefixes = checkUpdate.getAssetPrefixes("unknown");
         
         assertNotNull(prefixes, "プレフィックスリストがnullです");
-        assertFalse(prefixes.isEmpty(), "プレフィックスリストが空です");
-        assertEquals("", prefixes.get(0), "不明なプラットフォームのアセット名が正しくありません");
+        assertTrue(prefixes.isEmpty(), "不明なプラットフォームの場合は空リストを返す必要があります（更新対象外）");
     }
     
     /**
@@ -105,25 +108,28 @@ public class CheckUpdateTest {
         List<String> prefixes = checkUpdate.getAssetPrefixes(buildPlatform);
         
         assertNotNull(prefixes, "プレフィックスリストがnullです");
-        assertFalse(prefixes.isEmpty(), "プレフィックスリストが空です");
         
         // プラットフォームに応じた適切なアセット名が生成されることを確認
         switch (buildPlatform) {
         case "win":
+            assertFalse(prefixes.isEmpty(), "Windowsプラットフォームのプレフィックスリストが空です");
             assertEquals("logbook-win.zip", prefixes.get(0), "Windowsプラットフォームのアセット名が正しくありません");
             break;
         case "mac":
+            assertFalse(prefixes.isEmpty(), "Intel Macプラットフォームのプレフィックスリストが空です");
             assertEquals("logbook-mac.zip", prefixes.get(0), "Intel Macプラットフォームのアセット名が正しくありません");
             break;
         case "mac-aarch64":
+            assertFalse(prefixes.isEmpty(), "Apple Silicon Macプラットフォームのプレフィックスリストが空です");
             assertEquals("logbook-mac-aarch64.zip", prefixes.get(0), "Apple Silicon Macプラットフォームのアセット名が正しくありません");
             break;
         case "linux":
+            assertFalse(prefixes.isEmpty(), "Linuxプラットフォームのプレフィックスリストが空です");
             assertEquals("logbook-linux.zip", prefixes.get(0), "Linuxプラットフォームのアセット名が正しくありません");
             break;
         default:
-            // unknown やその他の値の場合もエラーにしない
-            assertTrue(true, "不明なプラットフォーム: " + buildPlatform);
+            // unknown やその他の値の場合は空リストを返す（更新対象外）
+            assertTrue(prefixes.isEmpty(), "不明なプラットフォームの場合は空リストを返す必要があります（更新対象外）: " + buildPlatform);
         }
     }
     
@@ -140,10 +146,13 @@ public class CheckUpdateTest {
             List<String> prefixes = checkUpdate.getAssetPrefixes(platform);
             
             assertNotNull(prefixes, "プラットフォーム " + platform + " のプレフィックスリストがnullです");
-            assertFalse(prefixes.isEmpty(), "プラットフォーム " + platform + " のプレフィックスリストが空です");
             
-            // 最初の要素が空文字列でないことを確認（unknown以外）
-            if (!platform.equals("unknown")) {
+            if (platform.equals("unknown")) {
+                // 不明なプラットフォームの場合は空リストを返す（更新対象外）
+                assertTrue(prefixes.isEmpty(), "不明なプラットフォームの場合は空リストを返す必要があります（更新対象外）");
+            } else {
+                // 既知のプラットフォームの場合は空でないリストを返す
+                assertFalse(prefixes.isEmpty(), "プラットフォーム " + platform + " のプレフィックスリストが空です");
                 assertFalse(prefixes.get(0).isEmpty(), "プラットフォーム " + platform + " の最初のアセット名が空文字列です");
             }
         }
@@ -296,17 +305,14 @@ public class CheckUpdateTest {
         assertTrue(linuxAsset.isPresent(), "Linuxプラットフォームのアセットが見つかりません");
         assertEquals("logbook-linux.zip", linuxAsset.get().get("name").asText(), "Linuxプラットフォームのアセット名が正しくありません");
         
-        // 不明なプラットフォームのアセットを検索（汎用アセットが返されることを確認）
+        // 不明なプラットフォームのアセットを検索（プラットフォーム固有のアセットが見つからない場合は更新対象外）
         Optional<JsonNode> unknownAsset = checkUpdate.findAssetForPlatform(assets, "unknown");
-        assertTrue(unknownAsset.isPresent(), "不明なプラットフォームでも汎用アセットが見つかる必要があります");
-        String unknownAssetName = unknownAsset.get().get("name").asText();
-        assertTrue(unknownAssetName.startsWith("logbook") && unknownAssetName.endsWith(".zip"), 
-            "不明なプラットフォームでは汎用アセット（logbook*.zip）が返される必要があります。取得値: " + unknownAssetName);
+        assertTrue(unknownAsset.isEmpty(), "不明なプラットフォームではアセットが見つからない必要があります（更新対象外）");
     }
     
     /**
      * {@link CheckUpdate#findAssetForPlatform(JsonNode, String)} のテスト。
-     * プラットフォーム固有のアセットがない場合のフォールバック動作をテストします。
+     * プラットフォーム固有のアセットがない場合は更新対象外（空のOptional）を返すことをテストします。
      */
     @Test
     public void testFindAssetForPlatformFallback() throws Exception {
@@ -365,10 +371,9 @@ public class CheckUpdateTest {
         JsonNode assets = mapper.readTree(json);
         CheckUpdate checkUpdate = CheckUpdate.getInstance();
         
-        // Windowsプラットフォームのアセットを検索（フォールバックで汎用アセットが返される）
+        // Windowsプラットフォームのアセットを検索（プラットフォーム固有のアセットがない場合は更新対象外）
         Optional<JsonNode> winAsset = checkUpdate.findAssetForPlatform(assets, "win");
-        assertTrue(winAsset.isPresent(), "Windowsプラットフォームで汎用アセットが見つかりません");
-        assertEquals("logbook-generic.zip", winAsset.get().get("name").asText(), "フォールバックで汎用アセットが返される必要があります");
+        assertTrue(winAsset.isEmpty(), "プラットフォーム固有のアセットがない場合は更新対象外（空のOptional）を返す必要があります");
     }
     
     /**
@@ -564,9 +569,10 @@ public class CheckUpdateTest {
             assertEquals("logbook-linux.zip", assetName, "Linuxプラットフォームのアセット名が正しくありません");
             break;
         default:
-            // unknown やその他の値の場合もエラーにしない
-            assertTrue(assetName.startsWith("logbook") && assetName.endsWith(".zip"), 
-                "不明なプラットフォームでは汎用アセットが返される必要があります。取得値: " + assetName);
+            // unknown やその他の値の場合は更新対象外（空のOptional）を返す
+            // このケースには到達しないはず（asset.isPresent()がfalseになるため）
+            // もし到達した場合は、テストの前提条件が間違っている
+            assertTrue(false, "不明なプラットフォームではアセットが見つからない必要があります（更新対象外）");
         }
     }
     
@@ -750,23 +756,170 @@ public class CheckUpdateTest {
         
         // アセット情報が設定されている場合
         CheckUpdate.VersionInfo withAsset = new CheckUpdate.VersionInfo(
-            "v1.0.0", version, "https://example.com/logbook-win.zip", 1000000, "body");
+            "v1.0.0", version, "https://example.com/logbook-win.zip", 1000000, "body", "logbook-win.zip");
         assertTrue(withAsset.hasAsset(), "アセット情報が設定されている場合はtrueが返される必要があります");
         
         // アセット情報が設定されていない場合（downloadUrlがnull）
         CheckUpdate.VersionInfo withoutUrl = new CheckUpdate.VersionInfo(
-            "v1.0.0", version, null, 1000000, "body");
+            "v1.0.0", version, null, 1000000, "body", "logbook-win.zip");
         assertFalse(withoutUrl.hasAsset(), "downloadUrlがnullの場合はfalseが返される必要があります");
         
         // アセット情報が設定されていない場合（downloadUrlが空文字列）
         CheckUpdate.VersionInfo withEmptyUrl = new CheckUpdate.VersionInfo(
-            "v1.0.0", version, "", 1000000, "body");
+            "v1.0.0", version, "", 1000000, "body", "logbook-win.zip");
         assertFalse(withEmptyUrl.hasAsset(), "downloadUrlが空文字列の場合はfalseが返される必要があります");
         
         // アセット情報が設定されていない場合（fileSizeが0）
         CheckUpdate.VersionInfo withZeroSize = new CheckUpdate.VersionInfo(
-            "v1.0.0", version, "https://example.com/logbook-win.zip", 0, "body");
+            "v1.0.0", version, "https://example.com/logbook-win.zip", 0, "body", "logbook-win.zip");
         assertFalse(withZeroSize.hasAsset(), "fileSizeが0の場合はfalseが返される必要があります");
+        
+        // アセット情報が設定されていない場合（nameがnull）
+        CheckUpdate.VersionInfo withNullName = new CheckUpdate.VersionInfo(
+            "v1.0.0", version, "https://example.com/logbook-win.zip", 1000000, "body", null);
+        assertFalse(withNullName.hasAsset(), "nameがnullの場合はfalseが返される必要があります");
+        
+        // アセット情報が設定されていない場合（nameが空文字列）
+        CheckUpdate.VersionInfo withEmptyName = new CheckUpdate.VersionInfo(
+            "v1.0.0", version, "https://example.com/logbook-win.zip", 1000000, "body", "");
+        assertFalse(withEmptyName.hasAsset(), "nameが空文字列の場合はfalseが返される必要があります");
+        
+        // アセット情報が設定されていない場合（downloadUrlとnameの両方がnull）
+        CheckUpdate.VersionInfo withNullUrlAndName = new CheckUpdate.VersionInfo(
+            "v1.0.0", version, null, 1000000, "body", null);
+        assertFalse(withNullUrlAndName.hasAsset(), "downloadUrlとnameの両方がnullの場合はfalseが返される必要があります");
+    }
+    
+    /**
+     * {@link CheckUpdate#findAssetForPlatform(JsonNode, String)} のテスト。
+     * 実際のリリース情報JSONファイルを読み込み、各プラットフォームのアセットをloggerでコンソール表示します。
+     * 
+     * <p>このテストは正常終了することを確認するのみです。
+     * リリース情報（draft, prerelease）とアセット情報はloggerでコンソールに出力されます。</p>
+     * 
+     * <p>データの取得は以下のコマンドを実行してください（プロジェクトルートから実行）:</p>
+     * <pre>
+     * curl -s https://api.github.com/repos/nomonomo/logbook-kai/releases/tags/v26.1.1 > logbook/src/test/resources/logbook/internal/assets.json
+     * </pre>
+     * 
+     * curl https://api.github.com/repos/nomonomo/logbook-kai/releases/tags/v26.1.1 -o test/resources/logbook/internal/assets.json
+     */
+    @Test
+    public void testFindAssetForPlatformFromJsonFile() throws Exception {
+        // テストリソースからリリース情報JSONファイルを読み込む
+        InputStream jsonStream = CheckUpdateTest.class.getResourceAsStream("/logbook/internal/assets.json");
+        assertNotNull(jsonStream, "リリース情報JSONファイルが見つかりません");
+        
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode release = mapper.readTree(jsonStream);
+        assertNotNull(release, "JSONのパースに失敗しました");
+        
+        // リリース情報をloggerで出力
+        String tagName = release.has("tag_name") ? release.get("tag_name").asText() : "N/A";
+        boolean draft = release.has("draft") && release.get("draft").asBoolean();
+        boolean prerelease = release.has("prerelease") && release.get("prerelease").asBoolean();
+        log.info("リリース情報 - タグ名: {}, draft: {}, prerelease: {}", tagName, draft, prerelease);
+        
+        // assets配列を抽出
+        JsonNode assets = release.has("assets") && release.get("assets").isArray() 
+            ? release.get("assets") 
+            : mapper.createArrayNode();
+        assertNotNull(assets, "assets配列が見つかりません");
+        
+        CheckUpdate checkUpdate = CheckUpdate.getInstance();
+        
+        // 各プラットフォームのアセットを検索してloggerで表示
+        String[] platforms = {"win", "mac", "mac-aarch64", "linux", "unknown"};
+        
+        for (String platform : platforms) {
+            Optional<JsonNode> asset = checkUpdate.findAssetForPlatform(assets, platform);
+            
+            if (asset.isPresent()) {
+                JsonNode assetNode = asset.get();
+                String name = assetNode.has("name") ? assetNode.get("name").asText() : "N/A";
+                long size = assetNode.has("size") ? assetNode.get("size").asLong() : 0;
+                String downloadUrl = assetNode.has("browser_download_url") 
+                    ? assetNode.get("browser_download_url").asText() : "N/A";
+                
+                log.info("プラットフォーム: {} - アセット名: {}, サイズ: {} bytes, URL: {}", 
+                    platform, name, size, downloadUrl);
+            } else {
+                log.info("プラットフォーム: {} - アセットが見つかりませんでした", platform);
+            }
+        }
+        
+        // テストは正常終了することを確認（アサーションは不要、loggerで出力のみ）
+    }
+    
+    /**
+     * {@link CheckUpdate#processTags(JsonNode)} のテスト。
+     * 実際のtags JSONファイルを読み込み、バージョン情報をloggerでコンソール表示します。
+     * 
+     * <p>このテストは正常終了することを確認するのみです。
+     * バージョン情報はloggerでコンソールに出力されます。</p>
+     * 
+     * <p>VersionはSupplier経由で取得され、テスト時は固定値が使用されます。</p>
+     * 
+     * <p>データの取得は以下のコマンドを実行してください（プロジェクトルートから実行）:</p>
+     * <pre>
+     * curl -s https://api.github.com/repos/nomonomo/logbook-kai/tags > logbook/src/test/resources/logbook/internal/tags.json
+     * </pre>
+     */
+    @Test
+    public void testProcessTagsFromJsonFile() throws Exception {
+        // モック用のバージョンを固定値で設定
+        String versionString = "23.12.1";
+        Version mockVersion = new Version(versionString);
+        
+        // テストリソースからtags JSONファイルを読み込む
+        InputStream jsonStream = CheckUpdateTest.class.getResourceAsStream("/logbook/internal/tags.json");
+        assertNotNull(jsonStream, "tags JSONファイルが見つかりません");
+        
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode tags = mapper.readTree(jsonStream);
+        assertNotNull(tags, "JSONのパースに失敗しました");
+        assertTrue(tags.isArray(), "tagsは配列である必要があります");
+        
+        log.info("読み込んだtags数: {}", tags.size());
+        
+        CheckUpdate checkUpdate = CheckUpdate.getInstance();
+        // Supplier経由でバージョンを取得するように設定
+        checkUpdate.setVersionSupplier(() -> mockVersion);
+        
+        List<CheckUpdate.VersionInfo> candidates = checkUpdate.processTags(tags);
+            
+            // 処理結果をloggerで出力
+            log.info("抽出された候補バージョン数: {}", candidates.size());
+            log.info("現在のバージョン（モック）: {}", mockVersion);
+            
+            // 各候補バージョンの情報をloggerで出力
+            for (int i = 0; i < candidates.size(); i++) {
+                CheckUpdate.VersionInfo candidate = candidates.get(i);
+                Version version = candidate.version();
+                String tagName = candidate.tagname();
+                boolean hasAsset = candidate.hasAsset();
+                String downloadUrl = candidate.downloadUrl() != null ? candidate.downloadUrl() : "N/A";
+                long fileSize = candidate.fileSize();
+                
+                log.info("候補[{}] - タグ名: {}, バージョン: {}, アセット有無: {}, ファイルサイズ: {} bytes, URL: {}", 
+                    i, tagName, version, hasAsset, fileSize, downloadUrl);
+            }
+            
+            // バージョンが新しい順にソートされていることを確認
+            for (int i = 0; i < candidates.size() - 1; i++) {
+                Version current = candidates.get(i).version();
+                Version next = candidates.get(i + 1).version();
+                assertTrue(current.compareTo(next) >= 0, 
+                    "バージョンが新しい順にソートされていません: " + current + " >= " + next);
+            }
+            
+        // 現在のバージョンより新しいバージョンのみが含まれることを確認
+        for (CheckUpdate.VersionInfo candidate : candidates) {
+            assertTrue(mockVersion.compareTo(candidate.version()) < 0,
+                "現在のバージョンより新しいバージョンのみが含まれる必要があります: " + candidate.version());
+        }
+        
+        // テストは正常終了することを確認
     }
 }
 

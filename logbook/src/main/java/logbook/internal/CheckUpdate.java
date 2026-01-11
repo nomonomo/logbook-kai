@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -86,11 +87,23 @@ public class CheckUpdate {
     /** HTTPクライアント */
     private HttpClient httpClient;
 
+    /** 現在のバージョンを取得するSupplier（テスト時にモック化可能） */
+    private Supplier<Version> versionSupplier = Version::getCurrent;
+
     /**
      * プライベートコンストラクタ（シングルトンパターン）
      */
     private CheckUpdate() {
         // コンストラクタでは初期化しない（遅延初期化）
+    }
+    
+    /**
+     * バージョン取得用のSupplierを設定（テスト用）
+     * 
+     * @param versionSupplier バージョンを取得するSupplier
+     */
+    void setVersionSupplier(Supplier<Version> versionSupplier) {
+        this.versionSupplier = versionSupplier;
     }
 
     /**
@@ -253,12 +266,17 @@ public class CheckUpdate {
      * バージョン情報（アセット情報を含む）
      * アセット情報は、プラットフォームに応じたアセットが見つかった場合のみ設定される
      */
-    record VersionInfo(String tagname, Version version, String downloadUrl, long fileSize, String body) {
+    record VersionInfo(String tagname, Version version, String downloadUrl, long fileSize, String body, String name) {
         /**
          * アセット情報が設定されているかどうか
+         * 
+         * <p>アセット情報が完全に設定されている場合のみtrueを返します。
+         * downloadUrl、fileSize、nameのすべてが有効な値である必要があります。</p>
          */
         boolean hasAsset() {
-            return downloadUrl != null && !downloadUrl.isEmpty() && fileSize > 0;
+            return downloadUrl != null && !downloadUrl.isEmpty() 
+                    && fileSize > 0 
+                    && name != null && !name.isEmpty();
         }
     }
 
@@ -309,12 +327,12 @@ public class CheckUpdate {
 
             try {
                 Version remote = new Version(m.group());
-                if (Version.UNKNOWN.equals(remote) || Version.getCurrent().compareTo(remote) >= 0) {
+                if (Version.UNKNOWN.equals(remote) || versionSupplier.get().compareTo(remote) >= 0) {
                     continue;
                 }
 
-                // 候補に追加（bodyは後で取得）
-                candidates.add(new VersionInfo(tagname, remote, null, 0, null));
+                // 候補に追加（bodyとnameは後で取得）
+                candidates.add(new VersionInfo(tagname, remote, null, 0, null, null));
             } catch (IllegalArgumentException e) {
                 // バージョン形式が不正な場合はスキップ
                 log.debug("不正なバージョン形式: {}", tagname, e);
@@ -429,6 +447,7 @@ public class CheckUpdate {
                     JsonNode foundAsset = foundAssetOpt.get();
                     String downloadUrl = foundAsset.get("browser_download_url").asText();
                     long fileSize = foundAsset.get("size").asLong();
+                    String assetName = foundAsset.get("name").asText();
 
                     // リリースノートのbody（Markdownテキスト）を取得
                     String body = releases.has("body") && !releases.get("body").isNull() 
@@ -442,9 +461,10 @@ public class CheckUpdate {
                             versionInfo.version(),
                             downloadUrl,
                             fileSize,
-                            body);
+                            body,
+                            assetName);
 
-                    log.info("更新可能バージョンを検出：{},{}({} bytes)", versionInfo.version(), foundAsset.get("name").asText(), fileSize);
+                    log.info("更新可能バージョンを検出：{},{}({} bytes)", versionInfo.version(), assetName, fileSize);
                             // 有効なバージョンとアセット情報が見つかった
                     onValid.accept(versionInfoWithAsset);
                 } catch (Exception e) {
@@ -639,7 +659,7 @@ public class CheckUpdate {
      * @param stage 親ウィンドウ
      */
     private void openInfo(VersionInfo versionInfo, boolean isStartUp, Stage stage) {
-        Version o = Version.getCurrent();
+        Version o = versionSupplier.get();
         Version n = versionInfo.version();
         ButtonType update = new ButtonType("自動更新");
         ButtonType visible = new ButtonType("ダウンロードサイトを開く");
@@ -809,8 +829,13 @@ public class CheckUpdate {
         try {
             updateDir = rootDir.resolve("update");
             Files.createDirectories(updateDir);
-            zipFile = updateDir.resolve("logbook-win.zip");
-            log.info("ダウンロード中: {} (期待されるサイズ: {} bytes)", versionInfo.downloadUrl(), versionInfo.fileSize());
+            
+            // アセット名を取得（VersionInfoから直接取得）
+            // hasAsset()でnameが設定されていることを確認済みのため、nullチェックは不要
+            String assetFileName = versionInfo.name();
+            zipFile = updateDir.resolve(assetFileName);
+            log.info("ダウンロード中: {} (ファイル名: {}, 期待されるサイズ: {} bytes)", 
+                versionInfo.downloadUrl(), assetFileName, versionInfo.fileSize());
         } catch (Exception e) {
             log.warn("自動更新の開始に失敗しました", e);
             showUpdateErrorDialog(e, stage);
@@ -1287,7 +1312,7 @@ public class CheckUpdate {
         alert.setHeaderText("更新の準備が完了しました");
         alert.setContentText(
                 "新しいバージョンのダウンロードと展開が完了しました。\n\n" +
-                        "現在のバージョン: " + Version.getCurrent() + "\n" +
+                        "現在のバージョン: " + versionSupplier.get() + "\n" +
                         "新しいバージョン: " + newVersion + "\n\n" +
                         "「今すぐ終了」を選択すると、アプリケーションを終了します。\n" +
                         "次回起動時に更新が自動的に適用されます。");
@@ -1329,14 +1354,14 @@ public class CheckUpdate {
     /**
      * プラットフォームに応じたアセットを検索します。
      * 
-     * <p>プラットフォーム固有のアセットを優先的に検索し、
-     * 見つからない場合は汎用アセットを検索します。</p>
+     * <p>プラットフォーム固有のアセットのみを検索します。
+     * 見つからない場合は空のOptionalを返します。</p>
      * 
      * @param assets アセットのJSONノード配列
      * @param buildPlatform ビルドプラットフォーム（win, mac, mac-aarch64 など）
      * @return 見つかったアセットのOptional、見つからない場合は空のOptional
      */
-    public Optional<JsonNode> findAssetForPlatform(JsonNode assets, String buildPlatform) {
+    Optional<JsonNode> findAssetForPlatform(JsonNode assets, String buildPlatform) {
         if (assets == null || !assets.isArray() || assets.size() == 0) {
             return Optional.empty();
         }
@@ -1344,7 +1369,8 @@ public class CheckUpdate {
         List<String> prefixes = getAssetPrefixes(buildPlatform);
 
         // Stream APIを使用してアセットを検索（優先順位順）
-        Optional<JsonNode> foundAssetOpt = prefixes.stream()
+        // プラットフォーム固有のアセットのみを検索し、見つからない場合は空のOptionalを返す
+        return prefixes.stream()
                 .flatMap(prefix -> StreamSupport.stream(assets.spliterator(), false)
                         .filter(assetNode -> {
                             String name = assetNode.get("name").asText("");
@@ -1353,30 +1379,21 @@ public class CheckUpdate {
                         .findFirst()
                         .stream())
                 .findFirst();
-
-        // プラットフォーム固有のアセットが見つからない場合、汎用アセットを検索
-        if (foundAssetOpt.isEmpty()) {
-            foundAssetOpt = StreamSupport.stream(assets.spliterator(), false)
-                    .filter(assetNode -> {
-                        String name = assetNode.get("name").asText("");
-                        return name.startsWith("logbook") && name.endsWith(".zip");
-                    })
-                    .findFirst();
-        }
-        
-        return foundAssetOpt;
     }
     
     /**
      * プラットフォームに応じたアセット名のプレフィックスリストを取得（優先順位順）
      * 
-     * <p>ビルド時のプラットフォーム情報（win, mac, mac-aarch64）に基づいて、
+     * <p>ビルド時のプラットフォーム情報（win, mac, mac-aarch64, linux）に基づいて、
      * 対応するアセットファイル名のプレフィックスを返します。</p>
      * 
      * <p>ファイル名形式: logbook-{platform}.zip</p>
      * 
-     * @param buildPlatform ビルドプラットフォーム（win, mac, mac-aarch64 など）
-     * @return プレフィックスリスト（優先順位順）
+     * <p>不明なプラットフォームの場合は空のリストを返し、
+     * これによりfindAssetForPlatformは空のOptionalを返します（更新対象外）。</p>
+     * 
+     * @param buildPlatform ビルドプラットフォーム（win, mac, mac-aarch64, linux）
+     * @return プレフィックスリスト（優先順位順）。不明なプラットフォームの場合は空リスト
      */
     public List<String> getAssetPrefixes(String buildPlatform) {
         return switch (buildPlatform) {
@@ -1384,8 +1401,7 @@ public class CheckUpdate {
         case "mac" -> List.of("logbook-mac.zip");
         case "mac-aarch64" -> List.of("logbook-mac-aarch64.zip");
         case "linux" -> List.of("logbook-linux.zip", "logbook-kai-linux_", "logbook-kai-ubuntu_");
-        default -> List.of(""); // フォールバック
+        default -> List.of(); // 不明なプラットフォームの場合は空リスト（更新対象外）
         };
     }
-
 }
