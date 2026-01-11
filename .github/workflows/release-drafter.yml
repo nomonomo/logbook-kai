@@ -129,6 +129,8 @@ jobs:
             platform: mac
           - os: macos-latest
             platform: mac-aarch64
+          - os: windows-latest
+            platform: kai-win_
     steps:
       - name: Download Artifact
         uses: actions/download-artifact@v4
