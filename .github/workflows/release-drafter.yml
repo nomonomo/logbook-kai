@@ -110,54 +110,68 @@ jobs:
           echo "tagname=${{ steps.release-drafter.outputs.tag_name }}" >> $GITHUB_OUTPUT
           cat $GITHUB_OUTPUT
 
-  download-artifact:
-    name: Upload Release ${{ matrix.os }}
+  download-artifacts:
+    name: Download All Artifacts
     runs-on: ubuntu-latest
     needs: update_release_draft
     permissions:
       actions: read
       # write permission is required to create a github release
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        # ターゲットの OS(Runner) , macos-latest, ubuntu-latest
-        include:
-          - os: windows-latest
-            platform: win
-          - os: macos-15-intel
-            platform: mac
-          - os: macos-latest
-            platform: mac-aarch64
-          - os: windows-latest
-            platform: kai-win_
     steps:
-      - name: Download Artifact
+      # すべてのアーティファクトを一度にダウンロード（nameを指定しない）
+      - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: logbook_${{ matrix.os }}
+          path: artifacts
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Release
         run: |
           set -e
           MAX_RETRIES=3
-          RETRY_COUNT=0
           
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            if gh release --repo ${{ github.repository }} upload ${{ env.TAGNAME }} logbook-${{ env.FILENAME }}.zip --clobber 2>&1; then
-              break
+          # logbook-win.zipが存在する場合、logbook-kai-win_.zipとしてコピーを作成
+          WIN_FILE=$(find artifacts -name "logbook-win.zip" -type f | head -n 1)
+          if [ -n "$WIN_FILE" ] && [ -f "$WIN_FILE" ]; then
+            KAI_FILE="$(dirname "$WIN_FILE")/logbook-kai-win_.zip"
+            cp "$WIN_FILE" "$KAI_FILE"
+            echo "Created alias file: $KAI_FILE"
+          fi
+          
+          # アーティファクトファイルを検索
+          FILES=$(find artifacts -name "logbook*.zip" -type f || true)
+          
+          if [ -z "$FILES" ]; then
+            echo "Error: No logbook artifact files found in artifacts directory"
+            exit 1
+          fi
+          
+          # 各ファイルをアップロード
+          for file in $FILES; do
+            if [ ! -f "$file" ]; then
+              echo "Warning: File not found: $file"
+              continue
             fi
-            RETRY_COUNT=$((RETRY_COUNT + 1))
-            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-              echo "Retry $RETRY_COUNT/$MAX_RETRIES: Failed to upload release artifact, retrying in 2 seconds..."
-              sleep 2
-            else
-              echo "Error: Failed to upload release artifact after $MAX_RETRIES attempts"
-              exit 1
-            fi
+            
+            echo "Uploading: $file"
+            RETRY_COUNT=0
+            
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              if gh release --repo ${{ github.repository }} upload ${{ env.TAGNAME }} "$file" --clobber 2>&1; then
+                echo "Successfully uploaded: $file"
+                break
+              fi
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "Retry $RETRY_COUNT/$MAX_RETRIES: Failed to upload $file, retrying in 2 seconds..."
+                sleep 2
+              else
+                echo "Error: Failed to upload $file after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            done
           done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAGNAME: ${{ needs.update_release_draft.outputs.tagname }}
-          FILENAME: ${{ matrix.platform }}
