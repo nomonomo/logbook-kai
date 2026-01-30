@@ -101,7 +101,7 @@
                                 <artifactItem>
                                     <groupId>com.aayushatharva.brotli4j</groupId>
                                     <artifactId>native-${brotli4j.classifier}</artifactId>
-                                    <version>1.17.0</version>
+                                    <version>1.20.0</version>
                                     <type>jar</type>
                                     <outputDirectory>${project.build.directory}/native-libs</outputDirectory>
                                     <includes>lib/**</includes>
@@ -134,47 +134,47 @@
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-server</artifactId>
-            <version>12.1.2</version>
+            <version>12.1.5</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.ee11</groupId>
             <artifactId>jetty-ee11-servlet</artifactId>
-            <version>12.1.2</version>
+            <version>12.1.5</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.ee11</groupId>
             <artifactId>jetty-ee11-proxy</artifactId>
-            <version>12.1.2</version>
+            <version>12.1.5</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.compression</groupId>
             <artifactId>jetty-compression-client</artifactId>
-            <version>12.1.2</version>
+            <version>12.1.5</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.compression</groupId>
             <artifactId>jetty-compression-common</artifactId>
-            <version>12.1.2</version>
+            <version>12.1.5</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.compression</groupId>
             <artifactId>jetty-compression-brotli</artifactId>
-            <version>12.1.2</version>
+            <version>12.1.5</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.compression</groupId>
             <artifactId>jetty-compression-gzip</artifactId>
-            <version>12.1.2</version>
+            <version>12.1.5</version>
         </dependency>
         <dependency>
             <groupId>org.controlsfx</groupId>
             <artifactId>controlsfx</artifactId>
-            <version>11.2.2</version>
+            <version>11.2.3</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.20.0</version>
+            <version>2.21.0</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -184,7 +184,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.20</version>
+            <version>1.5.26</version>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
@@ -297,7 +297,7 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>6.0.1</version>
+            <version>6.0.2</version>
             <scope>test</scope>
         </dependency>
       </dependencies>

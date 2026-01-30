@@ -9,7 +9,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <lombok.version>1.18.42</lombok.version>
         <!-- JavaFXバージョン: 一元管理 -->
-        <javafx.version>21.0.9</javafx.version>
+        <javafx.version>21.0.10</javafx.version>
         <!-- JavaFX classifier: 外部から -Djavafx.platform=win のように指定可能 -->
         <!-- 指定可能な値: win, linux, mac, mac-aarch64 -->
         <!-- デフォルト値: win（外部から指定されない場合） -->
