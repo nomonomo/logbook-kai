@@ -1,0 +1,22 @@
+/* [1041]三十二駆「早波改二」、元気に出撃せよ！ */
+{
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["2-2", "2-4", "2-5", "7-1", "7-2"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["早波改二"], "order": 1},
+                {"name": ["玉波", "涼波", "藤波", "浜波"], "count": 2, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["2-2"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["2-5"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["7-1"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["7-2"], "cell": "M", "rank": ["S"], "count": 1}
+    ]
+}
