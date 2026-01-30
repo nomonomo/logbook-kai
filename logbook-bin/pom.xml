@@ -4,7 +4,7 @@
     <parent>
         <groupId>logbook-kai</groupId>
         <artifactId>logbook-kai</artifactId>
-        <version>26.1.2</version>
+        <version>26.1.3</version>
     </parent>
     <artifactId>logbook-jlink</artifactId>
     <properties>
