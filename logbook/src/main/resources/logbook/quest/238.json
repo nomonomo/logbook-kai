@@ -1,0 +1,20 @@
+/* [238]バレンタイン2026特別限定任務【拡張作戦】 */
+{
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["2-2", "3-1", "7-5"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["伊41","Luigi Torelli","伊504","平安丸","迅鯨改","大淀改","古鷹改二","衣笠改二"], "order": 1},
+                {"name": ["伊41","Luigi Torelli","伊504","平安丸","迅鯨改","大淀改","古鷹改二","衣笠改二"], "count": 2, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["2-2"], "rank": ["S", "A"], "count": 2},
+        {"boss": true, "area": ["3-1"], "rank": ["S", "A"], "count": 2},
+        {"boss": true, "area": ["7-5"], "cell": "T", "rank": ["S", "A"], "count": 2}
+    ]
+}

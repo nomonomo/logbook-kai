@@ -1,0 +1,22 @@
+/* [1042]最新鋭改装空母「飛龍改三」、疾風怒涛！ */
+{
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["2-5", "3-5", "4-5", "5-5", "6-4"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["飛龍改三"], "order": 1},
+                {"name": ["風雲", "玉波", "涼波", "藤波", "早波", "浜波"], "count": 2, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["2-5"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["3-5"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["4-5"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-5"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["6-4"], "rank": ["S"], "count": 1}
+    ]
+}
