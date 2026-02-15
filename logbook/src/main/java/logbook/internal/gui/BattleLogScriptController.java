@@ -16,7 +16,8 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert.AlertType;
@@ -197,7 +198,7 @@ public class BattleLogScriptController extends WindowController {
         }
 
         public Object reduce(Object callback, Object initialValue) throws Exception {
-            ObjectMapper mapper = new ObjectMapper();
+            ObjectMapper mapper = JsonMapper.builder().build();
             Invocable invocable = (Invocable) this.engine;
 
             Object parser = this.engine.eval("JSON");

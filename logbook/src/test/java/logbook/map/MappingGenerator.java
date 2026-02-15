@@ -3,15 +3,16 @@ package logbook.map;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 public class MappingGenerator {
     /** Source URL, thanks to KC3 */
@@ -20,9 +21,12 @@ public class MappingGenerator {
     private static final String KEY_PREFIX = "World ";
     
     @SuppressWarnings("unchecked")
-    public static void main(String[] args) throws JsonParseException, JsonMappingException, MalformedURLException, IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        Map<String, Map<String, List<String>>> json = mapper.readValue(URI.create(SOURCE_URL).toURL(), Map.class);
+    public static void main(String[] args) throws JacksonException, MalformedURLException, IOException {
+        ObjectMapper mapper = JsonMapper.builder().build();
+        Map<String, Map<String, List<String>>> json;
+        try (InputStream in = URI.create(SOURCE_URL).toURL().openStream()) {
+            json = mapper.readValue(in, Map.class);
+        }
         try (FileOutputStream fos = new FileOutputStream(new File("src/main/resources/logbook/map/mapping.json"));
                 PrintWriter pw = new PrintWriter(fos)) {
             // generate the JSON on our own to keep the order in the original JSON file

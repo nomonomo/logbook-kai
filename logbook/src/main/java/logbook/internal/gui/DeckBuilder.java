@@ -12,8 +12,9 @@ import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import javafx.scene.control.TableView;
 import javafx.scene.input.Clipboard;
@@ -125,12 +126,12 @@ public class DeckBuilder {
                 }
             }
         });
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonMapper.builder().build();
         try {
             ClipboardContent content = new ClipboardContent();
             content.putString(mapper.writeValueAsString(data));
             Clipboard.getSystemClipboard().setContent(content);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             // ignore
         }
     }

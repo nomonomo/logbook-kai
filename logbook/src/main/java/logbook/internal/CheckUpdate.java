@@ -34,9 +34,10 @@ import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
@@ -230,7 +231,7 @@ public class CheckUpdate {
                 try {
                     // レスポンスボディを直接JSONとして取得
                     String content = getContentAsString(StandardCharsets.UTF_8);
-                    ObjectMapper mapper = new ObjectMapper();
+                    ObjectMapper mapper = JsonMapper.builder().build();
                     JsonNode tags = mapper.readTree(content);
                     List<VersionInfo> candidateVersions = processTags(tags);
                     if (candidateVersions.isEmpty()) {
@@ -414,7 +415,7 @@ public class CheckUpdate {
                 try {
                     // レスポンスボディを直接JSONとして取得
                     String content = getContentAsString(StandardCharsets.UTF_8);
-                    ObjectMapper mapper = new ObjectMapper();
+                    ObjectMapper mapper = JsonMapper.builder().build();
                     JsonNode releases = mapper.readTree(content);
 
                     // リリース情報の有効性をチェック（無効な場合は早期リターン）

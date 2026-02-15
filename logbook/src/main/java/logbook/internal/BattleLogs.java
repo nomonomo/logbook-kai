@@ -42,8 +42,9 @@ import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import logbook.bean.AppConfig;
 import logbook.bean.BattleLog;
@@ -61,12 +62,9 @@ public class BattleLogs {
 
     private static final DateTimeFormatter DIR_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
 
-    private static final ObjectMapper mapper;
-
-    static {
-        mapper = new ObjectMapper();
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    }
+    private static final ObjectMapper mapper = JsonMapper.builder()
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .build();
 
     /**
      * 戦闘ログを書き込みます

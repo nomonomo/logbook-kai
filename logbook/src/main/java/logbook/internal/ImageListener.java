@@ -25,8 +25,9 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import logbook.bean.AppConfig;
 import logbook.bean.ShipMst;
@@ -172,8 +173,9 @@ public class ImageListener implements ContentListenerSpi {
         }
         Spritesmith sprite;
         try (BufferedInputStream is = new BufferedInputStream(Files.newInputStream(jsonSrc))) {
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            ObjectMapper mapper = JsonMapper.builder()
+                    .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                    .build();
             sprite = mapper.readValue(is, Spritesmith.class);
         }
         try (BufferedInputStream is = new BufferedInputStream(Files.newInputStream(imageSrc))) {

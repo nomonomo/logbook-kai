@@ -9,8 +9,9 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.core.JsonParser.Feature;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.json.JsonReadFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import logbook.internal.LoggerHolder;
 import logbook.internal.Operator;
@@ -51,8 +52,9 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
         if (is != null) {
             try {
                 try {
-                    ObjectMapper mapper = new ObjectMapper();
-                    mapper.enable(Feature.ALLOW_COMMENTS);
+                    ObjectMapper mapper = JsonMapper.builder()
+                            .enable(JsonReadFeature.ALLOW_JAVA_COMMENTS)
+                            .build();
                     return mapper.readValue(is, AppQuestCondition.class);
                 } finally {
                     is.close();

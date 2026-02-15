@@ -1,7 +1,7 @@
 module logbook {
     requires static lombok;
-    requires com.fasterxml.jackson.core;
-    requires com.fasterxml.jackson.databind;
+    requires tools.jackson.core;
+    requires tools.jackson.databind;
     requires javafx.media;
     requires javafx.swing;
     requires javafx.web;

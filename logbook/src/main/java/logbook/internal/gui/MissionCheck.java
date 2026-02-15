@@ -16,9 +16,6 @@ import org.controlsfx.glyphfont.Glyph;
 import org.controlsfx.glyphfont.GlyphFont;
 import org.controlsfx.glyphfont.GlyphFontRegistry;
 
-import com.fasterxml.jackson.core.JsonParser.Feature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Toggle;
@@ -54,13 +51,7 @@ public class MissionCheck extends WindowController {
     @FXML
     private TreeView<String> conditionTree;
 
-    private ObjectMapper mapper = new ObjectMapper();
-
     private Set<Mission> expanded = new HashSet<>();
-
-    public MissionCheck() {
-        this.mapper.configure(Feature.ALLOW_COMMENTS, true);
-    }
 
     @FXML
     void initialize() {

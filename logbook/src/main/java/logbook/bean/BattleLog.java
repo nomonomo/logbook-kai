@@ -14,7 +14,8 @@ import jakarta.json.JsonObject;
 import jakarta.json.JsonWriter;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import logbook.bean.BattleTypes.CombinedType;
 import logbook.bean.BattleTypes.IFormation;
@@ -134,7 +135,7 @@ public class BattleLog implements Serializable {
             rawData = new RawData();
             log.setRaw(rawData);
         }
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonMapper.builder().build();
         StringWriter sw = new StringWriter(1024 * 4);
         try (JsonWriter jw = Json.createWriter(sw)) {
             jw.writeObject(json);
