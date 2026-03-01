@@ -29,5 +29,6 @@ hs_err_pid*
 /launch.bat
 /README.url
 /*.csv
+/lib-sources/
 
 .DS_Store
