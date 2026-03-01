@@ -17,6 +17,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.time.Duration;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 import javax.imageio.IIOImage;
@@ -170,13 +171,10 @@ public class ImageListener implements ContentListenerSpi {
         Spritesmith sprite = JsonMappers.LENIENT_READER.forType(Spritesmith.class).readValue(jsonSrc);
         try (BufferedInputStream is = new BufferedInputStream(Files.newInputStream(imageSrc))) {
             BufferedImage image = ImageIO.read(is);
-
-            BiConsumer<String, Spritesmith.Frame> action = (k, v) -> {
-                Spritesmith.Rect rect = v.getFrame();
-                BufferedImage subimage = image.getSubimage(rect.getX(), rect.getY(), rect.getW(), rect.getH());
+            forEachFrame(sprite, image, (name, subimage) -> {
                 try {
                     Path temp = this.tempFile();
-                    Path to = storeDir.resolve(k + ".png");
+                    Path to = storeDir.resolve(name + ".png");
                     try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(temp))) {
                         ImageIO.write(subimage, "png", out);
                     }
@@ -189,8 +187,25 @@ public class ImageListener implements ContentListenerSpi {
                 } catch (Exception e) {
                     LoggerHolder.get().warn("画像ファイル処理中に例外が発生しました[src=" + imageSrc + "]", e);
                 }
-            };
-            sprite.getFrames().forEach(action);
+            });
+        }
+    }
+
+    /**
+     * Spritesmith と BufferedImage から各フレームを切り出し、コールバックに (フレーム名, 切り出し画像) を渡す。
+     * テストおよび sprite() から利用する。
+     */
+    static void forEachFrame(Spritesmith sprite, BufferedImage image,
+            BiConsumer<String, BufferedImage> action) {
+        if (sprite == null || sprite.frames() == null || image == null) {
+            return;
+        }
+        for (Map.Entry<String, Spritesmith.Frame> e : sprite.frames().entrySet()) {
+            String name = e.getKey();
+            Spritesmith.Frame frame = e.getValue();
+            Spritesmith.Rect rect = frame.frame();
+            BufferedImage subimage = image.getSubimage(rect.x(), rect.y(), rect.w(), rect.h());
+            action.accept(name, subimage);
         }
     }
 
