@@ -18,9 +18,6 @@ import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import tools.jackson.core.type.TypeReference;
-
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.image.Image;
@@ -34,6 +31,7 @@ import logbook.bean.DeckPortCollection;
 import logbook.bean.Ship;
 import logbook.bean.ShipMst;
 import logbook.bean.ShipMstCollection;
+import logbook.bean.ShipSupplementalInfo;
 import logbook.bean.SlotItem;
 import logbook.bean.SlotItemCollection;
 import logbook.bean.SlotitemMst;
@@ -184,18 +182,8 @@ public class Ships {
         SLOTITEM_TYPE_TP_MAP.put(SlotItemType.戦闘糧食, 1);
 
         // 付加的な情報の読み込み
-        // readValue(InputStream) に渡したストリームは Jackson が閉じるため close 不要（StreamReadFeature.AUTO_CLOSE_SOURCE デフォルト true）
         InputStream is = PluginServices.getResourceAsStream("logbook/supplemental/ships.json");
-        Optional<Map<Integer, ShipSupplementalInfo>> map = Optional.empty();
-        if (is != null) {
-            try {
-                Map<String, List<ShipSupplementalInfo>> json = JsonMappers.READER_WITH_COMMENTS.forType(new TypeReference<Map<String, List<ShipSupplementalInfo>>>() {}).readValue(is);
-                map = Optional.ofNullable(json.get("ships")).map(list -> list.stream().collect(Collectors.toMap(ship -> ship.getId(), ship -> ship)));
-            } catch (Exception e) {
-                LoggerHolder.get().error("艦娘付加情報の初期化に失敗しました", e);
-            }
-        }
-        ships = map.orElse(Collections.emptyMap());
+        ships = is != null ? ShipSupplementalLoader.loadSupplementalMap(is) : Collections.emptyMap();
     }
 
     private Ships() {
@@ -1157,7 +1145,7 @@ public class Ships {
         ShipSupplementalInfo supp = ships.get(ship.getShipId());
         if (supp != null) {
             // 付加情報あり、（Lv99の値 - Lv1の値)*Lv/99 + Lv1の値 + 近代化改修分
-            return (ship.getTaisen().get(1) - supp.getMinTaisen()) * ship.getLv() / 99 + supp.getMinTaisen() + ship.getKyouka().get(6);
+            return (ship.getTaisen().get(1) - supp.min_taisen()) * ship.getLv() / 99 + supp.min_taisen() + ship.getKyouka().get(6);
         }
         // 付加情報なし、現在値 - 装備増分
         return ship.getTaisen().get(0) - sumItemParam(ship, SlotitemMst::getTais);
@@ -1172,7 +1160,7 @@ public class Ships {
         ShipSupplementalInfo supp = ships.get(ship.getShipId());
         if (supp != null) {
             // 付加情報あり、（Lv99の値 - Lv1の値)*Lv/99 + Lv1の値
-            return (ship.getSakuteki().get(1) - supp.getMinSakuteki()) * ship.getLv() / 99 + supp.getMinSakuteki();
+            return (ship.getSakuteki().get(1) - supp.min_sakuteki()) * ship.getLv() / 99 + supp.min_sakuteki();
         }
         // 付加情報なし、現在値 - 装備増分
         return ship.getSakuteki().get(0) - Ships.sumItemParam(ship, SlotitemMst::getSaku);
@@ -1187,30 +1175,9 @@ public class Ships {
         ShipSupplementalInfo supp = ships.get(ship.getShipId());
         if (supp != null) {
             // 付加情報あり、（Lv99の値 - Lv1の値)*Lv/99 + Lv1の値
-            return (ship.getKaihi().get(1) - supp.getMinKaihi()) * ship.getLv() / 99 + supp.getMinKaihi();
+            return (ship.getKaihi().get(1) - supp.min_kaihi()) * ship.getLv() / 99 + supp.min_kaihi();
         }
         // 付加情報なし、現在値 - 装備増分
         return ship.getKaihi().get(0) - Ships.sumItemParam(ship, SlotitemMst::getHouk);
     }
-
-    /**
-     * 艦娘付加情報
-     */
-    @Data
-    private static class ShipSupplementalInfo {
-        /** ID */
-        private int id;
-        /** 名前 */
-        private String name;
-        /** 最小対潜値 */
-        @JsonProperty("min_taisen")
-        private int minTaisen;
-        /** 最小回避値 */
-        @JsonProperty("min_kaihi")
-        private int minKaihi;
-        /** 最小索敵値 */
-        @JsonProperty("min_sakuteki")
-        private int minSakuteki;
-    }
-
 }

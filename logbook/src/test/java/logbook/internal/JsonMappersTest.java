@@ -14,7 +14,7 @@ import tools.jackson.core.JacksonException;
 
 /**
  * {@link JsonMappers} の各 Reader（MAPPER / LENIENT_READER /
- * LENIENT_READER_WITH_UNKNOWN_LOGGING / READER_WITH_COMMENTS）の振る舞いを検証するテスト。
+ * LENIENT_READER_WITH_UNKNOWN_LOGGING / READER_WITH_COMMENTS / STRICT_CREATOR_READER_WITH_COMMENTS）の振る舞いを検証するテスト。
  */
 class JsonMappersTest {
 
@@ -155,5 +155,28 @@ class JsonMappersTest {
             assertEquals(2, bean.value());
             assertNull(bean.absentInJson(), "JSON に存在しない項目は null");
         }
+    }
+
+    // --- STRICT_CREATOR_READER_WITH_COMMENTS（コメント許容 + 必須 Creator プロパティ厳格）---
+
+    @Test
+    void strictCreatorReaderWithComments_parsesCommentJson_succeeds() throws Exception {
+        String resource = "logbook/internal/comment_test.json";
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream(resource)) {
+            NameValueBean bean = JsonMappers.STRICT_CREATOR_READER_WITH_COMMENTS
+                    .forType(NameValueBean.class)
+                    .readValue(in);
+            assertEquals("withComment", bean.name());
+            assertEquals(2, bean.value());
+        }
+    }
+
+    @Test
+    void strictCreatorReaderWithComments_missingCreatorProperty_throws() {
+        String jsonMissingValue = "{\"name\":\"a\"}";
+        assertThrows(JacksonException.class, () ->
+                JsonMappers.STRICT_CREATOR_READER_WITH_COMMENTS
+                        .forType(NameValueBean.class)
+                        .readValue(jsonMissingValue));
     }
 }

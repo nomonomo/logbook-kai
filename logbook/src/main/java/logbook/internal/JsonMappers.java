@@ -30,6 +30,11 @@ public final class JsonMappers {
     public static final ObjectReader STRICT_CREATOR_READER = MAPPER.reader()
             .with(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES);
 
+    /** STRICT_CREATOR_READER に Java 形式コメント許容を加えた ObjectReader。ships.json 等のリソース読み込みに使用。 */
+    public static final ObjectReader STRICT_CREATOR_READER_WITH_COMMENTS = MAPPER.reader()
+            .with(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES)
+            .with(JsonReadFeature.ALLOW_JAVA_COMMENTS);
+
     private JsonMappers() {
     }
 }

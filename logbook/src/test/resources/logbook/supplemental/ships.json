@@ -1,0 +1,24 @@
+/*
+ * 艦娘付加情報 JSON のテスト用データ。
+ */
+{
+  "ships" : [ {
+    "id" : 1,
+    "name" : "睦月",
+    "min_taisen" : 16,
+    "min_kaihi" : 37,
+    "min_sakuteki" : 4
+  }, {
+    "id" : 2,
+    "name" : "如月",
+    "min_taisen" : 16,
+    "min_kaihi" : 37,
+    "min_sakuteki" : 4
+  }, {
+    "id" : 6,
+    "name" : "長月",
+    "min_taisen" : 16,
+    "min_kaihi" : 37,
+    "min_sakuteki" : 4
+  } ]
+}
