@@ -35,8 +35,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
+import logbook.internal.JsonMappers;
 import tools.jackson.databind.node.ObjectNode;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -231,8 +230,7 @@ public class CheckUpdate {
                 try {
                     // レスポンスボディを直接JSONとして取得
                     String content = getContentAsString(StandardCharsets.UTF_8);
-                    ObjectMapper mapper = JsonMapper.builder().build();
-                    JsonNode tags = mapper.readTree(content);
+                    JsonNode tags = JsonMappers.MAPPER.readTree(content);
                     List<VersionInfo> candidateVersions = processTags(tags);
                     if (candidateVersions.isEmpty()) {
                         // 最新バージョンが見つからなかった場合
@@ -415,8 +413,7 @@ public class CheckUpdate {
                 try {
                     // レスポンスボディを直接JSONとして取得
                     String content = getContentAsString(StandardCharsets.UTF_8);
-                    ObjectMapper mapper = JsonMapper.builder().build();
-                    JsonNode releases = mapper.readTree(content);
+                    JsonNode releases = JsonMappers.MAPPER.readTree(content);
 
                     // リリース情報の有効性をチェック（無効な場合は早期リターン）
                     if (releases == null || releases.isNull() ||
@@ -1197,11 +1194,10 @@ public class CheckUpdate {
      * 更新情報を保存
      */
     private void saveUpdateInfo(Path file, Version version) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        ObjectNode root = mapper.createObjectNode();
+        ObjectNode root = JsonMappers.MAPPER.createObjectNode();
         root.put("version", version.toString());
         root.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-        mapper.writeValue(Files.newOutputStream(file), root);
+        JsonMappers.MAPPER.writeValue(file, root);
     }
 
     /**

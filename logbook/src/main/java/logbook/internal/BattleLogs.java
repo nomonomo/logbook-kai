@@ -42,10 +42,6 @@ import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import tools.jackson.databind.DeserializationFeature;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
-
 import logbook.bean.AppConfig;
 import logbook.bean.BattleLog;
 import logbook.internal.gui.BattleLogCollect;
@@ -62,10 +58,6 @@ public class BattleLogs {
 
     private static final DateTimeFormatter DIR_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
 
-    private static final ObjectMapper mapper = JsonMapper.builder()
-            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-            .build();
-
     /**
      * 戦闘ログを書き込みます
      *
@@ -75,6 +67,29 @@ public class BattleLogs {
         write0(log);
         move();
         delete();
+    }
+
+    /**
+     * InputStream から戦闘ログをデシリアライズします。
+     * GZIP やパスは扱わず、呼び出し元でストリームを組み立てること。
+     *
+     * @param in JSON 入力ストリーム（UTF-8 想定）
+     * @return 戦闘ログ
+     * @throws IOException 入出力例外
+     */
+    static BattleLog fromJson(InputStream in) throws IOException {
+        return JsonMappers.LENIENT_READER_WITH_UNKNOWN_LOGGING.forType(BattleLog.class).readValue(in);
+    }
+
+    /**
+     * 戦闘ログを OutputStream へシリアライズします。
+     *
+     * @param log 戦闘ログ
+     * @param out 出力ストリーム（UTF-8 で書き込まれる）
+     * @throws IOException 入出力例外
+     */
+    static void toJson(BattleLog log, OutputStream out) throws IOException {
+        JsonMappers.MAPPER.writeValue(out, log);
     }
 
     /**
@@ -88,19 +103,15 @@ public class BattleLogs {
             List<Path> paths = tryReadPaths(dateString);
             for (Path path : paths) {
                 if (Files.isReadable(path)) {
+                    // readValue(InputStream) に渡したストリームは Jackson が閉じるため close 不要（StreamReadFeature.AUTO_CLOSE_SOURCE デフォルト true）
                     InputStream in = new BufferedInputStream(Files.newInputStream(path));
-                    try {
-                        // Check header
-                        in.mark(1024);
-                        int header = (in.read() | (in.read() << 8));
-                        in.reset();
-                        if (header == GZIPInputStream.GZIP_MAGIC) {
-                            in = new GZIPInputStream(in);
-                        }
-                        return mapper.readValue(in, BattleLog.class);
-                    } finally {
-                        in.close();
+                    in.mark(1024);
+                    int header = (in.read() | (in.read() << 8));
+                    in.reset();
+                    if (header == GZIPInputStream.GZIP_MAGIC) {
+                        in = new GZIPInputStream(in);
                     }
+                    return fromJson(in);
                 }
             }
         } catch (Exception e) {
@@ -138,14 +149,13 @@ public class BattleLogs {
             if (parent != null && !Files.exists(parent)) {
                 Files.createDirectories(parent);
             }
-            OutputStream out = new BufferedOutputStream(Files.newOutputStream(path));
-            try {
-                if (AppConfig.get().isCompressBattleLogs()) {
-                    out = new GZIPOutputStream(out);
-                }
-                mapper.writeValue(out, log);
-            } finally {
-                out.close();
+            if (AppConfig.get().isCompressBattleLogs()) {
+                // writeValue(OutputStream) に渡したストリームは Jackson が閉じるため close 不要（StreamWriteFeature.AUTO_CLOSE_TARGET デフォルト true）
+                OutputStream out = new GZIPOutputStream(new BufferedOutputStream(Files.newOutputStream(path)));
+                toJson(log, out);
+            } else {
+                OutputStream out = Files.newOutputStream(path);
+                toJson(log, out);
             }
         } catch (Exception e) {
             LoggerHolder.get().warn("戦闘ログの書き込み中に例外", e);

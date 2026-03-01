@@ -25,10 +25,6 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 
-import tools.jackson.databind.DeserializationFeature;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
-
 import logbook.bean.AppConfig;
 import logbook.bean.ShipMst;
 import logbook.bean.ShipMstCollection;
@@ -171,13 +167,7 @@ public class ImageListener implements ContentListenerSpi {
         } catch (Exception e) {
             LoggerHolder.get().warn("画像ファイル処理中に例外が発生しました[src=" + imageSrc + "]", e);
         }
-        Spritesmith sprite;
-        try (BufferedInputStream is = new BufferedInputStream(Files.newInputStream(jsonSrc))) {
-            ObjectMapper mapper = JsonMapper.builder()
-                    .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                    .build();
-            sprite = mapper.readValue(is, Spritesmith.class);
-        }
+        Spritesmith sprite = JsonMappers.LENIENT_READER.forType(Spritesmith.class).readValue(jsonSrc);
         try (BufferedInputStream is = new BufferedInputStream(Files.newInputStream(imageSrc))) {
             BufferedImage image = ImageIO.read(is);
 

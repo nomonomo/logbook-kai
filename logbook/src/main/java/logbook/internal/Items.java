@@ -12,8 +12,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
+import logbook.internal.JsonMappers;
 
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
@@ -415,8 +414,7 @@ public class Items {
         // 順番も保持したいので LinkedHashMap を使う
         LinkedHashMap<String, List<SlotitemEquiptype>> ret = new LinkedHashMap<String, List<SlotitemEquiptype>>(16);
         try (InputStream is = PluginServices.getResourceAsStream("logbook/supplemental/equiptypes.json")) {
-            ObjectMapper mapper = JsonMapper.builder().build();
-            Equiptypes types = mapper.readValue(is, Equiptypes.class);
+            Equiptypes types = JsonMappers.MAPPER.readValue(is, Equiptypes.class);
             Map<Integer, SlotitemEquiptype> map = SlotitemEquiptypeCollection.get().getEquiptypeMap();
             List<SlotitemEquiptype> others = new ArrayList<SlotitemEquiptype>(map.values());
             types.getCategories().stream().forEach(c -> {

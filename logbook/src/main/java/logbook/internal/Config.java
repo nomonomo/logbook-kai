@@ -1,21 +1,16 @@
 package logbook.internal;
 
-import java.io.Reader;
-import java.io.Writer;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
-import tools.jackson.databind.DeserializationFeature;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * アプリケーションの設定を読み書きします
@@ -25,13 +20,11 @@ public final class Config {
 
     private static final Path CONFIG_DIR = Paths.get("./config"); //$NON-NLS-1$
 
-    private static final Config DEFAULT = new Config(CONFIG_DIR);
+    private static volatile Config DEFAULT = new Config(CONFIG_DIR);
 
     private final Path dir;
 
     private final Map<Class<?>, Object> map = new ConcurrentHashMap<>();
-
-    private final ObjectMapper mapper;
 
     /**
      * アプリケーション設定の読み書きを指定のディレクトリで行います
@@ -39,9 +32,6 @@ public final class Config {
      * @param dir アプリケーション設定ディレクトリ
      */
     public Config(Path dir) {
-        this.mapper = JsonMapper.builder()
-            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-            .build();
         this.dir = dir;
     }
 
@@ -86,9 +76,9 @@ public final class Config {
             tryRead: {
                 Path filepath = this.jsonPath(clazz);
                 // 通常ファイル読み込み
-                if (Files.isReadable(filepath) && (Files.size(filepath) > 0)) {
-                    try (Reader reader = Files.newBufferedReader(filepath)) {
-                        instance = this.mapper.readValue(reader, clazz);
+                if (canRead(filepath)) {
+                    try {
+                        instance = this.readFromPath(filepath, clazz);
                         break tryRead;
                     } catch (Exception e) {
                         instance = null;
@@ -97,11 +87,9 @@ public final class Config {
                 }
                 // ファイルが読み込めないまたはサイズがゼロの場合バックアップファイルを読み込む
                 filepath = this.backupPath(filepath);
-                if (Files.isReadable(filepath) && (Files.size(filepath) > 0)) {
-                    try (Reader reader = Files.newBufferedReader(filepath)) {
-                        instance = this.mapper.readValue(reader, clazz);
-                        break tryRead;
-                    }
+                if (canRead(filepath)) {
+                    instance = this.readFromPath(filepath, clazz);
+                    break tryRead;
                 }
             }
         } catch (Exception e) {
@@ -109,6 +97,25 @@ public final class Config {
             LoggerHolder.get().warn("アプリケーションの設定を読み込み中に例外が発生", e); //$NON-NLS-1$
         }
         return instance;
+    }
+
+    private boolean canRead(Path path) {
+        try {
+            return Files.isReadable(path) && Files.size(path) > 0;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Path から 1 件読み込み。
+     * @param path パス
+     * @param clazz クラス
+     * @return 読み込み結果
+     * @throws Exception 読み込み例外
+     */
+    private <T> T readFromPath(Path path, Class<T> clazz) throws Exception {
+        return JsonMappers.LENIENT_READER.forType(clazz).readValue(path);
     }
 
     private void write(Class<?> clazz, Object instance) {
@@ -125,15 +132,11 @@ public final class Config {
                 }
             }
 
-            // write JSON
             if (Files.exists(filepath) && (Files.size(filepath) > 0)) {
                 Path backup = this.backupPath(filepath);
-                // ファイルが存在してかつサイズが0を超える場合、ファイルをバックアップにリネームする
                 Files.move(filepath, backup, StandardCopyOption.REPLACE_EXISTING);
             }
-            try (Writer writer = Files.newBufferedWriter(filepath, StandardOpenOption.CREATE)) {
-                this.mapper.writeValue(writer, instance);
-            }
+            JsonMappers.MAPPER.writeValue(filepath, instance);
         } catch (Exception e) {
             LoggerHolder.get().warn("アプリケーションの設定を読み込み中に例外が発生", e); //$NON-NLS-1$
         }
@@ -148,11 +151,29 @@ public final class Config {
     }
 
     /**
+     * 設定の読み書きに使用するディレクトリを返します。
+     *
+     * @return アプリケーション設定ディレクトリ
+     */
+    public Path getConfigDir() {
+        return this.dir;
+    }
+
+    /**
      * アプリケーションのデフォルト設定ディレクトリから設定を取得します
      *
      * @return アプリケーションのデフォルト設定ディレクトリ
      */
     public static Config getDefault() {
         return DEFAULT;
+    }
+
+    /**
+     * テスト用。{@link #getDefault()} が返す Config を差し替えます。
+     *
+     * @param config 差し替える Config（本番では呼ばない）
+     */
+    static void setDefaultForTest(Config config) {
+        DEFAULT = config;
     }
 }

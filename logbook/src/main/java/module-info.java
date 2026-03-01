@@ -1,7 +1,6 @@
 module logbook {
     requires static lombok;
     requires tools.jackson.core;
-    requires tools.jackson.databind;
     requires javafx.media;
     requires javafx.swing;
     requires javafx.web;
@@ -20,6 +19,7 @@ module logbook {
     requires org.bouncycastle.pkix;
     
     requires transitive com.fasterxml.jackson.annotation;
+    requires transitive tools.jackson.databind;
     requires transitive jakarta.json;
     requires transitive jakarta.servlet;
     requires transitive java.desktop;

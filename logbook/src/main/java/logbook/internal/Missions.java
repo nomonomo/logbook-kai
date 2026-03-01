@@ -6,9 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 
-import tools.jackson.core.json.JsonReadFeature;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
+import logbook.internal.JsonMappers;
 
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
@@ -62,21 +60,13 @@ public class Missions {
             mission = Missions.getMission(34);
         }
 
+        // readValue(InputStream) に渡したストリームは Jackson が閉じるため close 不要（StreamReadFeature.AUTO_CLOSE_SOURCE デフォルト true）
         InputStream is = PluginServices
                 .getResourceAsStream("logbook/mission/" + mission.getMapareaId() + "/" + mission.getDispNo() + ".json");
         if (is == null) {
             return Optional.empty();
         }
-        MissionCondition condition;
-        try {
-            ObjectMapper mapper = JsonMapper.builder()
-                    .enable(JsonReadFeature.ALLOW_JAVA_COMMENTS)
-                    .build();
-            condition = mapper.readValue(is, MissionCondition.class);
-        } finally {
-            is.close();
-        }
-
+        MissionCondition condition = JsonMappers.READER_WITH_COMMENTS.forType(MissionCondition.class).readValue(is);
         return Optional.ofNullable(condition);
     }
 

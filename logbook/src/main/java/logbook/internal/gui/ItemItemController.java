@@ -20,8 +20,7 @@ import org.controlsfx.control.ToggleSwitch;
 import org.controlsfx.control.textfield.TextFields;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
+import logbook.internal.JsonMappers;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -551,8 +550,7 @@ public class ItemItemController extends WindowController {
                     .sorted(Comparator.comparing(KancolleFleetanalysisItem::getId)
                             .thenComparing(Comparator.comparing(KancolleFleetanalysisItem::getLv)))
                     .collect(Collectors.toList());
-            ObjectMapper mapper = JsonMapper.builder().build();
-            String input = mapper.writeValueAsString(list);
+            String input = JsonMappers.MAPPER.writeValueAsString(list);
 
             ClipboardContent content = new ClipboardContent();
             content.putString(input);

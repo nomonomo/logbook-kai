@@ -20,9 +20,6 @@ import java.util.stream.Stream;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import tools.jackson.core.type.TypeReference;
-import tools.jackson.core.json.JsonReadFeature;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
@@ -187,19 +184,13 @@ public class Ships {
         SLOTITEM_TYPE_TP_MAP.put(SlotItemType.戦闘糧食, 1);
 
         // 付加的な情報の読み込み
+        // readValue(InputStream) に渡したストリームは Jackson が閉じるため close 不要（StreamReadFeature.AUTO_CLOSE_SOURCE デフォルト true）
         InputStream is = PluginServices.getResourceAsStream("logbook/supplemental/ships.json");
         Optional<Map<Integer, ShipSupplementalInfo>> map = Optional.empty();
         if (is != null) {
             try {
-                try {
-                    ObjectMapper mapper = JsonMapper.builder()
-                            .enable(JsonReadFeature.ALLOW_JAVA_COMMENTS)
-                            .build();
-                    Map<String, List<ShipSupplementalInfo>> json = mapper.readValue(is, new TypeReference<Map<String, List<ShipSupplementalInfo>>>() {});
-                    map = Optional.ofNullable(json.get("ships")).map(list -> list.stream().collect(Collectors.toMap(ship -> ship.getId(), ship -> ship)));
-                } finally {
-                    is.close();
-                }
+                Map<String, List<ShipSupplementalInfo>> json = JsonMappers.READER_WITH_COMMENTS.forType(new TypeReference<Map<String, List<ShipSupplementalInfo>>>() {}).readValue(is);
+                map = Optional.ofNullable(json.get("ships")).map(list -> list.stream().collect(Collectors.toMap(ship -> ship.getId(), ship -> ship)));
             } catch (Exception e) {
                 LoggerHolder.get().error("艦娘付加情報の初期化に失敗しました", e);
             }

@@ -9,9 +9,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import tools.jackson.core.json.JsonReadFeature;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
+import logbook.internal.JsonMappers;
 
 import logbook.internal.LoggerHolder;
 import logbook.internal.Operator;
@@ -48,17 +46,11 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
     private Boolean result;
 
     public static AppQuestCondition loadFromResource(int questNo) {
+        // readValue(InputStream) に渡したストリームは Jackson が閉じるため close 不要（StreamReadFeature.AUTO_CLOSE_SOURCE デフォルト true）
         InputStream is = PluginServices.getQuestResourceAsStream(questNo);
         if (is != null) {
             try {
-                try {
-                    ObjectMapper mapper = JsonMapper.builder()
-                            .enable(JsonReadFeature.ALLOW_JAVA_COMMENTS)
-                            .build();
-                    return mapper.readValue(is, AppQuestCondition.class);
-                } finally {
-                    is.close();
-                }
+                return JsonMappers.READER_WITH_COMMENTS.forType(AppQuestCondition.class).readValue(is);
             } catch (Exception e) {
                 LoggerHolder.get().info("任務設定ファイルが読み込めませんでした。", e);
             }
