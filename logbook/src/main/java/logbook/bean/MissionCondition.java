@@ -10,50 +10,80 @@ import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import logbook.internal.Items;
 import logbook.internal.Ships;
-import lombok.Data;
+import lombok.Getter;
 
-@Data
+@Getter
 public class MissionCondition implements TestAllPredicate<List<Ship>> {
 
-    @JsonProperty("description")
     private String description;
-
-    @JsonProperty("type")
     private String type;
-
-    @JsonProperty("ship_type")
     private Set<String> shipType;
-
-    @JsonProperty("level")
     private Integer level;
-
-    @JsonProperty("item")
     private String item;
-
-    @JsonProperty("order")
     private Integer order;
-
-    @JsonProperty("count_type")
     private String countType;
-
-    @JsonProperty("conditions")
     private List<MissionCondition> conditions;
-
-    @JsonProperty("value")
     private Integer value;
-
-    @JsonProperty("operator")
     private String operator;
-
     private Boolean result;
-
     private String current;
-
     private MissionCondition greatSuccessCondition;
+
+    /** デシリアライズ用。from(MissionConditionRecord) でフィールドを設定する。 */
+    public MissionCondition() {
+    }
+
+    /**
+     * type・countType・value のみで十分な条件をプログラムで作るためのコンストラクタ。
+     * デフォルト大成功条件（艦隊・キラキラ・6）などに使用する。
+     */
+    public MissionCondition(String type, String countType, Integer value) {
+        this.description = null;
+        this.type = type;
+        this.shipType = null;
+        this.level = null;
+        this.item = null;
+        this.order = null;
+        this.countType = countType;
+        this.conditions = null;
+        this.value = value;
+        this.operator = null;
+        this.result = false;
+        this.current = null;
+        this.greatSuccessCondition = null;
+    }
+
+    /**
+     * record DTO からランタイム用 MissionCondition を構築する。
+     */
+    public static MissionCondition from(MissionConditionRecord dto) {
+        if (dto == null) {
+            return null;
+        }
+        MissionCondition m = new MissionCondition();
+        m.description = dto.description();
+        m.type = dto.type();
+        m.shipType = dto.ship_type() == null ? null : Set.copyOf(dto.ship_type());
+        m.level = dto.level();
+        m.item = dto.item();
+        m.order = dto.order();
+        m.countType = dto.count_type();
+        m.conditions = dto.conditions() == null ? null
+                : dto.conditions().stream().map(MissionCondition::from).toList();
+        m.value = dto.value();
+        m.operator = dto.operator();
+        m.result = false;
+        m.current = null;
+        m.greatSuccessCondition = from(dto.greatSuccessCondition());
+        return m;
+    }
+
+    /** 大成功条件が JSON に無い場合に MissionCheck がデフォルトをセットするための setter。 */
+    public void setGreatSuccessCondition(MissionCondition greatSuccessCondition) {
+        this.greatSuccessCondition = greatSuccessCondition;
+    }
 
     @Override
     public boolean test(List<Ship> ships) {

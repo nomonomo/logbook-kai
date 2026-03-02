@@ -1,0 +1,21 @@
+/*テスト用*/
+{
+    "operator": "AND",
+    "description": "テスト",
+    "greatSuccessCondition": {
+        "operator": "AND",
+        "conditions": [
+            {"type": "艦隊", "count_type": "キラキラ",  "value": 4},
+            {"type": "艦隊", "count_type": "装備", "item": "ドラム缶(輸送用)", "value": 3}
+        ]
+   },
+   "conditions": [
+        {
+            "operator": "OR",
+            "conditions": [
+                {"type": "艦娘", "level": 20, "order": 1},
+                {"type": "艦娘", "ship_type" :["海防艦", "駆逐艦"]}
+            ]
+        }
+    ]
+}

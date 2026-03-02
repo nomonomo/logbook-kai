@@ -6,8 +6,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 
-import logbook.internal.JsonMappers;
-
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -66,7 +64,7 @@ public class Missions {
         if (is == null) {
             return Optional.empty();
         }
-        MissionCondition condition = JsonMappers.READER_WITH_COMMENTS.forType(MissionCondition.class).readValue(is);
+        MissionCondition condition = MissionConditionLoader.load(is);
         return Optional.ofNullable(condition);
     }
 

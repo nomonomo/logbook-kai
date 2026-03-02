@@ -137,11 +137,7 @@ public class MissionCheck extends WindowController {
     }
     
     private static MissionCondition createDefaultGreatSuccessCondition() {
-        MissionCondition success = new MissionCondition();
-        success.setType("艦隊");
-        success.setCountType("キラキラ");
-        success.setValue(6);
-        return success;
+        return new MissionCondition("艦隊", "キラキラ", 6);
     }
 
     private TreeItem<String> buildTree0(Mission mission, List<Ship> fleet) {
