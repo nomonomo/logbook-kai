@@ -1,0 +1,20 @@
+/* [908]【桃の節句】春の雛祭り艦隊決戦！2026 */
+{
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["2-4", "2-5", "7-2"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["Minneapolis", "Samuel B.Roberts", "夕雲", "潮"], "order": 1},
+                {"name": ["Minneapolis", "Samuel B.Roberts", "夕雲", "潮"], "count": 1, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["2-4"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["2-5"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["7-2"], "cell": "M", "rank": ["S"], "count": 2}
+    ]
+}
