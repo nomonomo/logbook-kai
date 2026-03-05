@@ -18,12 +18,12 @@ import logbook.internal.BouyomiChanUtils.Params;
  */
 class BouyomiChanUtilsTest {
 
-    private static final String SETTINGS_RESOURCE = "logbook/bouyomi/settings.json";
+    private static final String SETTINGS_RESOURCE = "logbook/bouyomi/test.json";
 
     @Test
     void strictCreatorReader_deserializesSettingsJson_fieldByFieldCheck() throws Exception {
         try (InputStream in = getClass().getClassLoader().getResourceAsStream(SETTINGS_RESOURCE)) {
-            assertNotNull(in, "テスト用 settings.json が存在すること");
+            assertNotNull(in, "テスト用 test.json が存在すること");
 
             BouyomiDefaultSettings root = JsonMappers.STRICT_CREATOR_READER
                     .forType(BouyomiDefaultSettings.class)

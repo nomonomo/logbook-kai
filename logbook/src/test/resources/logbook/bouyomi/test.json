@@ -1,0 +1,25 @@
+{
+    "settings": [
+        {
+            "id": "MapStartNextAlert",
+            "label": "大破での進撃",
+            "text": "${hiraganaNames} が大破しています",
+            "params": [
+                {
+                    "tag": "${hiraganaNames}",
+                    "comment": "艦娘の名前（ひらがな）"
+                },
+                {
+                    "tag": "${kanjiNames}",
+                    "comment": "艦娘の名前（漢字）"
+                }
+            ]
+        },
+        {
+            "id": "AchievementGimmick2",
+            "label": "ギミック解除\n(装甲破砕等)",
+            "text": "ギミック解除 ギミックの達成を確認しました。",
+            "params": []
+        }
+    ]
+}
