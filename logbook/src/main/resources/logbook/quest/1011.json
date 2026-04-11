@@ -1,0 +1,22 @@
+/* [1011]【第一遊撃部隊任務】南西諸島防衛戦に出撃！ */
+{
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["1-4", "2-1", "2-2", "2-5"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["大和"], "order": 1},
+                {"name": ["矢矧"], "order": 2},
+                {"name": ["磯風", "浜風", "雪風", "丹陽", "冬月", "涼月", "霞", "初霜", "朝霜"], "count": 4, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["1-4"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["2-1"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["2-2"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["2-5"], "rank": ["S"], "count": 2}
+    ]
+}
