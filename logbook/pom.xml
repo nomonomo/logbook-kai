@@ -105,10 +105,11 @@
                                     <type>jar</type>
                                     <outputDirectory>${project.build.directory}/native-libs</outputDirectory>
                                     <includes>lib/**</includes>
+                                    <!-- replacement は ./ にしない（Windows で .// と native-libs の case-only 衝突を避ける） -->
                                     <fileMappers>
                                         <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
                                             <pattern>^lib/[^/]+</pattern>
-                                            <replacement>./</replacement>
+                                            <replacement>n/</replacement>
                                         </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
                                     </fileMappers>
                                 </artifactItem>
