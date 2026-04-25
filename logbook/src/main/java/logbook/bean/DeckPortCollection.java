@@ -8,6 +8,7 @@ import java.util.Set;
 
 import logbook.internal.Config;
 import lombok.Data;
+import tools.jackson.databind.annotation.JsonDeserialize;
 
 /**
  * 艦隊のコレクション
@@ -22,6 +23,7 @@ public class DeckPortCollection implements Serializable {
     private Map<Integer, DeckPort> deckPortMap = new LinkedHashMap<>();
 
     /** 遠征中の艦娘 */
+    @JsonDeserialize(as = LinkedHashSet.class)
     private Set<Integer> missionShips = new LinkedHashSet<>();
 
     /**

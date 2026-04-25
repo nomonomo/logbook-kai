@@ -6,10 +6,12 @@ import java.util.List;
 import jakarta.json.JsonObject;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import logbook.internal.JsonHelper;
 import lombok.Data;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -49,42 +51,49 @@ public class BattleTypes {
          * api_f_nowhpsを取得します。
          * @return api_f_nowhps
          */
+        @JsonProperty("fnowhps")
         List<Integer> getFNowhps();
 
         /**
          * api_f_maxhpsを取得します。
          * @return api_f_maxhps
          */
+        @JsonProperty("fmaxhps")
         List<Integer> getFMaxhps();
 
         /**
          * api_e_nowhpsを取得します。
          * @return api_e_nowhps
          */
+        @JsonProperty("enowhps")
         List<Integer> getENowhps();
 
         /**
          * api_e_maxhpsを取得します。
          * @return api_e_maxhps
          */
+        @JsonProperty("emaxhps")
         List<Integer> getEMaxhps();
 
         /**
          * api_eSlotを取得します。
          * @return api_eSlot
          */
+        @JsonProperty("eslot")
         List<List<Integer>> getESlot();
 
         /**
          * api_fParamを取得します。
          * @return api_fParam
          */
+        @JsonProperty("fparam")
         List<List<Integer>> getFParam();
 
         /**
          * api_eParamを取得します。
          * @return api_eParam
          */
+        @JsonProperty("eparam")
         List<List<Integer>> getEParam();
 
         /**
@@ -274,18 +283,21 @@ public class BattleTypes {
          * api_f_nowhps_combinedを取得します。
          * @return api_f_nowhps_combined
          */
+        @JsonProperty("fnowhpsCombined")
         List<Integer> getFNowhpsCombined();
 
         /**
          * api_f_maxhps_combinedを取得します。
          * @return api_f_maxhps_combined
          */
+        @JsonProperty("fmaxhpsCombined")
         List<Integer> getFMaxhpsCombined();
 
         /**
          * api_fParam_combinedを取得します。
          * @return api_fParam_combined
          */
+        @JsonProperty("fparamCombined")
         List<List<Integer>> getFParamCombined();
 
         @Override
@@ -308,12 +320,14 @@ public class BattleTypes {
          * api_e_nowhps_combinedを取得します。
          * @return api_e_nowhps_combined
          */
+        @JsonProperty("enowhpsCombined")
         List<Integer> getENowhpsCombined();
 
         /**
          * api_e_maxhps_combinedを取得します。
          * @return api_e_maxhps_combined
          */
+        @JsonProperty("emaxhpsCombined")
         List<Integer> getEMaxhpsCombined();
 
         /**
@@ -332,12 +346,14 @@ public class BattleTypes {
          * api_eSlot_combinedを取得します。
          * @return api_eSlot_combined
          */
+        @JsonProperty("eslotCombined")
         List<List<Integer>> getESlotCombined();
 
         /**
          * api_eParam_combinedを取得します。
          * @return api_eParam_combined
          */
+        @JsonProperty("eparamCombined")
         List<List<Integer>> getEParamCombined();
 
         @Override
@@ -492,6 +508,7 @@ public class BattleTypes {
          * api_flare_posを取得します。
          * @return api_flare_pos
          */
+        @JsonProperty("flarePos")
         List<Integer> getFlarePos();
 
         /**
@@ -544,12 +561,14 @@ public class BattleTypes {
          * api_n_hougeki1を取得します。
          * @return api_n_hougeki1
          */
+        @JsonProperty("nhougeki1")
         BattleTypes.MidnightHougeki getNHougeki1();
 
         /**
          * api_n_hougeki2を取得します。
          * @return api_n_hougeki2
          */
+        @JsonProperty("nhougeki2")
         BattleTypes.MidnightHougeki getNHougeki2();
 
         /**
@@ -678,12 +697,14 @@ public class BattleTypes {
          * api_n_support_flagを取得します。
          * @return api_n_support_flag
          */
+        @JsonProperty("nsupportFlag")
         Integer getNSupportFlag();
 
         /**
          * api_n_support_infoを取得します。
          * @return api_n_support_info
          */
+        @JsonProperty("nsupportInfo")
         BattleTypes.SupportInfo getNSupportInfo();
 
         @Override
@@ -855,15 +876,19 @@ public class BattleTypes {
         private static final long serialVersionUID = 4452384504283266181L;
 
         /** api_f_count */
+        @Getter(onMethod_ = @JsonProperty("fcount"))
         private Integer fCount;
 
         /** api_f_lostcount */
+        @Getter(onMethod_ = @JsonProperty("flostcount"))
         private Integer fLostcount;
 
         /** api_e_count */
+        @Getter(onMethod_ = @JsonProperty("ecount"))
         private Integer eCount;
 
         /** api_e_lostcount */
+        @Getter(onMethod_ = @JsonProperty("elostcount"))
         private Integer eLostcount;
 
         /** api_disp_seiku */
@@ -900,15 +925,19 @@ public class BattleTypes {
         private static final long serialVersionUID = -4886136119036663720L;
 
         /** api_f_count */
+        @Getter(onMethod_ = @JsonProperty("fcount"))
         private Integer fCount;
 
         /** api_f_lostcount */
+        @Getter(onMethod_ = @JsonProperty("flostcount"))
         private Integer fLostcount;
 
         /** api_e_count */
+        @Getter(onMethod_ = @JsonProperty("ecount"))
         private Integer eCount;
 
         /** api_e_lostcount */
+        @Getter(onMethod_ = @JsonProperty("elostcount"))
         private Integer eLostcount;
 
         /** api_air_fire */
@@ -1311,6 +1340,7 @@ public class BattleTypes {
         private List<Integer> atType;
 
         /** api_n_mother_list */
+        @Getter(onMethod_ = @JsonProperty("nmotherList"))
         private List<Integer> nMotherList;
 
         /** api_df_list */
