@@ -3,6 +3,7 @@ package logbook.internal;
 import tools.jackson.core.json.JsonReadFeature;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectReader;
+import tools.jackson.databind.cfg.EnumFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -12,7 +13,10 @@ import tools.jackson.databind.json.JsonMapper;
 public final class JsonMappers {
 
     /** デフォルト設定の JsonMapper（strict: 未知プロパティで失敗）。書き込みおよび strict な読み込みに使用。 */
-    public static final JsonMapper MAPPER = JsonMapper.builder().build();
+    public static final JsonMapper MAPPER = JsonMapper.builder()
+                .disable(EnumFeature.WRITE_ENUMS_USING_TO_STRING)       // 列挙型をtoString()で書き込まない
+                .disable(EnumFeature.READ_ENUMS_USING_TO_STRING)        // 列挙型をtoString()で読み込まない
+                .build();
 
     /** 未知プロパティを無視する ObjectReader。設定・戦闘ログなどで使用。 */
     public static final ObjectReader LENIENT_READER = MAPPER.reader()
