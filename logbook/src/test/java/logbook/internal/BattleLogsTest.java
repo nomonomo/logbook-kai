@@ -1,8 +1,26 @@
 package logbook.internal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
 
 import logbook.internal.BattleLogs.SimpleBattleLog;
 
@@ -34,5 +52,37 @@ public class BattleLogsTest {
         log = new SimpleBattleLog(line);
         assertEquals(660, Integer.parseInt(log.getShipExp()));
         assertEquals("深海5,500t級軽巡洋\"\",\"艦", log.getEfleet());
+    }
+
+    @TestFactory
+    Stream<DynamicTest> testBattleLogJsonRoundTrip() throws IOException, URISyntaxException {
+        URL resource = BattleLogsTest.class.getClassLoader().getResource("logbook/battlelog");
+        if (resource == null) {
+            throw new IllegalStateException("テストリソース logbook/battlelog が見つかりません");
+        }
+        Path root = Paths.get(resource.toURI());
+        List<Path> jsonPaths;
+        try (Stream<Path> walk = Files.walk(root)) {
+            jsonPaths = walk
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().endsWith(".json"))
+                    .sorted(Comparator.naturalOrder())
+                    .collect(Collectors.toList());
+        }
+        return jsonPaths.stream().map(path -> DynamicTest.dynamicTest(path.getFileName().toString(), () -> {
+            try (InputStream in = Files.newInputStream(path);
+                    ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                BattleLogs.toJson(BattleLogs.fromJson(in), out);
+                String roundTripJson = out.toString(StandardCharsets.UTF_8);
+                String normalizedOriginalJson = normalizeJson(path);
+                assertThatJson(roundTripJson).isEqualTo(normalizedOriginalJson);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }));
+    }
+
+    private static String normalizeJson(Path path) throws IOException {
+        return Files.readString(path, StandardCharsets.UTF_8);
     }
 }
