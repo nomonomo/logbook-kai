@@ -1,0 +1,11 @@
+/* [448]【13周年記念任務】13周年観艦式準備 */
+{
+    "type": "遠征",
+    "resetType": "単発",
+    "conditions": [
+        {"missions": ["警備任務"], "count": 1},
+        {"missions": ["兵站強化任務"], "count": 1},
+        {"missions": ["長時間対潜警戒"], "count": 1},
+        {"missions": ["観艦式予行"], "count": 2}
+    ]
+}

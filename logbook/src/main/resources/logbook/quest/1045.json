@@ -1,0 +1,23 @@
+/* [1045]「吹雪改三」抜錨します！見てくださいっ！ */
+{
+    "type": "出撃",
+    "resetType": "イヤリー",
+    "yearlyResetMonth": 4,
+    "filter": {
+        "area": ["5-1", "5-3", "5-4", "5-5", "7-5"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["吹雪改三", "吹雪改三護(六式)"], "order": 1},
+                {"name": ["吹雪", "白雪", "初雪", "深雪", "叢雲", "薄雲", "白雲", "磯波", "浦波"], "order": 2}
+            ]
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["5-1"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-5"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["7-5"], "cell": "T", "rank": ["S"], "count": 1}
+    ]
+}

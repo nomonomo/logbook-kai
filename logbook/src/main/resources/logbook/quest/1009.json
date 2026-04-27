@@ -1,22 +1,22 @@
-/* [1009]【艦隊12周年記念任務:拡張作戦】艦隊、西へ！ */
+/* [1009]【13周年記念任務:拡張作戦】艦隊、南方へ！ */
 {
-    "type" : "出撃",
-    "resetType" : "単発",
-    "filter" : {
-        "area": ["4-1", "4-2", "4-3", "4-4", "4-5"],
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["5-1", "5-2", "5-3", "5-4", "5-5"],
         "fleet": {
             "operator": "AND",
             "conditions": [
-                {"name": ["大和", "翔鶴", "衣笠改二", "Gotland", "吹雪", "曙", "朧", "Mogador", "Fletcher改 Mod.2", "Fletcher Mk.II"], "count": 2, "operator": "GE"},
-                {"name": ["白雪", "初雪", "深雪", "叢雲", "薄雲", "白雲", "磯波", "浦波"], "count": 1, "operator": "GE"}
+                {"name": ["吹雪", "大和", "翔鶴", "杉", "迅鯨", "衣笠改二", "Mogador", "Gotland", "Thonburi", "Johnston", "Fletcher改 Mod.2", "Fletcher Mk.II"], "order": 1},
+                {"name": ["吹雪", "大和", "翔鶴", "杉", "迅鯨", "衣笠改二", "Mogador", "Gotland", "Thonburi", "Johnston", "Fletcher改 Mod.2", "Fletcher Mk.II"], "order": 2}
             ]
         }
     },
-    "conditions" : [
-        {"boss": true, "area": ["4-1"], "rank": ["S"], "count": 1},
-        {"boss": true, "area": ["4-2"], "rank": ["S"], "count": 1},
-        {"boss": true, "area": ["4-3"], "rank": ["S"], "count": 1},
-        {"boss": true, "area": ["4-4"], "rank": ["S"], "count": 1},
-        {"boss": true, "area": ["4-5"], "rank": ["S"], "count": 1}
+    "conditions": [
+        {"boss": true, "area": ["5-1"], "rank": ["S","A"], "count": 1},
+        {"boss": true, "area": ["5-2"], "rank": ["S","A"], "count": 1},
+        {"boss": true, "area": ["5-3"], "rank": ["S","A"], "count": 1},
+        {"boss": true, "area": ["5-4"], "rank": ["S","A"], "count": 1},
+        {"boss": true, "area": ["5-5"], "rank": ["S","A"], "count": 1}
     ]
 }

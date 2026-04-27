@@ -68,7 +68,7 @@
                         <configuration>
                             <resources>
                                 <resource>
-                                    <directory>../logbook/target/native-libs</directory>
+                                    <directory>../logbook/target/native-libs/n</directory>
                                     <filtering>false</filtering>
                                 </resource>
                             </resources>

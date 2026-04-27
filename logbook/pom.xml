@@ -105,10 +105,11 @@
                                     <type>jar</type>
                                     <outputDirectory>${project.build.directory}/native-libs</outputDirectory>
                                     <includes>lib/**</includes>
+                                    <!-- replacement は ./ にしない（Windows で .// と native-libs の case-only 衝突を避ける） -->
                                     <fileMappers>
                                         <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
                                             <pattern>^lib/[^/]+</pattern>
-                                            <replacement>./</replacement>
+                                            <replacement>n/</replacement>
                                         </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
                                     </fileMappers>
                                 </artifactItem>
@@ -315,7 +316,7 @@
             <build>
                 <defaultGoal>generate-sources</defaultGoal>
                 <plugins>
-                    <!-- ソース展開前に既存のsrc/libディレクトリを削除（バージョンアップ時の古いファイル残存を防ぐ） -->
+                    <!-- ソース展開前に既存のlib-sourcesディレクトリを削除（バージョンアップ時の古いファイル残存を防ぐ） -->
                     <!-- デフォルトのclean動作（targetディレクトリの削除）を無効化 -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -326,7 +327,7 @@
                                 <id>default-clean</id>
                                 <phase>none</phase>
                             </execution>
-                            <!-- src/libディレクトリのみを削除 -->
+                            <!-- lib-sourcesディレクトリのみを削除 -->
                             <execution>
                                 <id>clean-lib-sources</id>
                                 <phase>initialize</phase>
@@ -337,7 +338,7 @@
                                     <excludeDefaultDirectories>true</excludeDefaultDirectories>
                                     <filesets>
                                         <fileset>
-                                            <directory>${project.basedir}/src/lib</directory>
+                                            <directory>${project.basedir}/../lib-sources</directory>
                                             <includes>
                                                 <include>**/*</include>
                                             </includes>
@@ -360,7 +361,7 @@
                                     <goal>unpack-dependencies</goal>
                                 </goals>
                                 <configuration>
-                                    <outputDirectory>${project.basedir}/src/lib</outputDirectory>
+                                    <outputDirectory>${project.basedir}/../lib-sources</outputDirectory>
                                     <classifier>sources</classifier>
                                     <!-- compileスコープを指定してprovided依存関係も含める -->
                                     <!-- <includeScope>compile</includeScope> -->
