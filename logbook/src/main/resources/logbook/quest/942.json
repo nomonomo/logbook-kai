@@ -1,0 +1,20 @@
+/* [942]【春限定】続：春のお散歩哨戒です！ */
+{
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["2-3", "2-5", "3-5"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["吹雪", "夕雲", "卯月", "村雨", "天津風", "迅鯨", "長鯨", "平安丸"], "order": 1},
+                {"name": ["吹雪", "夕雲", "卯月", "村雨", "天津風", "迅鯨", "長鯨", "平安丸"], "order": 2}
+            ]
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["2-3"], "rank": ["S", "A"], "count": 2},
+        {"boss": true, "area": ["2-5"], "rank": ["S", "A"], "count": 2},
+        {"boss": true, "area": ["3-5"], "rank": ["S", "A"], "count": 2}
+    ]
+}

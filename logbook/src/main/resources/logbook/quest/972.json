@@ -1,19 +1,30 @@
-/* [972]【艦隊12周年記念任務】二航戦、此処に在り！ */
+/* [972]【13周年記念任務】一航戦、揺るぎません！ */
 {
-    "type" : "出撃",
-    "resetType" : "単発",
-    "filter" : {
-        "area": ["2-2", "2-3", "2-4", "5-2", "5-4"],
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["2-3", "2-4", "5-2", "5-4"],
         "fleet": {
-            "operator": "AND",
+            "operator": "OR",
             "conditions": [
-                {"name": ["飛龍","蒼龍"], "order": 1},
-                {"name": ["飛龍","蒼龍"], "order": 2}
+                {
+                    "operator": "AND",
+                    "conditions": [
+                        {"name": ["赤城", "加賀"], "order": 1},
+                        {"name": ["赤城", "加賀"], "order": 2}
+                    ]
+                },
+                {
+                    "operator": "AND",
+                    "conditions": [
+                        {"name": ["翔鶴", "瑞鶴"], "order": 1},
+                        {"name": ["翔鶴", "瑞鶴"], "order": 2}
+                    ]
+                }
             ]
         }
     },
-    "conditions" : [
-        {"boss": true, "area": ["2-2"], "rank": ["S"], "count": 1},
+    "conditions": [
         {"boss": true, "area": ["2-3"], "rank": ["S"], "count": 1},
         {"boss": true, "area": ["2-4"], "rank": ["S"], "count": 1},
         {"boss": true, "area": ["5-2"], "rank": ["S"], "count": 1},

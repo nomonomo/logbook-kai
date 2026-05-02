@@ -1,0 +1,21 @@
+/* [1043]【期間限定任務】春の旗艦は……私だからっ！ */
+{
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["1-3", "1-4", "1-5", "2-3"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["春雨", "春風", "春日丸", "大鷹", "弥生", "陽炎", "天津風", "朧", "曙", "榛名", "Scirocco"], "order": 1},
+                {"name": ["春雨", "春風", "春日丸", "大鷹", "弥生", "陽炎", "天津風", "朧", "曙", "榛名", "Scirocco"], "count": 1, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["1-3"], "rank": ["S", "A"], "count": 2},
+        {"boss": true, "area": ["1-4"], "rank": ["S", "A"], "count": 2},
+        {"boss": true, "area": ["1-5"], "rank": ["S", "A"], "count": 2},
+        {"boss": true, "area": ["2-3"], "rank": ["S", "A"], "count": 2}
+    ]
+}
