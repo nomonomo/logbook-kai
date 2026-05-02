@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.nio.file.Path;
 
 import logbook.bean.AppQuestCondition;
-import logbook.bean.AppQuestConditionRecord;
 import logbook.plugin.PluginServices;
 import lombok.extern.slf4j.Slf4j;
 
@@ -36,37 +35,22 @@ public final class AppQuestConditionLoader {
     }
 
     /**
-     * 任務条件 JSON を AppQuestConditionRecord にデシリアライズする。
+     * 任務条件 JSON を AppQuestCondition にデシリアライズする。
      * テストでの項目検証用。
      */
-    public static AppQuestConditionRecord readRecord(InputStream is) throws IOException {
+    public static AppQuestCondition load(InputStream is) throws IOException {
         return JsonMappers.READER_WITH_COMMENTS
-                .forType(AppQuestConditionRecord.class)
+                .forType(AppQuestCondition.class)
                 .readValue(is);
     }
 
     /**
-     * 指定パスの任務条件 JSON を AppQuestConditionRecord にデシリアライズする。
-     * オープン・クローズは Jackson が実施する。
-     */
-    public static AppQuestConditionRecord readRecord(Path path) throws IOException {
-        return JsonMappers.READER_WITH_COMMENTS
-                .forType(AppQuestConditionRecord.class)
-                .readValue(path);
-    }
-
-    /**
-     * 任務条件 JSON を読み込み、AppQuestCondition に変換して返す。
-     */
-    public static AppQuestCondition load(InputStream is) throws IOException {
-        return AppQuestCondition.from(readRecord(is));
-    }
-
-    /**
-     * 指定パスの任務条件 JSON を読み込み、AppQuestCondition に変換して返す。
+     * 指定パスの任務条件 JSON を AppQuestCondition にデシリアライズする。
      * オープン・クローズは Jackson が実施する。
      */
     public static AppQuestCondition load(Path path) throws IOException {
-        return AppQuestCondition.from(readRecord(path));
+        return JsonMappers.READER_WITH_COMMENTS
+                .forType(AppQuestCondition.class)
+                .readValue(path);
     }
 }

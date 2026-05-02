@@ -41,25 +41,6 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
     /** 結果 */
     private Boolean result;
 
-    /**
-     * record DTO からランタイム用 AppQuestCondition を構築する。
-     */
-    public static AppQuestCondition from(AppQuestConditionRecord dto) {
-        if (dto == null) {
-            return null;
-        }
-        AppQuestCondition o = new AppQuestCondition();
-        o.type = dto.type();
-        o.resetType = dto.resetType();
-        o.yearlyResetMonth = dto.yearlyResetMonth();
-        o.filter = FilterCondition.from(dto.filter());
-        o.conditions = dto.conditions() == null ? new ArrayList<>()
-                : new ArrayList<>(dto.conditions().stream().map(Condition::from).toList());
-        o.result = null;
-        return o;
-    }
-
-    /** 任務番号に応じた任務条件をリソースから読み込む。実処理は AppQuestConditionLoader に委譲する。 */
     public static AppQuestCondition loadFromResource(int questNo) {
         return AppQuestConditionLoader.loadFromResource(questNo);
     }
@@ -102,16 +83,6 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
 
         /** 艦隊条件 */
         private FleetCondition fleet;
-
-        static FilterCondition from(FilterConditionRecord r) {
-            if (r == null) {
-                return null;
-            }
-            FilterCondition f = new FilterCondition();
-            f.area = r.area() == null ? null : new LinkedHashSet<>(r.area());
-            f.fleet = FleetCondition.from(r.fleet());
-            return f;
-        }
     }
 
     /**
@@ -144,22 +115,6 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
 
         /** 演算子(AND,OR,NAND,NOR,EQ(等しい),GE(以上),GT(より大きい),LE(以下),LT(より小さい),NE(等しくない)) */
         private String operator;
-
-        static FleetCondition from(FleetConditionRecord r) {
-            if (r == null) {
-                return null;
-            }
-            FleetCondition f = new FleetCondition();
-            f.description = r.description();
-            f.stype = r.stype() == null ? null : new LinkedHashSet<>(r.stype());
-            f.name = r.name() == null ? null : new LinkedHashSet<>(r.name());
-            f.difference = r.difference();
-            f.count = r.count();
-            f.order = r.order();
-            f.conditions = r.conditions() == null ? null : r.conditions().stream().map(FleetCondition::from).toList();
-            f.operator = r.operator();
-            return f;
-        }
 
         @Override
         public boolean test(List<ShipMst> ships) {
@@ -374,26 +329,6 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
         private Boolean result;
 
         private String current;
-
-        static Condition from(ConditionRecord r) {
-            if (r == null) {
-                return null;
-            }
-            Condition c = new Condition();
-            c.description = r.description();
-            c.area = r.area() == null ? null : new LinkedHashSet<>(r.area());
-            c.cell = r.cell();
-            c.cells = r.cells() == null ? null : new LinkedHashSet<>(r.cells());
-            c.start = r.start();
-            c.boss = r.boss();
-            c.rank = r.rank() == null ? null : new LinkedHashSet<>(r.rank());
-            c.stype = r.stype() == null ? null : new LinkedHashSet<>(r.stype());
-            c.count = r.count();
-            c.missions = r.missions();
-            c.result = null;
-            c.current = null;
-            return c;
-        }
 
         @Override
         public boolean test(QuestCollect t) {
