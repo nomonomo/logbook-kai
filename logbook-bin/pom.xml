@@ -46,36 +46,26 @@
                     <verbose>true</verbose>
                     <ignoreSigningInformation>true</ignoreSigningInformation>
                     <addOptions>
+                        <addOption>-Xms256M</addOption>
+                        <addOption>-Xmx2G</addOption>
+                        <addOption>-XX:+UseG1GC</addOption>
+                        <addOption>-XX:MaxGCPauseMillis=200</addOption>
+                        <addOption>-XX:G1HeapRegionSize=2M</addOption>
+                        <addOption>-XX:+UseStringDeduplication</addOption>
                         <addOption>--add-exports=javafx.base/com.sun.javafx.event=org.controlsfx.controls</addOption>
                     </addOptions>
                     <launcher>logbook=logbook/logbook.internal.Launcher</launcher>
                     <noHeaderFiles>true</noHeaderFiles>
+                    <noManPages>true</noManPages>
+                    <!-- logbook の package で展開された brotli4j ネイティブを、jlink イメージの lib へ追加（ZIP 化の直前） -->
+                    <additionalResources>
+                        <resource>
+                            <directory>${project.basedir}/../logbook/target/native-libs/n</directory>
+                            <targetPath>lib</targetPath>
+                            <filtering>false</filtering>
+                        </resource>
+                    </additionalResources>
                 </configuration>
-            </plugin>
-            <!-- logbookモジュールで抽出されたネイティブライブラリをjlink出力のlibディレクトリにコピー -->
-            <!-- maven-jlink-pluginの実行後、maven-assembly-pluginの実行前に実行 -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-resources-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>copy-brotli-native-to-jlink</id>
-                        <!-- jlinkプラグインの実行後、maven-assembly-pluginの実行前に実行 -->
-                        <phase>package</phase>
-                        <goals>
-                            <goal>copy-resources</goal>
-                        </goals>
-                        <configuration>
-                            <resources>
-                                <resource>
-                                    <directory>../logbook/target/native-libs/n</directory>
-                                    <filtering>false</filtering>
-                                </resource>
-                            </resources>
-                            <outputDirectory>${project.build.directory}/maven-jlink/default/lib</outputDirectory>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
