@@ -20,13 +20,13 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import logbook.Messages;
 import logbook.bean.AppConfig;
-import logbook.bean.Equiptypes;
 import logbook.bean.SlotItem;
 import logbook.bean.SlotitemEquiptype;
 import logbook.bean.SlotitemEquiptypeCollection;
 import logbook.bean.SlotitemMst;
 import logbook.bean.SlotitemMstCollection;
 import logbook.plugin.PluginServices;
+import lombok.Data;
 
 /**
  * 装備に関するメソッドを集めたクラス
@@ -412,20 +412,29 @@ public class Items {
         // 順番も保持したいので LinkedHashMap を使う
         LinkedHashMap<String, List<SlotitemEquiptype>> ret = new LinkedHashMap<String, List<SlotitemEquiptype>>(16);
         try (InputStream is = PluginServices.getResourceAsStream("logbook/supplemental/equiptypes.json")) {
-            if (is != null) {
-                Equiptypes types = EquiptypesLoader.load(is);
-                Map<Integer, SlotitemEquiptype> map = SlotitemEquiptypeCollection.get().getEquiptypeMap();
-                List<SlotitemEquiptype> others = new ArrayList<SlotitemEquiptype>(map.values());
-                types.categories().stream().forEach(c -> {
-                    List<SlotitemEquiptype> list = IntStream.of(c.types()).mapToObj(map::get).collect(Collectors.toList());
-                    ret.put(c.name(), list);
-                    others.removeAll(list);
-                });
-                ret.put("その他", others);
-            }
+            Equiptypes types = JsonMappers.MAPPER.readValue(is, Equiptypes.class);
+            Map<Integer, SlotitemEquiptype> map = SlotitemEquiptypeCollection.get().getEquiptypeMap();
+            List<SlotitemEquiptype> others = new ArrayList<SlotitemEquiptype>(map.values());
+            types.getCategories().stream().forEach(c -> {
+                List<SlotitemEquiptype> list = IntStream.of(c.getTypes()).mapToObj(map::get).collect(Collectors.toList());
+                ret.put(c.getName(), list);
+                others.removeAll(list);
+            });
+            ret.put("その他", others);
         } catch (Exception e) {
             LoggerHolder.get().error("装備のカテゴリ情報の読み込みに失敗しました", e);
         }
         return ret;
+    }
+
+    @Data
+    private static class Category {
+        private String name;
+        private int [] types;
+    }
+
+    @Data
+    private static class Equiptypes {
+        private List<Category> categories;
     }
 }
