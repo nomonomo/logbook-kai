@@ -29,32 +29,32 @@ class BouyomiChanUtilsTest {
                     .forType(BouyomiDefaultSettings.class)
                     .readValue(in);
 
-            List<BouyomiSetting> settings = root.settings();
+            List<BouyomiSetting> settings = root.getSettings();
             assertNotNull(settings);
             assertEquals(2, settings.size(), "settings 件数");
 
             BouyomiSetting first = settings.get(0);
-            assertEquals("MapStartNextAlert", first.id());
-            assertEquals("大破での進撃", first.label());
-            assertEquals("${hiraganaNames} が大破しています", first.text());
-            List<Params> firstParams = first.params();
+            assertEquals("MapStartNextAlert", first.getId());
+            assertEquals("大破での進撃", first.getLabel());
+            assertEquals("${hiraganaNames} が大破しています", first.getText());
+            List<Params> firstParams = first.getParams();
             assertNotNull(firstParams);
             assertEquals(2, firstParams.size());
 
             Params param0 = firstParams.get(0);
-            assertEquals("${hiraganaNames}", param0.tag());
-            assertEquals("艦娘の名前（ひらがな）", param0.comment());
+            assertEquals("${hiraganaNames}", param0.getTag());
+            assertEquals("艦娘の名前（ひらがな）", param0.getComment());
 
             Params param1 = firstParams.get(1);
-            assertEquals("${kanjiNames}", param1.tag());
-            assertEquals("艦娘の名前（漢字）", param1.comment());
+            assertEquals("${kanjiNames}", param1.getTag());
+            assertEquals("艦娘の名前（漢字）", param1.getComment());
 
             BouyomiSetting second = settings.get(1);
-            assertEquals("AchievementGimmick2", second.id());
-            assertEquals("ギミック解除\n(装甲破砕等)", second.label());
-            assertEquals("ギミック解除 ギミックの達成を確認しました。", second.text());
-            assertNotNull(second.params());
-            assertEquals(0, second.params().size());
+            assertEquals("AchievementGimmick2", second.getId());
+            assertEquals("ギミック解除\n(装甲破砕等)", second.getLabel());
+            assertEquals("ギミック解除 ギミックの達成を確認しました。", second.getText());
+            assertNotNull(second.getParams());
+            assertEquals(0, second.getParams().size());
         }
     }
 }

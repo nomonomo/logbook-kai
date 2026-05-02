@@ -1045,22 +1045,22 @@ public class ConfigController extends WindowController {
 
         BouyomiDefaultSettings settings = BouyomiChanUtils.getDefaultSettings();
         int row = 0;
-        for (BouyomiSetting setting : settings.settings()) {
-            BouyomiChanUtils.Type type = BouyomiChanUtils.Type.valueOf(setting.id());
+        for (BouyomiSetting setting : settings.getSettings()) {
+            BouyomiChanUtils.Type type = BouyomiChanUtils.Type.valueOf(setting.getId());
 
             AppBouyomiText bouyomiConfig = config.getText()
-                    .get(setting.id());
+                    .get(setting.getId());
 
-            CheckBox checkBox = new CheckBox(setting.label());
+            CheckBox checkBox = new CheckBox(setting.getLabel());
             checkBox.setSelected(true);
 
-            TextField text = new TextField(setting.text());
+            TextField text = new TextField(setting.getText());
             TextFlow params = new TextFlow();
-            for (Params param : setting.params()) {
-                Hyperlink link = new Hyperlink(param.comment());
+            for (Params param : setting.getParams()) {
+                Hyperlink link = new Hyperlink(param.getComment());
                 link.setFocusTraversable(false);
                 link.setOnAction(ev -> {
-                    text.replaceSelection(param.tag());
+                    text.replaceSelection(param.getTag());
                 });
                 params.getChildren().add(link);
             }

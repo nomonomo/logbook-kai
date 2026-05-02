@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import logbook.bean.AppBouyomiConfig;
 import logbook.bean.AppBouyomiConfig.AppBouyomiText;
 import logbook.plugin.PluginServices;
+import lombok.Data;
 
 public class BouyomiChanUtils {
 
@@ -38,9 +39,9 @@ public class BouyomiChanUtils {
             text = config.getText();
         } else {
             BouyomiDefaultSettings settings = getDefaultSettings();
-            for (BouyomiSetting setting : settings.settings()) {
-                if (id.equals(setting.id())) {
-                    text = setting.text();
+            for (BouyomiSetting setting : settings.getSettings()) {
+                if (id.equals(setting.getId())) {
+                    text = setting.getText();
                     break;
                 }
             }
@@ -64,7 +65,7 @@ public class BouyomiChanUtils {
     public static BouyomiDefaultSettings getDefaultSettings() {
         BouyomiDefaultSettings settings;
         try (InputStream is = PluginServices.getResourceAsStream("logbook/bouyomi/settings.json")) {
-            settings = JsonMappers.STRICT_CREATOR_READER.forType(BouyomiDefaultSettings.class).readValue(is);
+            settings = JsonMappers.MAPPER.readValue(is, BouyomiDefaultSettings.class);
         } catch (Exception e) {
             LoggerHolder.get().warn("設定ファイルの読み込みに失敗しました", e);
             settings = null;
@@ -98,15 +99,30 @@ public class BouyomiChanUtils {
         }
     }
 
-    /** 棒読みちゃん初期設定。JSON キーとコンポーネント名が一致するため @JsonProperty は付けない。 */
-    public static record BouyomiDefaultSettings(List<BouyomiSetting> settings) {
+    @Data
+    public static class BouyomiDefaultSettings {
+
+        private List<BouyomiSetting> settings;
     }
 
-    /** 1 件分の棒読み設定。 */
-    public static record BouyomiSetting(String id, String label, String text, List<Params> params) {
+    @Data
+    public static class BouyomiSetting {
+
+        private String id;
+
+        private String label;
+
+        private String text;
+
+        private List<Params> params;
     }
 
-    /** プレースホルダの説明。 */
-    public static record Params(String tag, String comment) {
+    @Data
+    public static class Params {
+
+        private String tag;
+
+        private String comment;
     }
+
 }
