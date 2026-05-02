@@ -70,6 +70,9 @@
                     <useSystemClassLoader>false</useSystemClassLoader>
                     <!-- モジュールパスを使用（Java 9以降） -->
                     <useModulePath>true</useModulePath>
+                    <systemPropertyVariables>
+                        <test.profile>${test.profile}</test.profile>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <plugin>
@@ -308,6 +311,7 @@
         <profile>
             <id>dev</id>
             <properties>
+                <test.profile>dev</test.profile>
                 <build.Implementation-Version>${project.version}-${maven.build.timestamp}</build.Implementation-Version>
             </properties>
         </profile>

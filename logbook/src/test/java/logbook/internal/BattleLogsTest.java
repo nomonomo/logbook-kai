@@ -21,6 +21,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import logbook.internal.BattleLogs.SimpleBattleLog;
 
@@ -54,6 +55,7 @@ public class BattleLogsTest {
         assertEquals("深海5,500t級軽巡洋\"\",\"艦", log.getEfleet());
     }
 
+    @EnabledIfSystemProperty(named = "test.profile", matches = "dev")
     @TestFactory
     Stream<DynamicTest> testBattleLogJsonRoundTrip() throws IOException, URISyntaxException {
         URL resource = BattleLogsTest.class.getClassLoader().getResource("logbook/battlelog");

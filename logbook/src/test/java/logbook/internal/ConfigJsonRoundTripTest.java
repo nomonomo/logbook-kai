@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 /**
  * {@link Config} が読み書きする設定 JSON（ファイル名 = Bean の canonical 名 + ".json"）が、
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.TestFactory;
  */
 public class ConfigJsonRoundTripTest {
 
+    @EnabledIfSystemProperty(named = "test.profile", matches = "dev")
     @TestFactory
     Stream<DynamicTest> testConfigJsonRoundTrip() throws IOException, URISyntaxException {
         URL resource = ConfigJsonRoundTripTest.class.getClassLoader().getResource("logbook/config");
