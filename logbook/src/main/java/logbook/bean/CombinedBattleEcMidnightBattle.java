@@ -3,7 +3,7 @@ package logbook.bean;
 import java.util.List;
 
 import jakarta.json.JsonObject;
-
+import logbook.bean.BattleTypes.ICombinedBattle;
 import logbook.bean.BattleTypes.ICombinedEcMidnightBattle;
 import logbook.bean.BattleTypes.IMidnightBattle;
 import logbook.internal.JsonHelper;
@@ -14,7 +14,7 @@ import lombok.Data;
  * ICombinedEcMidnightBattleはIBattleを継承しているため、Serializableを継承している。
  */
 @Data
-public class CombinedBattleEcMidnightBattle implements ICombinedEcMidnightBattle, IMidnightBattle {
+public class CombinedBattleEcMidnightBattle implements ICombinedBattle, ICombinedEcMidnightBattle, IMidnightBattle {
 
     private static final long serialVersionUID = 8584847683187523584L;
 
@@ -53,6 +53,12 @@ public class CombinedBattleEcMidnightBattle implements ICombinedEcMidnightBattle
 
     /** api_e_maxhps_combined */
     private List<Integer> eMaxhpsCombined;
+
+    /** api_f_nowhps_combined */
+    private List<Integer> fNowhpsCombined;
+
+    /** api_f_maxhps_combined */
+    private List<Integer> fMaxhpsCombined;
 
     /** api_eSlot */
     private List<List<Integer>> eSlot;
@@ -107,11 +113,14 @@ public class CombinedBattleEcMidnightBattle implements ICombinedEcMidnightBattle
                 .setIntegerList("api_f_maxhps", bean::setFMaxhps)
                 .setIntegerList("api_e_nowhps", bean::setENowhps)
                 .setIntegerList("api_e_maxhps", bean::setEMaxhps)
+                .setIntegerList("api_f_nowhps_combined", bean::setFNowhpsCombined)
+                .setIntegerList("api_f_maxhps_combined", bean::setFMaxhpsCombined)
                 .setIntegerList("api_e_nowhps_combined", bean::setENowhpsCombined)
                 .setIntegerList("api_e_maxhps_combined", bean::setEMaxhpsCombined)
                 .set("api_eSlot", bean::setESlot, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_eSlot_combined", bean::setESlotCombined, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_fParam", bean::setFParam, JsonHelper.toList(JsonHelper::toIntegerList))
+                .set("api_fParam_combined", bean::setFParamCombined, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_eParam", bean::setEParam, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_eParam_combined", bean::setEParamCombined, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_friendly_info", bean::setFriendlyInfo, BattleTypes.FriendlyInfo::toFriendlyInfo)
