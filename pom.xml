@@ -7,7 +7,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <lombok.version>1.18.42</lombok.version>
+        <lombok.version>1.18.46</lombok.version>
         <!-- JavaFXバージョン: 一元管理 -->
         <javafx.version>21.0.10</javafx.version>
         <!-- JavaFX classifier: 外部から -Djavafx.platform=win のように指定可能 -->
