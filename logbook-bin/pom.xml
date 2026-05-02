@@ -46,6 +46,12 @@
                     <verbose>true</verbose>
                     <ignoreSigningInformation>true</ignoreSigningInformation>
                     <addOptions>
+                        <addOption>-Xms256M</addOption>
+                        <addOption>-Xmx2G</addOption>
+                        <addOption>-XX:+UseG1GC</addOption>
+                        <addOption>-XX:MaxGCPauseMillis=200</addOption>
+                        <addOption>-XX:G1HeapRegionSize=2M</addOption>
+                        <addOption>-XX:+UseStringDeduplication</addOption>
                         <addOption>--add-exports=javafx.base/com.sun.javafx.event=org.controlsfx.controls</addOption>
                     </addOptions>
                     <launcher>logbook=logbook/logbook.internal.Launcher</launcher>
