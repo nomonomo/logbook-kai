@@ -150,22 +150,22 @@
         <dependency>
             <groupId>org.eclipse.jetty.compression</groupId>
             <artifactId>jetty-compression-client</artifactId>
-            <version>12.1.6</version>
+            <version>12.1.8</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.compression</groupId>
             <artifactId>jetty-compression-common</artifactId>
-            <version>12.1.6</version>
+            <version>12.1.8</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.compression</groupId>
             <artifactId>jetty-compression-brotli</artifactId>
-            <version>12.1.6</version>
+            <version>12.1.8</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty.compression</groupId>
             <artifactId>jetty-compression-gzip</artifactId>
-            <version>12.1.6</version>
+            <version>12.1.8</version>
         </dependency>
         <dependency>
             <groupId>org.controlsfx</groupId>
