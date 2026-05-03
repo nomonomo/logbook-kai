@@ -14,6 +14,7 @@ import logbook.bean.DeckPort;
 import logbook.bean.DeckPortCollection;
 import logbook.bean.Ship;
 import logbook.bean.ShipCollection;
+import logbook.bean.ShipMst;
 import logbook.bean.Stype;
 import logbook.internal.Ships;
 import logbook.proxy.RequestMetaData;
@@ -76,18 +77,36 @@ public class ApiReqHenseiChange implements APIListenerSpi {
         changed.add(portId);
 
         // 随伴艦一括解除以外の場合に、変化した艦隊の旗艦に工作艦が存在する場合は泊地修理タイマーをセットする
+        // 同条件で1番艦または2番艦に野埼・野埼改がいる場合は母港給糧艦タイマーをセットする
         if (shipId != -2) {
             for (Integer port : changed) {
                 List<Integer> changedShips = deckMap.get(port).getShip();
-                if (changedShips.size() > 0) {
-                    Integer shipid = changedShips.get(0);
-                    Ship ship = ShipCollection.get().getShipMap().get(shipid);
-                    if (ship != null) {
-                        String type = Ships.stype(ship).map(Stype::getName).orElse("");
-                        if ("工作艦".equals(type)) {
-                            AppCondition.get().setAkashiTimer(System.currentTimeMillis());
-                            break;
-                        }
+                if (changedShips.isEmpty()) {
+                    continue;
+                }
+                int limit = Math.min(2, changedShips.size());
+                for (int i = 0; i < limit; i++) {
+                    Integer sid = changedShips.get(i);
+                    if (sid == null || sid <= 0) {
+                        continue;
+                    }
+                    Ship ship = ShipCollection.get().getShipMap().get(sid);
+                    if (ship == null) {
+                        continue;
+                    }
+                    String name = Ships.shipMst(ship).map(ShipMst::getName).orElse("");
+                    if ("野埼".equals(name) || "野埼改".equals(name)) {
+                        AppCondition.get().setNosakiTimer(System.currentTimeMillis());
+                        break;
+                    }
+                }
+                Integer flagshipId = changedShips.get(0);
+                Ship flagship = ShipCollection.get().getShipMap().get(flagshipId);
+                if (flagship != null) {
+                    String type = Ships.stype(flagship).map(Stype::getName).orElse("");
+                    if ("工作艦".equals(type)) {
+                        AppCondition.get().setAkashiTimer(System.currentTimeMillis());
+                        break;
                     }
                 }
             }
