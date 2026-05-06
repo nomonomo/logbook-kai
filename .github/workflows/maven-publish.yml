@@ -41,7 +41,7 @@ jobs:
       run: mvn --batch-mode --non-recursive help:evaluate -Dexpression=project.version -Doutput=target/version.txt
 
     - name: Upload artifacts Version
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: version
         path: target/version.txt
@@ -94,7 +94,7 @@ jobs:
 #      run: mvn -B package --file pom.xml -Drevision=${{ env.RELEASE_VERSION }}
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: logbook_${{ matrix.os }}
         path: logbook-bin/target/logbook-${{ matrix.platform }}.zip
