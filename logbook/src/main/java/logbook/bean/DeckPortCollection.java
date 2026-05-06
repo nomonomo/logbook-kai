@@ -4,8 +4,6 @@ import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
-
 import logbook.internal.Config;
 import lombok.Data;
 
@@ -22,7 +20,7 @@ public class DeckPortCollection implements Serializable {
     private Map<Integer, DeckPort> deckPortMap = new LinkedHashMap<>();
 
     /** 遠征中の艦娘 */
-    private Set<Integer> missionShips = new LinkedHashSet<>();
+    private LinkedHashSet<Integer> missionShips = new LinkedHashSet<>();
 
     /**
      * アプリケーションのデフォルト設定ディレクトリから<code>DeckPortCollection</code>を取得します、

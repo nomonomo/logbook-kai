@@ -7,8 +7,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import logbook.bean.AppBouyomiConfig;
 import logbook.bean.AppBouyomiConfig.AppBouyomiText;
 import logbook.plugin.PluginServices;
@@ -65,10 +63,9 @@ public class BouyomiChanUtils {
     }
 
     public static BouyomiDefaultSettings getDefaultSettings() {
-        ObjectMapper mapper = new ObjectMapper();
         BouyomiDefaultSettings settings;
         try (InputStream is = PluginServices.getResourceAsStream("logbook/bouyomi/settings.json")) {
-            settings = mapper.readValue(is, BouyomiDefaultSettings.class);
+            settings = JsonMappers.MAPPER.readValue(is, BouyomiDefaultSettings.class);
         } catch (Exception e) {
             LoggerHolder.get().warn("設定ファイルの読み込みに失敗しました", e);
             settings = null;

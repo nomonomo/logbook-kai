@@ -6,9 +6,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 
-import com.fasterxml.jackson.core.JsonParser.Feature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -61,20 +58,13 @@ public class Missions {
             mission = Missions.getMission(34);
         }
 
+        // readValue(InputStream) に渡したストリームは Jackson が閉じるため close 不要（StreamReadFeature.AUTO_CLOSE_SOURCE デフォルト true）
         InputStream is = PluginServices
                 .getResourceAsStream("logbook/mission/" + mission.getMapareaId() + "/" + mission.getDispNo() + ".json");
         if (is == null) {
             return Optional.empty();
         }
-        MissionCondition condition;
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.enable(Feature.ALLOW_COMMENTS);
-            condition = mapper.readValue(is, MissionCondition.class);
-        } finally {
-            is.close();
-        }
-
+        MissionCondition condition = MissionConditionLoader.load(is);
         return Optional.ofNullable(condition);
     }
 

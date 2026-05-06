@@ -2,31 +2,23 @@ package logbook.bean;
 
 import java.util.Map;
 
-import lombok.Data;
-
 /**
- * スプライト情報
- *
+ * スプライト情報（Texture Packer / Spritesmith 形式の JSON 用 DTO）。
+ * 想定読み込み元: プロキシ経由で保存された
+ * {@code {resourcesDir}/common/*.json}, {@code duty/*.json}, {@code sally/*.json} など。
  */
-@Data
-public class Spritesmith {
+public record Spritesmith(Map<String, Frame> frames) {
 
-    private Map<String, Frame> frames;
-
-    @Data
-    public static class Frame {
-        private Rect frame;
-        private boolean rotated;
-        private boolean trimmed;
-        private Rect spriteSourceSize;
-        private Rect sourceSize;
+    /** 1 フレーム分の情報。 */
+    public record Frame(Rect frame, boolean rotated, boolean trimmed,
+            Rect spriteSourceSize, Size sourceSize) {
     }
 
-    @Data
-    public static class Rect {
-        private int x;
-        private int y;
-        private int w;
-        private int h;
+    /** 矩形（x, y, w, h）。frame および spriteSourceSize 用。 */
+    public record Rect(int x, int y, int w, int h) {
+    }
+
+    /** 寸法のみ（w, h）。Texture Packer の sourceSize 用。 */
+    public record Size(int w, int h) {
     }
 }

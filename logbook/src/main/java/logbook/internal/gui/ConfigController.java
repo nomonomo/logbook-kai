@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import logbook.internal.JsonMappers;
 
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -1011,15 +1011,14 @@ public class ConfigController extends WindowController {
 
     private void setFFmpegTemplate() {
         try {
-            ObjectMapper mapper = new ObjectMapper();
             List<?> list;
             try (InputStream is = PluginServices.getResourceAsStream("logbook/capture_options/list.json")) {
-                list = mapper.readValue(is, List.class);
+                list = JsonMappers.MAPPER.readValue(is, List.class);
             }
             for (Object path : list) {
                 Map<?, ?> option;
                 try (InputStream is = PluginServices.getResourceAsStream(path.toString())) {
-                    option = mapper.readValue(is, Map.class);
+                    option = JsonMappers.MAPPER.readValue(is, Map.class);
                 }
                 this.ffmpegTemplate.getItems().add(option);
             }

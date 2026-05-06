@@ -6,9 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.core.JsonParser.Feature;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
 
 import logbook.bean.MapinfoMst;
 import logbook.bean.MapinfoMstCollection;
@@ -26,18 +24,12 @@ public class Mapping {
     private Map<String, String> mapping;
 
     private Mapping() {
+        // readValue(InputStream) に渡したストリームは Jackson が閉じるため close 不要（StreamReadFeature.AUTO_CLOSE_SOURCE デフォルト true）
         InputStream is = PluginServices.getResourceAsStream("logbook/map/mapping.json");
         Map<String, String> mapping = Collections.emptyMap();
         if (is != null) {
             try {
-                try {
-                    ObjectMapper mapper = new ObjectMapper();
-                    mapper.enable(Feature.ALLOW_COMMENTS);
-                    mapping = mapper.readValue(is, new TypeReference<LinkedHashMap<String, String>>() {
-                    });
-                } finally {
-                    is.close();
-                }
+                mapping = JsonMappers.READER_WITH_COMMENTS.forType(new TypeReference<LinkedHashMap<String, String>>() {}).readValue(is);
             } catch (Exception e) {
                 LoggerHolder.get().error("マッピングの初期化に失敗しました", e);
             }

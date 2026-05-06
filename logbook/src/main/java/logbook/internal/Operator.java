@@ -44,15 +44,15 @@ public enum Operator {
         }
     };
 
-    private String name;
+    private final String label;
 
-    private Operator(String name) {
-        this.name = name;
+    private Operator(String label) {
+        this.label = label;
     }
 
     @Override
     public String toString() {
-        return this.name;
+        return this.label;
     }
 
     abstract public <T extends Comparable<T>> boolean compare(T a, T b);

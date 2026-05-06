@@ -11,8 +11,9 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -164,7 +165,7 @@ public class CheckUpdateTest {
      */
     @Test
     public void testFindAssetForPlatform() throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonMapper.builder().build();
         
         // テスト用のJSONデータを作成（実際のGitHub APIレスポンス形式に合わせる）
         String json = """
@@ -316,7 +317,7 @@ public class CheckUpdateTest {
      */
     @Test
     public void testFindAssetForPlatformFallback() throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonMapper.builder().build();
         
         // プラットフォーム固有のアセットがない場合のテストデータ（実際のAPIレスポンス形式に合わせる）
         String json = """
@@ -382,7 +383,7 @@ public class CheckUpdateTest {
      */
     @Test
     public void testFindAssetForPlatformNotFound() throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonMapper.builder().build();
         
         // アセットが見つからない場合のテストデータ（実際のAPIレスポンス形式に合わせる）
         String json = """
@@ -433,7 +434,7 @@ public class CheckUpdateTest {
         assertTrue(nullAsset.isEmpty(), "nullのアセット配列の場合は空のOptionalが返される必要があります");
         
         // 空の配列の場合
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonMapper.builder().build();
         JsonNode emptyAssets = mapper.readTree("[]");
         Optional<JsonNode> emptyAsset = checkUpdate.findAssetForPlatform(emptyAssets, "win");
         assertTrue(emptyAsset.isEmpty(), "空のアセット配列の場合は空のOptionalが返される必要があります");
@@ -445,7 +446,7 @@ public class CheckUpdateTest {
      */
     @Test
     public void testFindAssetForPlatformWithActualPlatform() throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonMapper.builder().build();
         String buildPlatform = SystemPlatform.getBuildPlatform();
         
         // すべてのプラットフォームのアセットを含むテストデータ（実際のAPIレスポンス形式に合わせる）
@@ -582,7 +583,7 @@ public class CheckUpdateTest {
      */
     @Test
     public void testProcessTags() throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonMapper.builder().build();
         CheckUpdate checkUpdate = CheckUpdate.getInstance();
         
         // テスト用のtags JSONデータを作成
@@ -692,7 +693,7 @@ public class CheckUpdateTest {
     @Test
     public void testProcessTagsWithInvalidData() throws Exception {
         CheckUpdate checkUpdate = CheckUpdate.getInstance();
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonMapper.builder().build();
         
         // nullの場合
         List<CheckUpdate.VersionInfo> nullResult = checkUpdate.processTags(null);
@@ -810,7 +811,7 @@ public class CheckUpdateTest {
         InputStream jsonStream = CheckUpdateTest.class.getResourceAsStream("/logbook/internal/assets.json");
         assertNotNull(jsonStream, "リリース情報JSONファイルが見つかりません");
         
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonMapper.builder().build();
         JsonNode release = mapper.readTree(jsonStream);
         assertNotNull(release, "JSONのパースに失敗しました");
         
@@ -875,7 +876,7 @@ public class CheckUpdateTest {
         InputStream jsonStream = CheckUpdateTest.class.getResourceAsStream("/logbook/internal/tags.json");
         assertNotNull(jsonStream, "tags JSONファイルが見つかりません");
         
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonMapper.builder().build();
         JsonNode tags = mapper.readTree(jsonStream);
         assertNotNull(tags, "JSONのパースに失敗しました");
         assertTrue(tags.isArray(), "tagsは配列である必要があります");

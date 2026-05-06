@@ -6,22 +6,24 @@ import java.time.Duration;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Label;
-import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.VBox;
 import logbook.bean.AppCondition;
 import logbook.internal.LoggerHolder;
 import logbook.internal.Time;
 
 /**
- * 泊地修理タイマー
- *
+ * 泊地修理・母港給糧（野埼）タイマー表示
  */
-public class AkashiTimerPane extends AnchorPane {
+public class AkashiTimerPane extends VBox {
 
     @FXML
     private Label time;
 
+    @FXML
+    private Label portSupplyTime;
+
     /**
-     * 泊地修理タイマーペインのコンストラクタ
+     * 泊地修理・母港給糧タイマーペインのコンストラクタ
      */
     public AkashiTimerPane() {
         try {
@@ -47,11 +49,18 @@ public class AkashiTimerPane extends AnchorPane {
      * 画面を更新します
      */
     public void update() {
-        long timer = AppCondition.get().getAkashiTimer();
-        if (timer > 0) {
-            this.time.setText(Time.toString(Duration.ofMillis(System.currentTimeMillis() - timer), ""));
+        long now = System.currentTimeMillis();
+        long akashi = AppCondition.get().getAkashiTimer();
+        if (akashi > 0) {
+            this.time.setText(Time.toString(Duration.ofMillis(now - akashi), ""));
         } else {
             this.time.setText("");
+        }
+        long nosaki = AppCondition.get().getNosakiTimer();
+        if (nosaki > 0) {
+            this.portSupplyTime.setText(Time.toString(Duration.ofMillis(now - nosaki), ""));
+        } else {
+            this.portSupplyTime.setText("");
         }
     }
 }

@@ -230,7 +230,7 @@ public class MainController extends WindowController {
             this.achievement();
             // 艦隊タブ・遠征
             this.checkPort();
-            // 泊地修理タイマー
+            // 泊地修理・母港給糧タイマー
             this.akashiTimer();
             // 入渠ドック
             this.ndock();
@@ -434,12 +434,12 @@ public class MainController extends WindowController {
     }
 
     /**
-     * 泊地修理タイマー
+     * 泊地修理・母港給糧（野埼）タイマー
      */
     private void akashiTimer() {
         ObservableList<Node> nodes = this.akashiTimer.getChildren();
-
-        if (AppCondition.get().getAkashiTimer() == 0) {
+        AppCondition condition = AppCondition.get();
+        if (condition.getAkashiTimer() == 0 && condition.getNosakiTimer() == 0) {
             if (!nodes.isEmpty()) {
                 nodes.clear();
             }
