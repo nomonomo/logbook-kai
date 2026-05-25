@@ -33,6 +33,7 @@ import logbook.bean.AppConfig;
 import logbook.internal.gui.ConfigController;
 import logbook.internal.gui.InternalFXMLLoader;
 import logbook.internal.gui.Main;
+import logbook.internal.ssl.CertificateService;
 import logbook.internal.ssl.SslCertificateUtil;
 import logbook.proxy.ConfigReloadResult;
 import logbook.proxy.ProxyServerSpi;
@@ -64,6 +65,10 @@ public final class ProxyServerImpl implements ProxyServerSpi {
     
     /** エラーダイアログ表示の閾値（この回数以上検知したらダイアログ表示） */
     private static final int SSL_ERROR_THRESHOLD = 3;
+
+    private final CertificateService certificateService = new CertificateService();
+    
+    private record CertificatePathSelection(String certificatePath, boolean useRootCertificate) {}
 
     @Override
     public void run() {
@@ -324,48 +329,74 @@ public final class ProxyServerImpl implements ProxyServerSpi {
         
         // Clientファクトリを初期化（ServerFactoryとは独立して動作）
         initializeClientFactory();
-        
-        // AppConfigから証明書パスを取得
-        String configuredPath = AppConfig.get().getServerCertificatePath();
-        
-        // 証明書ファイルが未設定（空文字列）の場合
-        if (configuredPath == null || configuredPath.isEmpty()) {
-            log.warn("サーバー証明書ファイルが設定されていません");
-            showCertificateNotConfiguredAlert();
+        AppConfig config = AppConfig.get();
+        CertificatePathSelection selection = selectCertificatePath(config);
+        if (selection == null) {
+            if (Boolean.TRUE.equals(config.getProxySslUseRootCertificate())) {
+                log.warn("ルート証明書ファイルのパスが未設定または空です（使用証明書: ルート証明書）");
+                showRootCertificateNotConfiguredAlert();
+            } else {
+                log.warn("サーバー証明書ファイルのパスが未設定または空です（使用証明書: サーバー証明書）");
+                showServerCertificateNotConfiguredAlert();
+            }
             return;
         }
         
-        // 証明書ファイルの存在確認
-        Path certFile = Paths.get(configuredPath);
+        Path certFile = Paths.get(selection.certificatePath());
         if (!Files.exists(certFile)) {
-            log.warn("サーバー証明書ファイルが見つかりません: {}", configuredPath);
-            showCertificateNotFoundAlert(configuredPath);
+            if (selection.useRootCertificate()) {
+                log.warn("ルート証明書ファイルが見つかりません: {}", selection.certificatePath());
+                showRootCertificateNotFoundAlert(selection.certificatePath());
+            } else {
+                log.warn("サーバー証明書ファイルが見つかりません: {}", selection.certificatePath());
+                showServerCertificateNotFoundAlert(selection.certificatePath());
+            }
             return;
         }
         
-        // 設定されたパスから証明書をロード
-        var serverFactory = SslCertificateUtil.tryLoadServerFactory(configuredPath);
-        if (serverFactory != null) {
-            this.sslContextFactoryServer = serverFactory;
+        if (selection.useRootCertificate()) {
+            this.sslContextFactoryServer = createServerFactoryFromRootCertificate(selection.certificatePath());
+            if (this.sslContextFactoryServer == null) {
+                log.error("証明書の初期化に失敗しました（ルート証明書: {}）。SSL接続は利用できません。", selection.certificatePath());
+            }
         } else {
-            log.error("証明書の読み込みに失敗しました（パス: {}）。SSL接続は利用できません。", configuredPath);
+            this.sslContextFactoryServer = loadServerFactoryFromServerCertificate(selection.certificatePath());
+            if (this.sslContextFactoryServer == null) {
+                log.error("証明書の初期化に失敗しました（サーバー証明書: {}）。SSL接続は利用できません。", selection.certificatePath());
+            }
         }
+    }
+
+    private CertificatePathSelection selectCertificatePath(AppConfig config) {
+        boolean useRoot = Boolean.TRUE.equals(config.getProxySslUseRootCertificate());
+        if (useRoot) {
+            String rootCertificateConfiguredPath = config.getRootCertificatePath();
+            if (rootCertificateConfiguredPath != null && !rootCertificateConfiguredPath.isEmpty()) {
+                return new CertificatePathSelection(rootCertificateConfiguredPath, true);
+            }
+            return null;
+        }
+        String serverCertificateConfiguredPath = config.getServerCertificatePath();
+        if (serverCertificateConfiguredPath != null && !serverCertificateConfiguredPath.isEmpty()) {
+            return new CertificatePathSelection(serverCertificateConfiguredPath, false);
+        }
+        return null;
     }
     
     /**
-     * 証明書未設定の警告ダイアログを表示する。
+     * ルート証明書未設定の警告ダイアログを表示する。
      */
-    private static void showCertificateNotConfiguredAlert() {
+    private static void showRootCertificateNotConfiguredAlert() {
         Runnable runnable = () -> {
             Alert alert = new Alert(AlertType.WARNING);
             alert.getDialogPane().getStylesheets().add("logbook/gui/application.css");
             InternalFXMLLoader.setGlobal(alert.getDialogPane());
             alert.initOwner(Main.getPrimaryStage());
-            alert.setTitle("サーバー証明書ファイルが設定されていません");
-            alert.setHeaderText("サーバー証明書ファイルが設定されていません");
+            alert.setTitle("ルート証明書ファイルが設定されていません");
+            alert.setHeaderText("ルート証明書ファイルが設定されていません");
             alert.setContentText(
-                    "サーバー証明書ファイル（P12形式）が設定されていません。\n\n" +
-                    "設定画面の「通信」タブで証明書ファイル（*.p12, *.pfx）を指定してください。");
+                    "「証明書：使用証明書」でルート証明書を選んでいる場合、ルート証明書ファイル（P12形式）のパスが必要です。\n\n" +
+                    "設定画面の「通信」タブでルート証明書ファイル（*.p12, *.pfx）を指定してください。");
             alert.showAndWait();
             
             // OK押下後、設定画面の通信タブを開く（別のrunLaterで実行）
@@ -374,11 +405,57 @@ public final class ProxyServerImpl implements ProxyServerSpi {
         
         Platform.runLater(runnable);
     }
+
+    /**
+     * サーバー証明書未設定の警告ダイアログを表示する。
+     */
+    private static void showServerCertificateNotConfiguredAlert() {
+        Runnable runnable = () -> {
+            Alert alert = new Alert(AlertType.WARNING);
+            alert.getDialogPane().getStylesheets().add("logbook/gui/application.css");
+            InternalFXMLLoader.setGlobal(alert.getDialogPane());
+            alert.initOwner(Main.getPrimaryStage());
+            alert.setTitle("サーバー証明書ファイルが設定されていません");
+            alert.setHeaderText("サーバー証明書ファイルが設定されていません");
+            alert.setContentText(
+                    "「証明書：使用証明書」でサーバー証明書（従来方式）を選んでいる場合、サーバー証明書ファイル（P12形式）のパスが必要です。\n\n" +
+                    "設定画面の「通信」タブでサーバー証明書ファイル（*.p12, *.pfx）を指定してください。");
+            alert.showAndWait();
+
+            Platform.runLater(() -> openConfigCommunicationTab());
+        };
+
+        Platform.runLater(runnable);
+    }
     
     /**
-     * 証明書ファイルが見つからない警告ダイアログを表示する。
+     * ルート証明書ファイルが見つからない警告ダイアログを表示する。
      */
-    private static void showCertificateNotFoundAlert(String certPath) {
+    private static void showRootCertificateNotFoundAlert(String certPath) {
+        Runnable runnable = () -> {
+            Alert alert = new Alert(AlertType.WARNING);
+            alert.getDialogPane().getStylesheets().add("logbook/gui/application.css");
+            InternalFXMLLoader.setGlobal(alert.getDialogPane());
+            alert.initOwner(Main.getPrimaryStage());
+            alert.setTitle("ルート証明書ファイルが見つかりません");
+            alert.setHeaderText("ルート証明書ファイルが見つかりません");
+            alert.setContentText(
+                    "設定で指定されたルート証明書ファイルが見つかりませんでした。\n" +
+                    "ファイルパス: " + certPath + "\n\n" +
+                    "設定画面の「通信」タブで証明書ファイルのパスを確認してください。");
+            alert.showAndWait();
+            
+            // OK押下後、設定画面の通信タブを開く（別のrunLaterで実行）
+            Platform.runLater(() -> openConfigCommunicationTab());
+        };
+        
+        Platform.runLater(runnable);
+    }
+
+    /**
+     * サーバー証明書ファイルが見つからない警告ダイアログを表示する。
+     */
+    private static void showServerCertificateNotFoundAlert(String certPath) {
         Runnable runnable = () -> {
             Alert alert = new Alert(AlertType.WARNING);
             alert.getDialogPane().getStylesheets().add("logbook/gui/application.css");
@@ -402,23 +479,30 @@ public final class ProxyServerImpl implements ProxyServerSpi {
     @Override
     public synchronized ConfigReloadResult reloadConfig(AppConfig config) {
         log.info("設定をリロードします");
-        
-        // 引数から証明書パスを取得
-        String certificatePath = config.getServerCertificatePath();
-        
-        // 証明書パスの検証
-        if (certificatePath == null || certificatePath.isEmpty()) {
+        CertificatePathSelection selection = selectCertificatePath(config);
+        if (selection == null) {
+            if (Boolean.TRUE.equals(config.getProxySslUseRootCertificate())) {
+                return ConfigReloadResult.failure(
+                    "ルート証明書ファイルパスが設定されていないか空です",
+                    "rootCertificatePath"
+                );
+            }
             return ConfigReloadResult.failure(
-                "証明書ファイルパスが設定されていません",
+                "サーバー証明書ファイルパスが設定されていないか空です",
                 "serverCertificatePath"
             );
         }
         
-        // 証明書ファイルの存在確認
-        Path certFile = Paths.get(certificatePath);
+        Path certFile = Paths.get(selection.certificatePath());
         if (!Files.exists(certFile)) {
+            if (selection.useRootCertificate()) {
+                return ConfigReloadResult.failure(
+                    "ルート証明書ファイルが見つかりません: " + selection.certificatePath(),
+                    "rootCertificatePath"
+                );
+            }
             return ConfigReloadResult.failure(
-                "証明書ファイルが見つかりません: " + certificatePath,
+                "サーバー証明書ファイルが見つかりません: " + selection.certificatePath(),
                 "serverCertificatePath"
             );
         }
@@ -432,12 +516,12 @@ public final class ProxyServerImpl implements ProxyServerSpi {
         }
         
         // 証明書をリロード
-        this.sslContextFactoryServer = reloadCertificate(certificatePath, this.sslContextFactoryServer);
+        this.sslContextFactoryServer = reloadCertificate(config, this.sslContextFactoryServer);
         
         if (this.sslContextFactoryServer == null) {
             return ConfigReloadResult.failure(
                 "証明書の読み込みに失敗しました。ファイルが破損しているか、パスワードが間違っている可能性があります",
-                "serverCertificatePath"
+                selection.useRootCertificate() ? "rootCertificatePath" : "serverCertificatePath"
             );
         }
         
@@ -498,20 +582,42 @@ public final class ProxyServerImpl implements ProxyServerSpi {
      * @param newCertificatePath 新しい証明書ファイルのパス
      * @return 再読み込みに成功した場合true、失敗した場合false
      */
-    public synchronized SslContextFactory.Server reloadCertificate(String newCertificatePath, SslContextFactory.Server sslContextFactoryServer) {
+    public synchronized SslContextFactory.Server reloadCertificate(AppConfig config, SslContextFactory.Server sslContextFactoryServer) {
         // サーバー起動状態の確認
         if (!isServerRunning()) {
             log.warn("プロキシサーバーが起動していないため、証明書をリロードできません");
             return null;
         }
-        
-        // SslCertificateUtilに委譲して証明書をリロード
-        SslContextFactory.Server newFactory = SslCertificateUtil.reloadServerFactory(
-            newCertificatePath, 
-            this.sslContextFactoryServer
-        );
-        
-        return newFactory;
+        CertificatePathSelection selection = selectCertificatePath(config);
+        if (selection == null) {
+            return null;
+        }
+        if (selection.useRootCertificate()) {
+            return createServerFactoryFromRootCertificate(selection.certificatePath());
+        }
+        return loadServerFactoryFromServerCertificate(selection.certificatePath());
+    }
+
+    private SslContextFactory.Server createServerFactoryFromRootCertificate(String rootCertificatePath) {
+        try {
+            log.info("ルート証明書からサーバー証明書をメモリ生成します: {}", rootCertificatePath);
+            return this.certificateService.createServerFactoryFromRootCertificate(rootCertificatePath);
+        } catch (Exception e) {
+            log.error("ルート証明書からのサーバー証明書メモリ生成に失敗しました: {}", rootCertificatePath, e);
+            return null;
+        }
+    }
+
+    private SslContextFactory.Server loadServerFactoryFromServerCertificate(String serverCertificatePath) {
+        if (serverCertificatePath == null || serverCertificatePath.isEmpty()) {
+            return null;
+        }
+        Path serverPath = Paths.get(serverCertificatePath);
+        if (!Files.exists(serverPath)) {
+            return null;
+        }
+        log.info("サーバー証明書ファイルを直接読み込みます: {}", serverCertificatePath);
+        return SslCertificateUtil.tryLoadServerFactory(serverCertificatePath);
     }
     
     /**

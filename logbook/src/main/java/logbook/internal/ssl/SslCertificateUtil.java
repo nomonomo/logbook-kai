@@ -17,6 +17,21 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public final class SslCertificateUtil {
+
+    /** サーバー証明書（kancolle.p12）のパスワード */
+    static final String SERVER_CERTIFICATE_PASSWORD = "changeit";
+
+    /** ルート証明書（logbook-ca.p12）のパスワード */
+    public static final String ROOT_CERTIFICATE_PASSWORD = "capassword";
+
+    /** サーバー証明書の Common Name */
+    public static final String DEFAULT_CERT_CN = "*.kancolle-server.com";
+
+    /** サーバー証明書の Organization */
+    public static final String DEFAULT_CERT_ORG = "Logbook-Kai";
+
+    public static final String SERVER_CERT_ALIAS = "kancolle-cert";
+    public static final String ROOT_CERT_ALIAS = "logbook-ca";
     
     private SslCertificateUtil() {
         // ユーティリティクラスのためインスタンス化禁止
@@ -24,16 +39,16 @@ public final class SslCertificateUtil {
     
     /**
      * 指定されたパスからServerファクトリのロードを試行する。
-     * 
+     *
      * @param keystorePath keystoreファイルのパス
      * @return ロード成功時はServerファクトリ、失敗時はnull
      */
     public static SslContextFactory.Server tryLoadServerFactory(String keystorePath) {
         SslContextFactory.Server serverFactory = new SslContextFactory.Server();
         serverFactory.setKeyStorePath(keystorePath);
-        serverFactory.setKeyStorePassword("changeit");
+        serverFactory.setKeyStorePassword(SERVER_CERTIFICATE_PASSWORD);
         serverFactory.setKeyStoreType("PKCS12");
-        serverFactory.setCertAlias("kancolle-cert");
+        serverFactory.setCertAlias(SERVER_CERT_ALIAS);
         serverFactory.setSniRequired(false); // SNI検証を無効化
         
         try {
@@ -71,9 +86,9 @@ public final class SslCertificateUtil {
             existingFactory.reload(scf -> {
                 // 新しい証明書パスを設定
                 scf.setKeyStorePath(keystorePath);
-                scf.setKeyStorePassword("changeit");
+                scf.setKeyStorePassword(SERVER_CERTIFICATE_PASSWORD);
                 scf.setKeyStoreType("PKCS12");
-                scf.setCertAlias("kancolle-cert");
+                scf.setCertAlias(SERVER_CERT_ALIAS);
                 log.debug("新しい証明書パスでSSL設定を更新しました: {}", keystorePath);
             });
                 

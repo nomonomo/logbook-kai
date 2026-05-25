@@ -11,6 +11,8 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
+import logbook.bean.ConfigDefaults;
+
 
 /**
  * アプリケーションの設定を読み書きします
@@ -53,6 +55,7 @@ public final class Config {
             if (v == null) {
                 v = def.get();
             }
+            applyConfigurationDefaults(v);
             return v;
         });
         return instance;
@@ -148,6 +151,12 @@ public final class Config {
 
     private Path backupPath(Path filepath) {
         return filepath.resolveSibling(filepath.getFileName() + ".backup"); //$NON-NLS-1$
+    }
+
+    private static void applyConfigurationDefaults(Object instance) {
+        if (instance instanceof ConfigDefaults configurable) {
+            configurable.applyDefaults();
+        }
     }
 
     /**
