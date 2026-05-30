@@ -6,6 +6,7 @@ import java.net.BindException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Date;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -360,11 +361,37 @@ public final class ProxyServerImpl implements ProxyServerSpi {
                 log.error("証明書の初期化に失敗しました（ルート証明書: {}）。SSL接続は利用できません。", selection.certificatePath());
             }
         } else {
-            this.sslContextFactoryServer = loadServerFactoryFromServerCertificate(selection.certificatePath());
+            String serverCertificatePath = selection.certificatePath();
+            this.sslContextFactoryServer = loadServerFactoryFromServerCertificate(serverCertificatePath);
             if (this.sslContextFactoryServer == null) {
-                log.error("証明書の初期化に失敗しました（サーバー証明書: {}）。SSL接続は利用できません。", selection.certificatePath());
+                log.error("証明書の初期化に失敗しました（サーバー証明書: {}）。SSL接続は利用できません。", serverCertificatePath);
+            } else {
+                warnServerCertificateExpiryIfNeeded(serverCertificatePath, this.sslContextFactoryServer);
             }
         }
+    }
+
+    /**
+     * サーバー証明書（従来方式）の有効期限を評価し、警告閾値以内ならダイアログを表示する。
+     */
+    private static void warnServerCertificateExpiryIfNeeded(String serverCertificatePath,
+            SslContextFactory.Server serverFactory) {
+        if (serverFactory == null) {
+            return;
+        }
+        /** サーバー証明書（従来方式）の有効期限警告閾値（日） */
+        int serverCertificateExpiryWarningDays = 30;
+
+        SslCertificateUtil.getServerCertificateNotAfter(serverFactory).ifPresent(notAfter -> {
+            if (SslCertificateUtil.isServerCertificateExpiringWithinDays(
+                    notAfter, serverCertificateExpiryWarningDays)) {
+                log.warn("サーバー証明書の有効期限が{}日以内です: {}（有効期限: {}）",
+                        serverCertificateExpiryWarningDays,
+                        serverCertificatePath,
+                        notAfter);
+                showServerCertificateExpiringSoonAlert(serverCertificatePath, notAfter);
+            }
+        });
     }
 
     private CertificatePathSelection selectCertificatePath(AppConfig config) {
@@ -449,6 +476,34 @@ public final class ProxyServerImpl implements ProxyServerSpi {
             Platform.runLater(() -> openConfigCommunicationTab());
         };
         
+        Platform.runLater(runnable);
+    }
+
+    /**
+     * サーバー証明書の有効期限が近い場合の警告ダイアログを表示する。
+     */
+    private static void showServerCertificateExpiringSoonAlert(String certPath, Date notAfter) {
+        String notAfterText = notAfter != null ? notAfter.toString() : "不明";
+
+        Runnable runnable = () -> {
+            Alert alert = new Alert(AlertType.WARNING);
+            alert.getDialogPane().getStylesheets().add("logbook/gui/application.css");
+            InternalFXMLLoader.setGlobal(alert.getDialogPane());
+            alert.initOwner(Main.getPrimaryStage());
+            alert.setTitle("サーバー証明書の有効期限が近づいています");
+            alert.setHeaderText("サーバー証明書の有効期限が近づいています");
+            alert.setContentText(
+                    "サーバー証明書（従来方式）の有効期限が30日以内です。\n\n" +
+                    "ファイル: " + certPath + "\n" +
+                    "有効期限: " + notAfterText + "\n\n" +
+                    "ルート証明書を使用する方式に変更すると、サーバー証明書の更新が不要になります。\n" +
+                    "設定画面の「通信」タブで「使用証明書」を「ルート証明書」に変更し、\n" +
+                    "ルート証明書ファイル（logbook-ca.p12）を指定してください。");
+            alert.showAndWait();
+
+            Platform.runLater(() -> openConfigCommunicationTab());
+        };
+
         Platform.runLater(runnable);
     }
 

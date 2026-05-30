@@ -23,6 +23,8 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Hyperlink;
@@ -1005,10 +1007,41 @@ public class ConfigController extends WindowController {
     }
 
     /**
-     * 証明書作成
+     * サーバー証明書（従来方式）の証明書作成。
+     * ルート証明書方式を推奨する警告を表示し、互換性のため従来方式も選択可能とする。
      */
     @FXML
     void createCertificate(ActionEvent event) {
+        Alert alert = new Alert(AlertType.WARNING);
+        alert.getDialogPane().getStylesheets().add("logbook/gui/application.css");
+        InternalFXMLLoader.setGlobal(alert.getDialogPane());
+        alert.initOwner(this.getWindow());
+        alert.setTitle("サーバー証明書（従来方式）");
+        alert.setHeaderText("ルート証明書方式の利用を推奨します");
+        alert.setContentText(
+                "サーバー証明書（kancolle.p12）の作成は従来方式です。\n\n" +
+                "ルート証明書方式では、起動時にサーバー証明書を自動生成するため、\n" +
+                "kancolle.p12 の更新や有効期限切れの心配がありません。\n\n" +
+                "「使用証明書」で「ルート証明書」を選び、\n" +
+                "「ルート証明書ファイル」の「証明書作成」をご利用ください。\n\n" +
+                "互換性のため、従来方式での作成も続行できます。");
+
+        ButtonType rootCertificateButton = new ButtonType("ルート証明書を作成", ButtonBar.ButtonData.OK_DONE);
+        ButtonType legacyCertificateButton = new ButtonType("従来方式で作成", ButtonBar.ButtonData.OTHER);
+        alert.getButtonTypes().setAll(rootCertificateButton, legacyCertificateButton, ButtonType.CANCEL);
+
+        Optional<ButtonType> choice = alert.showAndWait();
+        if (choice.isEmpty() || choice.get() == ButtonType.CANCEL) {
+            return;
+        }
+        if (choice.get() == rootCertificateButton) {
+            createRootCertificate(event);
+            return;
+        }
+        openLegacyCertificateCreatorWindow();
+    }
+
+    private void openLegacyCertificateCreatorWindow() {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/certificate_creator.fxml", this.getWindow(), "証明書作成", null, null);
         } catch (Exception ex) {
