@@ -15,7 +15,8 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
-import logbook.internal.gui.CertificateService.CertificateInfo;
+import logbook.internal.ssl.CertificateService;
+import logbook.internal.ssl.CertificateService.CertificateInfo;
 import lombok.extern.slf4j.Slf4j;
 
 /**

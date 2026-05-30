@@ -23,6 +23,8 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Hyperlink;
@@ -58,6 +60,7 @@ import logbook.internal.ToStringConverter;
 import logbook.internal.Tuple;
 import logbook.internal.Tuple.Pair;
 import logbook.internal.proxy.ProxyHolder;
+import logbook.internal.ssl.CertificateService;
 import logbook.internal.ssl.SslCertificateUtil;
 import logbook.plugin.PluginContainer;
 import logbook.plugin.PluginServices;
@@ -301,6 +304,30 @@ public class ConfigController extends WindowController {
     @FXML
     private TextField listenPort;
 
+    /** プロキシSSLで使用する証明書の種別 */
+    @FXML
+    private ToggleGroup proxySslCertificateKind;
+
+    /** ルート証明書を使用する */
+    @FXML
+    private RadioButton proxySslUseRootCertificateRadio;
+
+    /** サーバー証明書ファイルを使用する（従来方式） */
+    @FXML
+    private RadioButton proxySslUseServerCertificateRadio;
+
+    /** ルート証明書ファイルパス */
+    @FXML
+    private TextField rootCertificatePath;
+
+    /** ルート証明書ファイル参照ボタン */
+    @FXML
+    private Button rootCertificatePathRef;
+    
+    /** 証明書作成ボタン */
+    @FXML
+    private Button createRootCertificate;
+    
     /** サーバー証明書ファイルパス */
     @FXML
     private TextField serverCertificatePath;
@@ -541,6 +568,12 @@ public class ConfigController extends WindowController {
         this.visiblePoseImageOnFleetTab.setSelected(conf.isVisiblePoseImageOnFleetTab());
         this.connectionClose.setSelected(conf.isConnectionClose());
         this.listenPort.setText(Integer.toString(conf.getListenPort()));
+        if (Boolean.TRUE.equals(conf.getProxySslUseRootCertificate())) {
+            this.proxySslUseRootCertificateRadio.setSelected(true);
+        } else {
+            this.proxySslUseServerCertificateRadio.setSelected(true);
+        }
+        this.rootCertificatePath.setText(conf.getRootCertificatePath() != null ? conf.getRootCertificatePath() : "");
         this.serverCertificatePath.setText(conf.getServerCertificatePath() != null ? conf.getServerCertificatePath() : "");
         this.allowOnlyFromLocalhost.setSelected(conf.isAllowOnlyFromLocalhost());
         this.useProxy.setSelected(conf.isUseProxy());
@@ -665,6 +698,8 @@ public class ConfigController extends WindowController {
         
         conf.setConnectionClose(this.connectionClose.isSelected());
         conf.setListenPort(this.toInt(this.listenPort.getText()));
+        conf.setProxySslUseRootCertificate(this.proxySslUseRootCertificateRadio.isSelected() ? Boolean.TRUE : Boolean.FALSE);
+        conf.setRootCertificatePath(this.rootCertificatePath.getText());
         conf.setServerCertificatePath(this.serverCertificatePath.getText());
         conf.setAllowOnlyFromLocalhost(this.allowOnlyFromLocalhost.isSelected());
         conf.setUseProxy(this.useProxy.isSelected());
@@ -729,7 +764,8 @@ public class ConfigController extends WindowController {
                 LoggerHolder.get().warn("設定の再読み込みに失敗しました: {}", failure.message());
                 
                 // fieldNameによって処理を分岐
-                if ("serverCertificatePath".equals(failure.fieldName())) {
+                if ("rootCertificatePath".equals(failure.fieldName())
+                        || "serverCertificatePath".equals(failure.fieldName())) {
                     // 証明書パスに関するエラーの場合は特別なアラート
                     Platform.runLater(() -> {
                         Alert alert = new Alert(AlertType.ERROR);
@@ -737,11 +773,12 @@ public class ConfigController extends WindowController {
                         InternalFXMLLoader.setGlobal(alert.getDialogPane());
                         alert.initOwner(this.getWindow());
                         alert.setTitle("証明書エラー");
-                        alert.setHeaderText("サーバー証明書ファイルのエラー");
+                        alert.setHeaderText("証明書ファイルのエラー");
                         
                         String message = failure.message() + "\n\n" +
                                 "以下を確認してください：\n" +
-                                "  • 証明書ファイル（*.p12, *.pfx）のパスが正しいか\n" +
+                                "  • ルート証明書ファイル（*.p12, *.pfx）のパスが正しいか\n" +
+                                "  • サーバ証明書ファイル（*.p12, *.pfx）のパスが正しいか\n" +
                                 "  • ファイルが存在するか\n" +
                                 "  • ファイルが破損していないか\n" +
                                 "  • パスワードが正しいか";
@@ -855,6 +892,92 @@ public class ConfigController extends WindowController {
     }
 
     /**
+     * ルート証明書ファイル選択
+     */
+    @FXML
+    void selectRootCertificate(ActionEvent event) {
+        FileChooser fc = new FileChooser();
+        fc.setTitle("ルート証明書ファイルの選択");
+        fc.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("証明書ファイル (*.p12, *.pfx)", "*.p12", "*.pfx"));
+        
+        // デフォルトフォルダは起動時ディレクトリ
+        String current = this.rootCertificatePath.getText();
+        if (current != null && !current.isEmpty()) {
+            Path path = Paths.get(current);
+            Path parent = path.getParent();
+            if (parent != null && Files.exists(parent)) {
+                fc.setInitialDirectory(parent.toFile());
+            }
+        } else {
+            // 証明書パスが未設定の場合、起動時ディレクトリを使用
+            fc.setInitialDirectory(new File("").getAbsoluteFile());
+        }
+        
+        Optional.ofNullable(fc.showOpenDialog(this.getWindow()))
+                .filter(File::exists)
+                .map(File::getAbsolutePath)
+                .ifPresent(this.rootCertificatePath::setText);
+    }
+
+    /**
+     * ルート証明書作成
+     */
+    @FXML
+    void createRootCertificate(ActionEvent event) {
+        DirectoryChooser dc = new DirectoryChooser();
+        dc.setTitle("ルート証明書の出力先ディレクトリの選択");
+
+        String current = this.rootCertificatePath.getText();
+        if (current != null && !current.isEmpty()) {
+            Path path = Paths.get(current);
+            Path parent = path.getParent();
+            if (parent != null && Files.exists(parent)) {
+                dc.setInitialDirectory(parent.toFile());
+            } else {
+                dc.setInitialDirectory(new File("").getAbsoluteFile());
+            }
+        } else {
+            dc.setInitialDirectory(new File("").getAbsoluteFile());
+        }
+
+        File selected = dc.showDialog(this.getWindow());
+        if (selected == null || !selected.isDirectory()) {
+            return;
+        }
+
+        String outputDirPath = selected.getAbsolutePath();
+        try {
+            CertificateService certificateService = new CertificateService();
+            certificateService.createNewCARootCertificate(outputDirPath);
+
+            Path rootCertP12 = Paths.get(outputDirPath, "logbook-ca.p12");
+            AppConfig config = AppConfig.get();
+            config.setRootCertificatePath(rootCertP12.toString());
+            config.setProxySslUseRootCertificate(Boolean.TRUE);
+            ThreadManager.getExecutorService().execute(Config.getDefault()::store);
+
+            this.rootCertificatePath.setText(rootCertP12.toString());
+            this.proxySslUseRootCertificateRadio.setSelected(true);
+
+            Tools.Controls.alert(AlertType.INFORMATION,
+                    "情報",
+                    "ルート証明書の作成が完了しました。\n\n" +
+                            "作成されたファイル:\n" +
+                            "  - logbook-ca.p12 : プロキシで使用するルート証明書\n" +
+                            "  - logbook-ca.crt : ブラウザにインストールするCA証明書\n\n" +
+                            "ブラウザに logbook-ca.crt を「信頼されたルート証明機関」として登録してください。",
+                    this.getWindow());
+        } catch (Exception ex) {
+            LoggerHolder.get().error("ルート証明書の作成に失敗しました", ex);
+            Tools.Controls.alert(AlertType.ERROR,
+                    "エラー",
+                    "ルート証明書の作成に失敗しました。\nエラー: " + ex.getMessage(),
+                    this.getWindow());
+        }
+    }
+
+    /**
      * サーバー証明書ファイル選択
      */
     @FXML
@@ -884,10 +1007,41 @@ public class ConfigController extends WindowController {
     }
 
     /**
-     * 証明書作成
+     * サーバー証明書（従来方式）の証明書作成。
+     * ルート証明書方式を推奨する警告を表示し、互換性のため従来方式も選択可能とする。
      */
     @FXML
     void createCertificate(ActionEvent event) {
+        Alert alert = new Alert(AlertType.WARNING);
+        alert.getDialogPane().getStylesheets().add("logbook/gui/application.css");
+        InternalFXMLLoader.setGlobal(alert.getDialogPane());
+        alert.initOwner(this.getWindow());
+        alert.setTitle("サーバー証明書（従来方式）");
+        alert.setHeaderText("ルート証明書方式の利用を推奨します");
+        alert.setContentText(
+                "サーバー証明書（kancolle.p12）の作成は従来方式です。\n\n" +
+                "ルート証明書方式では、起動時にサーバー証明書を自動生成するため、\n" +
+                "kancolle.p12 の更新や有効期限切れの心配がありません。\n\n" +
+                "「使用証明書」で「ルート証明書」を選び、\n" +
+                "「ルート証明書ファイル」の「証明書作成」をご利用ください。\n\n" +
+                "互換性のため、従来方式での作成も続行できます。");
+
+        ButtonType rootCertificateButton = new ButtonType("ルート証明書を作成", ButtonBar.ButtonData.OK_DONE);
+        ButtonType legacyCertificateButton = new ButtonType("従来方式で作成", ButtonBar.ButtonData.OTHER);
+        alert.getButtonTypes().setAll(rootCertificateButton, legacyCertificateButton, ButtonType.CANCEL);
+
+        Optional<ButtonType> choice = alert.showAndWait();
+        if (choice.isEmpty() || choice.get() == ButtonType.CANCEL) {
+            return;
+        }
+        if (choice.get() == rootCertificateButton) {
+            createRootCertificate(event);
+            return;
+        }
+        openLegacyCertificateCreatorWindow();
+    }
+
+    private void openLegacyCertificateCreatorWindow() {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/certificate_creator.fxml", this.getWindow(), "証明書作成", null, null);
         } catch (Exception ex) {
@@ -919,7 +1073,7 @@ public class ConfigController extends WindowController {
             return;
         }
         
-        // SslCertificateUtilで証明書を読み込み、詳細情報を取得
+        // SslCertificateUtilでサーバー証明書を読み込み、詳細情報を取得
         String certInfo = SslCertificateUtil.getCertificateInfo(certPath);
         
         if (certInfo != null) {
@@ -928,8 +1082,8 @@ public class ConfigController extends WindowController {
             alert.getDialogPane().getStylesheets().add("logbook/gui/application.css");
             InternalFXMLLoader.setGlobal(alert.getDialogPane());
             alert.initOwner(this.getWindow());
-            alert.setTitle("証明書ファイル情報");
-            alert.setHeaderText("証明書ファイル情報");
+            alert.setTitle("サーバ証明書ファイル情報");
+            alert.setHeaderText("サーバ証明書ファイル情報");
             
             // TextAreaを使用して長いテキストを表示（スクロール可能）
             TextArea textArea = new TextArea(certInfo);

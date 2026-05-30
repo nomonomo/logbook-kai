@@ -18,7 +18,7 @@ import lombok.Data;
  *
  */
 @Data
-public final class AppConfig implements Serializable {
+public final class AppConfig implements Serializable, ConfigDefaults {
 
     private static final long serialVersionUID = -158061123666406172L;
 
@@ -139,8 +139,18 @@ public final class AppConfig implements Serializable {
     /** ポート番号 */
     private int listenPort = 8888;
 
-    /** サーバー証明書ファイルパス */
-    private String serverCertificatePath = "kancolle.p12";
+    /** ルート証明書ファイルパス */
+    private String rootCertificatePath = "logbook-ca.p12";
+
+    /** サーバー証明書ファイルパス(互換用) */
+    private String serverCertificatePath;
+
+    /**
+     * プロキシSSLで使用する証明書の種別。
+     * true: ルート証明書（メモリ上でサーバー証明書を生成）、false: サーバー証明書ファイルを直接読込（従来方式）。
+     * JSON に項目が無い場合は null のままデシリアライズされ、{@link #applyDefaults()} で補完する。
+     */
+    private Boolean proxySslUseRootCertificate;
 
     /** ローカルループバックアドレスからの接続のみ受け入れる */
     private boolean allowOnlyFromLocalhost = true;
@@ -249,6 +259,24 @@ public final class AppConfig implements Serializable {
 
     /** store api_start2 directory */
     private String storeApiStart2Dir = "";
+
+    /**
+     * JSON デシリアライズ後に呼び出し、新規フィールドのバージョン差異を解消する。
+     * {@link logbook.internal.Config} から読み込み時および新規生成時に適用される。
+     */
+    @Override
+    public void applyDefaults() {
+        applyProxySslUseRootCertificateDefault();
+    }
+
+    private void applyProxySslUseRootCertificateDefault() {
+        if (this.proxySslUseRootCertificate != null) {
+            return;
+        }
+        // 旧設定互換: サーバー証明書パス未設定ならルート証明書方式
+        String server = this.serverCertificatePath;
+        this.proxySslUseRootCertificate = server == null || server.isEmpty();
+    }
 
     /**
      * アプリケーションのデフォルト設定ディレクトリからアプリケーション設定を取得します、

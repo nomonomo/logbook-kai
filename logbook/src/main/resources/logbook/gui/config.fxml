@@ -278,12 +278,11 @@
                         <GridPane>
                            <columnConstraints>
                               <ColumnConstraints fillWidth="false" />
+                              <ColumnConstraints hgrow="ALWAYS" minWidth="200.0" />
                               <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" minWidth="10.0" prefWidth="100.0" />
-                              <ColumnConstraints fillWidth="false" minWidth="10.0" prefWidth="100.0" />
-                              <ColumnConstraints fillWidth="false" minWidth="10.0" prefWidth="100.0" />
                            </columnConstraints>
                            <rowConstraints>
+                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
                               <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
                               <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
                               <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
@@ -304,15 +303,38 @@
                               <TextField fx:id="proxyHost" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
                               <Label text="プロキシポート番号*" GridPane.rowIndex="5" />
                               <TextField fx:id="proxyPort" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="5" />
-                              <Label text="サーバー証明書ファイル*" GridPane.rowIndex="6" />
-                              <TextField fx:id="serverCertificatePath" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="6" />
-                              <Button fx:id="serverCertificatePathRef" mnemonicParsing="false" onAction="#selectServerCertificate" text="参照..." GridPane.columnIndex="2" GridPane.rowIndex="6" />
-                              <Button fx:id="serverCertificateVerify" mnemonicParsing="false" onAction="#verifyServerCertificate" text="内容確認" GridPane.columnIndex="3" GridPane.rowIndex="6" />
-                              <Button fx:id="createCertificate" mnemonicParsing="false" onAction="#createCertificate" text="証明書作成" GridPane.columnIndex="4" GridPane.rowIndex="6" />
-                              <CheckBox fx:id="storeInternal" mnemonicParsing="false" onAction="#storeInternal" text="内部データを保存する(試験的)" GridPane.columnSpan="2147483647" GridPane.rowIndex="7" />
-                              <CheckBox fx:id="storeApiStart2" mnemonicParsing="false" onAction="#storeApiStart2" text="api_start2" GridPane.rowIndex="8" />
-                              <TextField fx:id="storeApiStart2Dir" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="8" />
-                              <Button fx:id="storeApiStart2DirRef" mnemonicParsing="false" onAction="#selectApiStart2Dir" text="参照..." GridPane.columnIndex="2" GridPane.rowIndex="8" />
+                              <Label text="使用証明書" GridPane.rowIndex="6" />
+                              <HBox alignment="CENTER_LEFT" spacing="12.0" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="6">
+                                 <children>
+                                    <RadioButton fx:id="proxySslUseRootCertificateRadio" mnemonicParsing="false" text="ルート証明書">
+                                       <toggleGroup>
+                                          <ToggleGroup fx:id="proxySslCertificateKind" />
+                                       </toggleGroup>
+                                    </RadioButton>
+                                    <RadioButton fx:id="proxySslUseServerCertificateRadio" mnemonicParsing="false" text="サーバ証明書（従来方式）" toggleGroup="$proxySslCertificateKind" />
+                                 </children>
+                              </HBox>
+                              <Label text="ルート証明書ファイル" GridPane.rowIndex="7" />
+                              <TextField fx:id="rootCertificatePath" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="7" />
+                              <HBox alignment="CENTER_LEFT" spacing="6.0" GridPane.columnIndex="2" GridPane.rowIndex="7">
+                                 <children>
+                                    <Button fx:id="rootCertificatePathRef" mnemonicParsing="false" onAction="#selectRootCertificate" text="参照..." />
+                                    <Button fx:id="createRootCertificate" mnemonicParsing="false" onAction="#createRootCertificate" text="証明書作成" />
+                                 </children>
+                              </HBox>
+                              <Label text="サーバ証明書ファイル" GridPane.rowIndex="8" />
+                              <TextField fx:id="serverCertificatePath" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="8" />
+                              <HBox alignment="CENTER_LEFT" spacing="6.0" GridPane.columnIndex="2" GridPane.rowIndex="8">
+                                 <children>
+                                    <Button fx:id="serverCertificatePathRef" mnemonicParsing="false" onAction="#selectServerCertificate" text="参照..." />
+                                    <Button fx:id="serverCertificateVerify" mnemonicParsing="false" onAction="#verifyServerCertificate" text="内容確認" />
+                                    <Button fx:id="createCertificate" mnemonicParsing="false" onAction="#createCertificate" text="証明書作成" />
+                                 </children>
+                              </HBox>
+                              <CheckBox fx:id="storeInternal" mnemonicParsing="false" onAction="#storeInternal" text="内部データを保存する(試験的)" GridPane.columnSpan="2147483647" GridPane.rowIndex="9" />
+                              <CheckBox fx:id="storeApiStart2" mnemonicParsing="false" onAction="#storeApiStart2" text="api_start2" GridPane.rowIndex="10" />
+                              <TextField fx:id="storeApiStart2Dir" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="10" />
+                              <Button fx:id="storeApiStart2DirRef" mnemonicParsing="false" onAction="#selectApiStart2Dir" text="参照..." GridPane.columnIndex="2" GridPane.rowIndex="10" />
                            </children>
                         </GridPane>
                      </children>
