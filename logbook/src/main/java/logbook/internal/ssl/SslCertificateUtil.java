@@ -1,10 +1,17 @@
 package logbook.internal.ssl;
 
+import java.security.Key;
 import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -17,6 +24,21 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public final class SslCertificateUtil {
+
+    /** サーバー証明書（kancolle.p12）のパスワード */
+    static final String SERVER_CERTIFICATE_PASSWORD = "changeit";
+
+    /** ルート証明書（logbook-ca.p12）のパスワード */
+    public static final String ROOT_CERTIFICATE_PASSWORD = "capassword";
+
+    /** サーバー証明書の Common Name */
+    public static final String DEFAULT_CERT_CN = "*.kancolle-server.com";
+
+    /** サーバー証明書の Organization */
+    public static final String DEFAULT_CERT_ORG = "Logbook-Kai";
+
+    public static final String SERVER_CERT_ALIAS = "kancolle-cert";
+    public static final String ROOT_CERT_ALIAS = "logbook-ca";
     
     private SslCertificateUtil() {
         // ユーティリティクラスのためインスタンス化禁止
@@ -24,16 +46,16 @@ public final class SslCertificateUtil {
     
     /**
      * 指定されたパスからServerファクトリのロードを試行する。
-     * 
+     *
      * @param keystorePath keystoreファイルのパス
      * @return ロード成功時はServerファクトリ、失敗時はnull
      */
     public static SslContextFactory.Server tryLoadServerFactory(String keystorePath) {
         SslContextFactory.Server serverFactory = new SslContextFactory.Server();
         serverFactory.setKeyStorePath(keystorePath);
-        serverFactory.setKeyStorePassword("changeit");
+        serverFactory.setKeyStorePassword(SERVER_CERTIFICATE_PASSWORD);
         serverFactory.setKeyStoreType("PKCS12");
-        serverFactory.setCertAlias("kancolle-cert");
+        serverFactory.setCertAlias(SERVER_CERT_ALIAS);
         serverFactory.setSniRequired(false); // SNI検証を無効化
         
         try {
@@ -71,9 +93,9 @@ public final class SslCertificateUtil {
             existingFactory.reload(scf -> {
                 // 新しい証明書パスを設定
                 scf.setKeyStorePath(keystorePath);
-                scf.setKeyStorePassword("changeit");
+                scf.setKeyStorePassword(SERVER_CERTIFICATE_PASSWORD);
                 scf.setKeyStoreType("PKCS12");
-                scf.setCertAlias("kancolle-cert");
+                scf.setCertAlias(SERVER_CERT_ALIAS);
                 log.debug("新しい証明書パスでSSL設定を更新しました: {}", keystorePath);
             });
                 
@@ -124,6 +146,82 @@ public final class SslCertificateUtil {
         if (wildsCount > 0) log.info("    ワイルドカード: {}", x509.getWilds());
     }
     
+    /**
+     * サーバー証明書の有効期限（notAfter）を取得する。
+     * {@code start()} 済みの Jetty サーバー SSL ファクトリから読み取る。
+     *
+     * @param serverFactory SSL サーバーファクトリ
+     * @return 有効期限。読み込みに失敗した場合は空
+     */
+    public static Optional<Date> getServerCertificateNotAfter(SslContextFactory.Server serverFactory) {
+        if (serverFactory == null) {
+            return Optional.empty();
+        }
+        try {
+            X509Certificate certificate = findServerCertificate(serverFactory);
+            if (certificate == null) {
+                return Optional.empty();
+            }
+            return Optional.of(certificate.getNotAfter());
+        } catch (Exception e) {
+            log.debug("サーバー証明書の有効期限取得に失敗しました", e);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * サーバー証明書の有効期限が指定日数以内かどうかを判定する。
+     *
+     * @param notAfter 有効期限（notAfter）
+     * @param warningDays 警告閾値（日）
+     * @return 有効期限が現在から {@code warningDays} 日以内の場合 {@code true}
+     */
+    public static boolean isServerCertificateExpiringWithinDays(Date notAfter, int warningDays) {
+        if (notAfter == null || warningDays < 0) {
+            return false;
+        }
+        LocalDate expiryDate = notAfter.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate warningThreshold = LocalDate.now().plusDays(warningDays);
+        return expiryDate.isBefore(warningThreshold);
+    }
+
+    private static X509Certificate findServerCertificate(SslContextFactory.Server serverFactory) throws Exception {
+        X509 x509 = serverFactory.getX509(SERVER_CERT_ALIAS);
+        if (x509 != null) {
+            return x509.getCertificate();
+        }
+        KeyStore keyStore = serverFactory.getKeyStore();
+        if (keyStore != null) {
+            return findServerCertificate(keyStore);
+        }
+        return null;
+    }
+
+    private static X509Certificate findServerCertificate(KeyStore keyStore) throws Exception {
+        if (keyStore.containsAlias(SERVER_CERT_ALIAS) && keyStore.isKeyEntry(SERVER_CERT_ALIAS)) {
+            Certificate certificate = keyStore.getCertificate(SERVER_CERT_ALIAS);
+            if (certificate instanceof X509Certificate x509) {
+                return x509;
+            }
+        }
+        Enumeration<String> aliases = keyStore.aliases();
+        while (aliases.hasMoreElements()) {
+            String alias = aliases.nextElement();
+            if (!keyStore.isKeyEntry(alias)) {
+                continue;
+            }
+            Key key = keyStore.getKey(alias, SERVER_CERTIFICATE_PASSWORD.toCharArray());
+            if (!(key instanceof PrivateKey)) {
+                continue;
+            }
+            Certificate certificate = keyStore.getCertificate(alias);
+            if (certificate instanceof X509Certificate x509) {
+                return x509;
+            }
+        }
+        return null;
+    }
+
     /**
      * 証明書情報を取得する（UI表示用）。
      * ファイルシステム上の最新の証明書を読み込んで情報を表示する。

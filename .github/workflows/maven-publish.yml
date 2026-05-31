@@ -25,11 +25,11 @@ jobs:
     timeout-minutes: 5
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         persist-credentials: 'false'
     - name: Set up JDK
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: '21'
         distribution: 'microsoft'
@@ -41,7 +41,7 @@ jobs:
       run: mvn --batch-mode --non-recursive help:evaluate -Dexpression=project.version -Doutput=target/version.txt
 
     - name: Upload artifacts Version
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: version
         path: target/version.txt
@@ -69,11 +69,11 @@ jobs:
         # javafx.platform: win, mac (Intel Mac), mac-aarch64 (Apple Silicon)
         # brotli4j_arch: macos-latestの場合のみaarch64を指定
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         persist-credentials: 'false'
     - name: Set up JDK
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: '21'
         distribution: 'microsoft'
@@ -94,7 +94,7 @@ jobs:
 #      run: mvn -B package --file pom.xml -Drevision=${{ env.RELEASE_VERSION }}
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: logbook_${{ matrix.os }}
         path: logbook-bin/target/logbook-${{ matrix.platform }}.zip
