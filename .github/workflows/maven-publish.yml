@@ -130,7 +130,8 @@ jobs:
       run: |
         MAVEN_ARGS="-Djavafx.platform=win"
         mvn --batch-mode deploy -pl logbook -am -DskipTests --show-version --file pom.xml $MAVEN_ARGS
-
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 #  release:
 #    if: ( github.event_name == 'push' && github.ref_name == 'master' )
 #    - name: Release
