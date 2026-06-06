@@ -22,6 +22,13 @@
         <module>logbook-bin</module>
     </modules>  
     <packaging>pom</packaging>
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/nomonomo/logbook-kai</url>
+        </repository>
+    </distributionManagement>
     <dependencyManagement>
         <dependencies>
             <dependency>
