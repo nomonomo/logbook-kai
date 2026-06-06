@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import logbook.internal.AppQuestConditionLoader;
 import logbook.internal.Operator;
 import logbook.internal.QuestCollect;
+import logbook.internal.Ships;
 import logbook.internal.QuestCollect.Count;
 import logbook.internal.QuestCollect.Rank;
 import logbook.internal.ShipTypeGroup;
@@ -90,7 +91,9 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
      *
      */
     @Data
-    public static class FleetCondition implements Predicate<List<ShipMst>> {
+    public static class FleetCondition implements Predicate<List<Ship>> {
+
+        private static final Set<String> LOGICAL_OPERATORS = Set.of("AND", "OR", "NAND", "NOR");
 
         /** 備考 */
         private String description;
@@ -100,6 +103,12 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
 
         /** 艦名 */
         private LinkedHashSet<String> name;
+
+        /** レベル */
+        private Integer lv;
+
+        /** Lv 比較演算子（省略時 GE）。operator とは独立 */
+        private String lvOperator;
 
         /** 艦種もしくは艦名のリストに含まれないものに一致 */
         private boolean difference;
@@ -113,12 +122,12 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
         /** 条件 */
         private List<FleetCondition> conditions;
 
-        /** 演算子(AND,OR,NAND,NOR,EQ(等しい),GE(以上),GT(より大きい),LE(以下),LT(より小さい),NE(等しくない)) */
+        /** 演算子(AND,OR,NAND,NOR / 隻数比較: EQ,GE,GT,LE,LT,NE)。Lv 比較には使わない */
         private String operator;
 
         @Override
-        public boolean test(List<ShipMst> ships) {
-            if (this.count == null && this.operator != null) {
+        public boolean test(List<Ship> ships) {
+            if (this.isLogicalOperator()) {
                 return this.testOperator(ships);
             } else {
                 return this.testShip(ships);
@@ -127,11 +136,15 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
 
         @Override
         public String toString() {
-            if (this.count == null && this.operator != null) {
+            if (this.isLogicalOperator()) {
                 return this.toStringOperator();
             } else {
                 return this.toStringShip();
             }
+        }
+
+        private boolean isLogicalOperator() {
+            return this.count == null && this.operator != null && LOGICAL_OPERATORS.contains(this.operator);
         }
 
         /**
@@ -140,7 +153,7 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
          * @param ships 艦隊
          * @return 条件に一致する場合true
          */
-        private boolean testShip(List<ShipMst> ships) {
+        private boolean testShip(List<Ship> ships) {
             if (this.count != null) {
                 // 序列の指定無効
                 int c = 0;
@@ -172,31 +185,68 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
             return false;
         }
 
-        private boolean testShip0(ShipMst ship) {
+        private boolean testShip0(Ship ship) {
             if (ship == null) {
                 return false;
             }
+            ShipMst mst = Ships.shipMst(ship).orElse(null);
+            if (mst == null) {
+                return false;
+            }
+            boolean matched;
             if (this.stype != null) {
-                String stype = ship.asStype()
+                String stype = mst.asStype()
                         .map(Stype::getName)
                         .orElse(null);
 
-                //ShipTypeGroupからも判定する
+                // ShipTypeGroupからも判定する
                 boolean check = this.stype.stream()
                         .map(ShipTypeGroup::shipTypes)
                         .flatMap(List::stream)
                         .anyMatch(stype::equals);
 
-                return check || this.stype.contains(stype) || this.stype.size() > 0 && this.stype.contains("*");
-            }
-            if (this.name != null) {
+                matched = check || this.stype.contains(stype) || this.stype.size() > 0 && this.stype.contains("*");
+            } else if (this.name != null) {
+                matched = false;
                 for (String name : this.name) {
-                    if (ship.getName().startsWith(name)) {
-                        return true;
+                    if (mst.getName().startsWith(name)) {
+                        matched = true;
+                        break;
                     }
                 }
+            } else if (this.lv != null) {
+                matched = true;
+            } else {
+                return false;
             }
-            return false;
+            if (!matched) {
+                return false;
+            }
+            if (this.lv != null) {
+                return this.matchesLv(ship);
+            }
+            return true;
+        }
+
+        /**
+         * 艦娘のLvが条件を満たすか
+         *
+         * @param ship 艦娘
+         * @return 条件に一致する場合true
+         */
+        private boolean matchesLv(Ship ship) {
+            Integer shipLv = ship.getLv();
+            if (shipLv == null || this.lv == null) {
+                return false;
+            }
+            return Operator.valueOf(this.resolveLvOperator()).compare(shipLv, this.lv);
+        }
+
+        /**
+         * Lv 比較に使う演算子を返す。省略時は GE（以上）。
+         */
+        private String resolveLvOperator() {
+            return this.lvOperator != null ? this.lvOperator : "GE";
         }
 
         /**
@@ -205,8 +255,8 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
          * @param ships 艦隊
          * @return 条件に一致する場合true
          */
-        private boolean testOperator(List<ShipMst> ships) {
-            Predicate<List<ShipMst>> predicate = null;
+        private boolean testOperator(List<Ship> ships) {
+            Predicate<List<Ship>> predicate = null;
             for (FleetCondition condition : this.conditions) {
                 if (predicate == null) {
                     predicate = condition;
@@ -224,6 +274,11 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
 
         private String toStringShip() {
             StringBuilder sb = new StringBuilder();
+            if (this.lv != null) {
+                sb.append("Lv").append(this.lv);
+                sb.append(Operator.valueOf(this.resolveLvOperator()).toString());
+                sb.append("の");
+            }
             if (this.stype != null) {
                 sb.append(this.stype.stream().map(s -> s.equals("*") ? "任意の艦種" : s).collect(Collectors.joining("または")));
             }

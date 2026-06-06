@@ -1,0 +1,17 @@
+/* [lv_test]Lv条件テスト用 */
+{
+    "resetType": "デイリー",
+    "filter": {
+        "area": ["5-4"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["長波"], "lv": 88},
+                {"stype": ["駆逐艦"], "count": 2, "operator": "GE", "lv": 50}
+            ]
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["5-4"], "rank": ["S"], "count": 1}
+    ]
+}

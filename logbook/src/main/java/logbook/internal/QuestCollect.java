@@ -19,7 +19,7 @@ import logbook.bean.BattleLog;
 import logbook.bean.Enemy;
 import logbook.bean.MapinfoMst;
 import logbook.bean.MapinfoMstCollection;
-import logbook.bean.ShipMst;
+import logbook.bean.Ship;
 import logbook.bean.Stype;
 import logbook.internal.BattleLogs.SimpleBattleLog;
 import logbook.internal.MissionLogs.SimpleMissionLog;
@@ -124,10 +124,7 @@ public class QuestCollect {
                     battleLog = BattleLogs.read(log.getDateString());
                     if(battleLog != null) {
                         p = new PhaseState(battleLog);
-                        List<ShipMst> ships = p.getAfterFriend().stream()
-                                .filter(Objects::nonNull)
-                                .map(Ships::shipMst)
-                                .map(s -> s.orElse(null))
+                        List<Ship> ships = p.getAfterFriend().stream()
                                 .filter(Objects::nonNull)
                                 .collect(Collectors.toList());
 
