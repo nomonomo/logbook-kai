@@ -100,6 +100,37 @@ jobs:
         path: logbook-bin/target/logbook-${{ matrix.platform }}.zip
         compression-level: 0 # 非圧縮
 
+  publish:
+    name: Publish to GitHub Packages
+    # matrix 全成功後、master への push 時のみ logbook モジュールを GitHub Packages へ公開
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    # windows-latest の build と同一 Runner/OS・Maven 設定に揃え、setup-java の maven キャッシュを再利用する
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        persist-credentials: 'false'
+    - name: Set up JDK
+      uses: actions/setup-java@v5
+      with:
+        java-version: '21'
+        distribution: 'microsoft'
+        server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
+        settings-path: ${{ github.workspace }} # location for the settings.xml file
+        cache: 'maven'
+    - name: Publish logbook module
+      # shell: bashを指定することで、Windows環境でもbashが使用され、
+      # -Dオプションがタスクとして誤認識されることを防ぐ
+      shell: bash
+      run: |
+        MAVEN_ARGS="-Djavafx.platform=win"
+        mvn --batch-mode deploy -pl logbook -am -DskipTests --show-version --file pom.xml $MAVEN_ARGS
+
 #  release:
 #    if: ( github.event_name == 'push' && github.ref_name == 'master' )
 #    - name: Release
