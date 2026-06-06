@@ -10,6 +10,8 @@
     <properties>
         <!-- デバッグ時にアセンブリ処理をスキップする場合は -DskipAssembly=true を指定 -->
         <skipAssembly>false</skipAssembly>
+        <!-- jlink 配布物は GitHub Packages へ公開しない -->
+        <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
     <packaging>jlink</packaging>
     <build>
