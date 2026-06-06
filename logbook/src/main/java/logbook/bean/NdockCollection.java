@@ -4,8 +4,6 @@ import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
-
 import logbook.internal.Config;
 import lombok.Data;
 
@@ -22,7 +20,7 @@ public class NdockCollection implements Serializable {
     private Map<Integer, Ndock> ndockMap = new LinkedHashMap<>();
 
     /** 入渠中の艦娘 */
-    private Set<Integer> ndockSet = new LinkedHashSet<>();
+    private LinkedHashSet<Integer> ndockSet = new LinkedHashSet<>();
 
     /**
      * アプリケーションのデフォルト設定ディレクトリから<code>NdockCollection</code>を取得します、
