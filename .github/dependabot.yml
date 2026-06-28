@@ -28,4 +28,6 @@ updates:
         update-types: [ "version-update:semver-major" ]
       - dependency-name: "org.eclipse.jetty*:jetty-*"
         update-types: [ "version-update:semver-major" ]
-        
+      - dependency-name: "tools.jackson:jackson-bom"
+        versions:
+          - "[3.2,)"        

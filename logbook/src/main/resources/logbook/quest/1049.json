@@ -1,0 +1,19 @@
+/* [1049]【期間限定拡張作戦】戦略兵站物資、拡張輸送！ */
+{
+    "type": "出撃",
+    "resetType": "マンスリー",
+    "filter": {
+        "area": ["2-3", "7-5"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"stype": ["補給艦", "揚陸艦"], "order": 1},
+                {"stype": ["駆逐艦", "海防艦"], "count": 3, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["2-3"], "rank": ["S", "A"], "count": 1},
+        {"boss": true, "area": ["7-5"], "cell": "Q", "rank": ["S", "A"], "count": 1}
+    ]
+}

@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 5
     
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         persist-credentials: 'false'
     - name: Set up JDK
@@ -68,7 +68,7 @@ jobs:
         # javafx.platform: win, mac (Intel Mac), mac-aarch64 (Apple Silicon)
         # brotli4j_arch: macos-latestの場合のみaarch64を指定
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         persist-credentials: 'false'
     - name: Set up JDK
@@ -110,7 +110,7 @@ jobs:
       contents: read
       packages: write
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         persist-credentials: 'false'
     - name: Set up JDK

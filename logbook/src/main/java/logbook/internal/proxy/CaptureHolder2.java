@@ -69,8 +69,18 @@ public class CaptureHolder2 {
             return headers.get(name);
         }
 
+        /**
+         * HTTPヘッダーを大文字小文字を区別せずに取得する。
+         *
+         * @param name ヘッダー名
+         * @return ヘッダー値、未設定時はnull
+         */
+        public String getHeaderIgnoreCase(String name) {
+            return lookupHeaderIgnoreCase(headers, name);
+        }
+
         public String getContentType() {
-            return headers.get("Content-Type");
+            return getHeaderIgnoreCase("Content-Type");
         }
         
         public int getBodySize() {
@@ -173,9 +183,19 @@ public class CaptureHolder2 {
         public String getHeader(String name) {
             return headers.get(name);
         }
+
+        /**
+         * HTTPヘッダーを大文字小文字を区別せずに取得する。
+         *
+         * @param name ヘッダー名
+         * @return ヘッダー値、未設定時はnull
+         */
+        public String getHeaderIgnoreCase(String name) {
+            return lookupHeaderIgnoreCase(headers, name);
+        }
         
         public String getContentType() {
-            return headers.get("Content-Type");
+            return getHeaderIgnoreCase("Content-Type");
         }
         
         /**
@@ -244,6 +264,10 @@ public class CaptureHolder2 {
         private final HttpResponse response = new HttpResponse();
         /** リクエスト開始時刻（ミリ秒、keep-alive対応用） */
         private long requestStartTimeMillis = 0;
+        /** アップストリームからレスポンス行を受信した時刻（ミリ秒） */
+        private long responseStartTimeMillis = 0;
+        /** アップストリームからレスポンス全体を受信した時刻（ミリ秒） */
+        private long responseCompleteTimeMillis = 0;
         
         public HttpRequest getRequest() {
             return request;
@@ -268,11 +292,49 @@ public class CaptureHolder2 {
         public long getRequestStartTime() {
             return requestStartTimeMillis;
         }
+
+        /**
+         * アップストリームからレスポンス行を受信した時刻を設定します。
+         *
+         * @param startTimeMillis レスポンス開始時刻（ミリ秒）
+         */
+        public void setResponseStartTime(long startTimeMillis) {
+            this.responseStartTimeMillis = startTimeMillis;
+        }
+
+        /**
+         * アップストリームからレスポンス行を受信した時刻を取得します。
+         *
+         * @return レスポンス開始時刻（ミリ秒）、未設定の場合は0
+         */
+        public long getResponseStartTime() {
+            return responseStartTimeMillis;
+        }
+
+        /**
+         * アップストリームからレスポンス全体を受信した時刻を設定します。
+         *
+         * @param completeTimeMillis レスポンス完了時刻（ミリ秒）
+         */
+        public void setResponseCompleteTime(long completeTimeMillis) {
+            this.responseCompleteTimeMillis = completeTimeMillis;
+        }
+
+        /**
+         * アップストリームからレスポンス全体を受信した時刻を取得します。
+         *
+         * @return レスポンス完了時刻（ミリ秒）、未設定の場合は0
+         */
+        public long getResponseCompleteTime() {
+            return responseCompleteTimeMillis;
+        }
         
         public void clear() {
             request.clear();
             response.clear();
             requestStartTimeMillis = 0;
+            responseStartTimeMillis = 0;
+            responseCompleteTimeMillis = 0;
         }
     }
     
@@ -348,6 +410,22 @@ public class CaptureHolder2 {
         completedTransactions.clear();
     }
     
+    private static String lookupHeaderIgnoreCase(Map<String, String> headers, String name) {
+        if (headers == null || name == null) {
+            return null;
+        }
+        String value = headers.get(name);
+        if (value != null) {
+            return value;
+        }
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            if (name.equalsIgnoreCase(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
     /**
      * 総メモリ使用量の推定値を取得します（モニタリング用）。
      * @return おおよそのメモリ使用量（バイト単位）
