@@ -44,8 +44,6 @@ import java.util.stream.Collectors;
 import javax.net.ssl.SSLEngine;
 
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.compression.brotli.BrotliCompression;
-import org.eclipse.jetty.compression.gzip.GzipCompression;
 
 import logbook.bean.AppConfig;
 import logbook.internal.ThreadManager;
@@ -184,11 +182,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
     private long idleTimeout = 30000;
     private int bufferSize = 4096;
     
-    // Jetty公式の圧縮API（インスタンスで再利用）
-    // GzipCompressionは標準Java APIを使用するため、staticで共有可能
-    private static final GzipCompression GZIP_COMPRESSION = new GzipCompression();
-    // BrotliCompressionはdoStart()で初期化される
-    private BrotliCompression brotliCompression;  // 初期化失敗時はnull
+    private ResponseBodyDecompressor responseBodyDecompressor;
 
     public ReverseConnectHandler()
     {
@@ -355,8 +349,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         // Initialize content listeners
         initializeContentListeners();
         
-        // Initialize compression handlers (Brotli)
-        brotliCompression = initializeBrotliCompression();
+        responseBodyDecompressor = ResponseBodyDecompressor.createDefault();
 
         super.doStart();
     }
@@ -1164,29 +1157,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
 
     protected void prepareContext(Request request, ConcurrentMap<String, Object> context)
     {
-    }
-    
-    /**
-     * BrotliCompressionを初期化する。
-     * doStart()から呼び出される。
-     * 初期化に失敗した場合はnullを返す（Brotli解凍は使用不可となる）。
-     * 
-     * @return 初期化済みのBrotliCompressionインスタンス、または失敗時はnull
-     */
-    private BrotliCompression initializeBrotliCompression()
-    {
-        try
-        {
-            BrotliCompression brotli = new BrotliCompression();
-            brotli.start();
-            log.debug("BrotliCompressionの初期化に成功しました");
-            return brotli;
-        }
-        catch (Throwable e)
-        {
-            log.error("BrotliCompressionの初期化に失敗しました（Brotli展開は使用不可）", e);
-            return null;  // 初期化失敗時はnullを返す
-        }
     }
     
     /**
@@ -3124,20 +3094,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
             {
                 return new byte[0];
             }
-            
+
             log.trace("Response headers: {}", headers);
-            
-            String contentEncoding = getHeaderCaseInsensitive(headers, "Content-Encoding");
-            CompressionType compressionType = detectCompressionType(contentEncoding, bodyBytes);
-            
-            byte[] decompressed = decompressIfNeeded(bodyBytes, compressionType, contentEncoding);
-            if (compressionType != CompressionType.NONE)
-            {
-                log.debug("レスポンス解凍: {} {}B → {}B",
-                    compressionType == CompressionType.GZIP ? "gzip" : "brotli",
-                    bodyBytes.length, decompressed.length);
-            }
-            return decompressed;
+            return ReverseConnectHandler.this.responseBodyDecompressor.decompress(bodyBytes, headers);
         }
         
         /**
@@ -3157,151 +3116,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
             }
             
             return bodyBytes;
-        }
-        
-        /**
-         * 圧縮形式を検出する。
-         * 
-         * @param contentEncoding Content-Encodingヘッダーの値
-         * @param bodyBytes ボディバイト
-         * @return 検出された圧縮形式
-         * @throws IOException 未対応のContent-Encodingが指定されている場合
-         */
-        private CompressionType detectCompressionType(String contentEncoding, byte[] bodyBytes) throws IOException
-        {
-            log.trace("Content-Encoding header value: '{}', body size: {} bytes", contentEncoding, bodyBytes.length);
-            
-            // ヘッダーベースの検出
-            CompressionType type = switch (contentEncoding == null ? "" : contentEncoding.toLowerCase())
-            {
-                case "gzip" -> CompressionType.GZIP;
-                case "br" -> CompressionType.BROTLI;
-                case "" -> CompressionType.NONE;
-                default -> {
-                    // 未対応のContent-Encodingが指定されている場合、例外をスロー
-                    String errorMsg = String.format("未対応のContent-Encodingです: '%s' (ボディサイズ: %d バイト)", contentEncoding, bodyBytes.length);
-                    log.error("{}", errorMsg);
-                    throw new IOException(errorMsg);
-                }
-            };
-            
-            // マジックバイトによるフォールバック検出（gzipのみ）
-            if (type == CompressionType.NONE && bodyBytes.length >= 2)
-            {
-                boolean isGzipMagic = (bodyBytes[0] & 0xFF) == 0x1f && (bodyBytes[1] & 0xFF) == 0x8b;
-                if (isGzipMagic)
-                {
-                    if (contentEncoding != null)
-                    {
-                        log.warn("gzip圧縮データをマジックバイトで検出しましたが、Content-Encodingは'{}'でした", contentEncoding);
-                    }
-                    else
-                    {
-                        log.trace("gzip圧縮データをマジックバイトで検出しました（Content-Encodingヘッダーなし）");
-                    }
-                    return CompressionType.GZIP;
-                }
-            }
-            
-            return type;
-        }
-        
-        /**
-         * 必要に応じてボディを解凍する。
-         * 
-         * @param bodyBytes ボディバイト
-         * @param type 圧縮形式
-         * @param contentEncoding Content-Encodingヘッダーの値
-         * @return 処理済みのボディバイト配列
-         * @throws IOException 圧縮解凍処理でエラーが発生した場合
-         */
-        private byte[] decompressIfNeeded(byte[] bodyBytes, CompressionType type, String contentEncoding) throws IOException
-        {
-            return switch (type)
-            {
-                case GZIP -> decompressGzip(bodyBytes, contentEncoding);
-                case BROTLI -> decompressBrotli(bodyBytes, contentEncoding);
-                case NONE -> bodyBytes;
-            };
-        }
-        
-        /**
-         * Gzip形式のデータを解凍する。
-         * 
-         * @param bodyBytes ボディバイト
-         * @param contentEncoding Content-Encodingヘッダーの値
-         * @return 解凍済みのボディバイト配列
-         * @throws IOException 解凍処理でエラーが発生した場合、またはGzipCompressionが利用不可の場合
-         */
-        private byte[] decompressGzip(byte[] bodyBytes, String contentEncoding) throws IOException
-        {
-            try (InputStream compressedStream = new ByteArrayInputStream(bodyBytes);
-                 InputStream gzipStream = ReverseConnectHandler.GZIP_COMPRESSION.newDecoderInputStream(compressedStream);
-                 ByteArrayOutputStream baos = new ByteArrayOutputStream())
-            {
-                gzipStream.transferTo(baos);
-                byte[] decompressed = baos.toByteArray();
-                
-                log.trace("Response body ungzipped: {} bytes -> {} bytes (Content-Encoding: {})", 
-                    bodyBytes.length, decompressed.length, contentEncoding);
-                
-                return decompressed;
-            }
-            catch (IOException e)
-            {
-                // 例外を再スローして上位に伝播（ログは上位で出力）
-                throw new IOException(String.format("Gzip解凍に失敗しました: Content-Encoding='%s', ボディサイズ=%d バイト", 
-                    contentEncoding, bodyBytes.length), e);
-            }
-        }
-        
-        /**
-         * Brotli形式のデータを解凍する。
-         * 
-         * @param bodyBytes ボディバイト
-         * @param contentEncoding Content-Encodingヘッダーの値
-         * @return 解凍済みのボディバイト配列
-         * @throws IOException 解凍処理でエラーが発生した場合、またはBrotliCompressionが利用不可の場合
-         */
-        private byte[] decompressBrotli(byte[] bodyBytes, String contentEncoding) throws IOException
-        {
-            if (ReverseConnectHandler.this.brotliCompression == null)
-            {
-                // 例外をスローして上位に伝播（ログは上位で出力）
-                throw new IOException(String.format("BrotliCompressionが利用できません: Content-Encoding='%s', ボディサイズ=%d バイト", 
-                    contentEncoding, bodyBytes.length));
-            }
-            
-            log.trace("Starting Brotli decompression: input size = {} bytes", bodyBytes.length);
-            
-            try (InputStream compressedStream = new ByteArrayInputStream(bodyBytes);
-                 InputStream brotliStream = ReverseConnectHandler.this.brotliCompression.newDecoderInputStream(compressedStream);
-                 ByteArrayOutputStream baos = new ByteArrayOutputStream())
-            {
-                brotliStream.transferTo(baos);
-                byte[] decompressed = baos.toByteArray();
-                
-                log.trace("Response body decompressed (Brotli): {} bytes -> {} bytes (Content-Encoding: {})", 
-                    bodyBytes.length, decompressed.length, contentEncoding);
-                
-                return decompressed;
-            }
-            catch (IOException e)
-            {
-                // 例外を再スローして上位に伝播（ログは上位で出力）
-                throw new IOException(String.format("Brotli解凍に失敗しました: Content-Encoding='%s', ボディサイズ=%d バイト", 
-                    contentEncoding, bodyBytes.length), e);
-            }
-        }
-        
-        /**
-         * 圧縮形式の列挙型
-         */
-        private enum CompressionType
-        {
-            NONE,    // 非圧縮
-            GZIP,    // Gzip圧縮
-            BROTLI   // Brotli圧縮
         }
 
         /**
@@ -3355,36 +3169,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
         public String getHeader(String name)
         {
             return headers.get(name);
-        }
-        
-        /**
-         * Get a specific HTTP header value (case-insensitive).
-         * HTTPヘッダーは大文字小文字を区別しないため、このメソッドを使用する。
-         */
-        private static String getHeaderCaseInsensitive(Map<String, String> headers, String name)
-        {
-            if (headers == null || name == null)
-            {
-                return null;
-            }
-            
-            // 完全一致を優先
-            String value = headers.get(name);
-            if (value != null)
-            {
-                return value;
-            }
-            
-            // ケースインセンシティブ検索
-            for (Map.Entry<String, String> entry : headers.entrySet())
-            {
-                if (name.equalsIgnoreCase(entry.getKey()))
-                {
-                    return entry.getValue();
-                }
-            }
-            
-            return null;
         }
         
         /**
