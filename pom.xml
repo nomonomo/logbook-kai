@@ -10,9 +10,12 @@
         <lombok.version>1.18.46</lombok.version>
         <!-- JavaFXバージョン: 一元管理 -->
         <javafx.version>21.0.11</javafx.version>
-        <logbook.platform.name>win</logbook.platform.name>
         <maven.compiler.release>21</maven.compiler.release>
         <maven.compiler.fork>true</maven.compiler.fork>
+        <!--
+            ネイティブJNI向けプロパティ（brotli4j.classifier / zstandard.os.* / targetJniPath / logbook.platform.name）は
+            下記 OS プロファイルでのみ設定する。未設定時は validate フェーズで enforcer により失敗する。
+        -->
     </properties>
     <modules>
         <module>logbook</module>
@@ -105,8 +108,54 @@
                     <artifactId>maven-clean-plugin</artifactId>
                     <version>3.5.0</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.6.3</version>
+                </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <!-- ネイティブJNI用プロパティが未設定のままビルドされるのを防ぐ -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>require-supported-native-platform</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireProperty>
+                                    <property>brotli4j.classifier</property>
+                                    <message>必須プロパティ 'brotli4j.classifier' が未設定です。</message>
+                                </requireProperty>
+                                <requireProperty>
+                                    <property>zstandard.os.name</property>
+                                    <message>必須プロパティ 'zstandard.os.name' が未設定です。</message>
+                                </requireProperty>
+                                <requireProperty>
+                                    <property>zstandard.os.arch</property>
+                                    <message>必須プロパティ 'zstandard.os.arch' が未設定です。</message>
+                                </requireProperty>
+                                <requireProperty>
+                                    <property>targetJniPath</property>
+                                    <message>必須プロパティ 'targetJniPath' が未設定です。</message>
+                                </requireProperty>
+                                <requireProperty>
+                                    <property>logbook.platform.name</property>
+                                    <message>必須プロパティ 'logbook.platform.name' が未設定です。</message>
+                                </requireProperty>
+                            </rules>
+                            <failFast>false</failFast>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
     <profiles>
