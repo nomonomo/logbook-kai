@@ -12,9 +12,9 @@ module logbook {
     requires ch.qos.logback.core;
     requires jdk.crypto.ec;
     requires jdk.charsets;
-    requires com.aayushatharva.brotli4j;
     requires org.eclipse.jetty.compression.gzip;
     requires org.eclipse.jetty.compression.brotli;
+    requires org.eclipse.jetty.compression.zstandard;
     requires org.bouncycastle.provider;
     requires org.bouncycastle.pkix;
     

@@ -10,10 +10,7 @@
         <lombok.version>1.18.46</lombok.version>
         <!-- JavaFXバージョン: 一元管理 -->
         <javafx.version>21.0.11</javafx.version>
-        <!-- JavaFX classifier: 外部から -Djavafx.platform=win のように指定可能 -->
-        <!-- 指定可能な値: win, linux, mac, mac-aarch64 -->
-        <!-- デフォルト値: win（外部から指定されない場合） -->
-        <javafx.platform>win</javafx.platform>
+        <logbook.platform.name>win</logbook.platform.name>
         <maven.compiler.release>21</maven.compiler.release>
         <maven.compiler.fork>true</maven.compiler.fork>
     </properties>
@@ -111,4 +108,74 @@
             </plugins>
         </pluginManagement>
     </build>
+
+    <profiles>
+        <profile>
+            <id>windows-x86_64</id>
+            <activation>
+                <os>
+                    <family>Windows</family>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <properties>
+                <brotli4j.classifier>windows-x86_64</brotli4j.classifier>
+                <zstandard.os.name>win</zstandard.os.name>
+                <zstandard.os.arch>amd64</zstandard.os.arch>
+                <targetJniPath>bin</targetJniPath>
+                <logbook.platform.name>win</logbook.platform.name>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>windows-aarch64</id>
+            <activation>
+                <os>
+                    <family>Windows</family>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <brotli4j.classifier>windows-aarch64</brotli4j.classifier>
+                <zstandard.os.name>win</zstandard.os.name>
+                <zstandard.os.arch>aarch64</zstandard.os.arch>
+                <targetJniPath>bin</targetJniPath>
+                <logbook.platform.name>win-aarch64</logbook.platform.name>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>osx-x86_64</id>
+            <activation>
+                <os>
+                    <family>Mac</family>
+                    <arch>x86_64</arch>
+                </os>
+            </activation>
+            <properties>
+                <brotli4j.classifier>osx-x86_64</brotli4j.classifier>
+                <zstandard.os.name>darwin</zstandard.os.name>
+                <zstandard.os.arch>x86_64</zstandard.os.arch>
+                <targetJniPath>lib</targetJniPath>
+                <logbook.platform.name>mac</logbook.platform.name>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>osx-aarch64</id>
+            <activation>
+                <os>
+                    <family>Mac</family>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <brotli4j.classifier>osx-aarch64</brotli4j.classifier>
+                <zstandard.os.name>darwin</zstandard.os.name>
+                <zstandard.os.arch>aarch64</zstandard.os.arch>
+                <targetJniPath>lib</targetJniPath>
+                <logbook.platform.name>mac-aarch64</logbook.platform.name>
+            </properties>
+        </profile>
+    </profiles>
 </project>
