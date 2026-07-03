@@ -1195,7 +1195,7 @@ public class CheckUpdate {
      */
     private void saveUpdateInfo(Path file, Version version) throws IOException {
         ObjectNode root = JsonMappers.MAPPER.createObjectNode();
-        root.put("version", version.toString());
+        root.put("version", version.toBaseString());
         root.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
         JsonMappers.MAPPER.writeValue(file, root);
     }

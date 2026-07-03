@@ -52,6 +52,7 @@
                             <Implementation-Vendor>nomonomo</Implementation-Vendor>
                             <Built-By>nomonomo</Built-By>
                             <Implementation-Version>${build.Implementation-Version}</Implementation-Version>
+                            <Build-Timestamp>${maven.build.timestamp}</Build-Timestamp>
                             <Build-Platform>${logbook.platform.name}</Build-Platform>
                         </manifestEntries>
                         <manifest>
@@ -259,7 +260,6 @@
             <id>dev</id>
             <properties>
                 <test.profile>dev</test.profile>
-                <build.Implementation-Version>${project.version}-${maven.build.timestamp}</build.Implementation-Version>
             </properties>
         </profile>
         <profile>
