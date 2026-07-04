@@ -19,11 +19,37 @@ MANIFEST.MF には次の情報が記録されます。
 
 ### -Pdev（開発用テスト）
 
-`-Pdev` を付けてビルドすると、開発向けテスト（`test.profile=dev`）が有効になります。
+`-Pdev` を付けてビルドすると、Maven Surefire にシステムプロパティ `test.profile=dev` が渡され、**一部のテストだけが有効化**されます。通常の `mvn package` ではこれらのテストはスキップされます。
 
 ```
 mvn -Pdev package
 ```
+
+テストのみ実行する場合:
+
+```
+mvn -Pdev test
+```
+
+#### 有効化されるテスト
+
+`@EnabledIfSystemProperty(named = "test.profile", matches = "dev")` により、次のテストメソッドが実行対象になります。
+
+| テストクラス | メソッド | 内容 |
+|-------------|---------|------|
+| `ConfigJsonRoundTripTest` | `testConfigJsonRoundTrip` | `src/test/resources/logbook/config/` 配下の設定 JSON が Jackson の読み書きで内容を保つこと |
+| `BattleLogsTest` | `testBattleLogJsonRoundTrip` | `src/test/resources/logbook/battlelog/` 配下の戦闘ログ JSON が読み書きで内容を保つこと |
+
+いずれもディレクトリ内の `*.json` を走査して DynamicTest を生成します。ディレクトリは `.gitignore` を目印にクラスパスから解決します（`.gitignore` 自体はリポジトリに含まれる）。**`*.json` が 1 件もない場合はテストが失敗**します（`-Pdev` 実行時に JSON の配置漏れを検出するため）。
+
+#### テストデータについて
+
+上記 2 ディレクトリの `*.json` は `.gitignore` で除外されており、**リポジトリには含まれません**。開発者がローカルに実際の設定ファイルや戦闘ログ JSON を置いて検証するためのものです。
+
+- `logbook/src/test/resources/logbook/config/` — ファイル名は Bean の完全修飾クラス名 + `.json`（例: `logbook.bean.AppConfig.json`）
+- `logbook/src/test/resources/logbook/battlelog/` — 戦闘ログ JSON
+
+`-Pdev` なしでも `BattleLogsTest.testCsvLine` など、プロファイル不要のテストは従来どおり実行されます。
 
 ---
 
