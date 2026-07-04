@@ -58,11 +58,11 @@ public class BattleLogsTest {
     @EnabledIfSystemProperty(named = "test.profile", matches = "dev")
     @TestFactory
     Stream<DynamicTest> testBattleLogJsonRoundTrip() throws IOException, URISyntaxException {
-        URL resource = BattleLogsTest.class.getClassLoader().getResource("logbook/battlelog");
-        if (resource == null) {
+        URL marker = BattleLogsTest.class.getClassLoader().getResource("logbook/battlelog/.gitignore");
+        if (marker == null) {
             throw new IllegalStateException("テストリソース logbook/battlelog が見つかりません");
         }
-        Path root = Paths.get(resource.toURI());
+        Path root = Paths.get(marker.toURI()).getParent();
         List<Path> jsonPaths;
         try (Stream<Path> walk = Files.walk(root)) {
             jsonPaths = walk
@@ -70,6 +70,9 @@ public class BattleLogsTest {
                     .filter(path -> path.getFileName().toString().endsWith(".json"))
                     .sorted(Comparator.naturalOrder())
                     .collect(Collectors.toList());
+        }
+        if (jsonPaths.isEmpty()) {
+            throw new IllegalStateException("テスト用 JSON が 1 件もありません: " + root);
         }
         return jsonPaths.stream().map(path -> DynamicTest.dynamicTest(path.getFileName().toString(), () -> {
             try (InputStream in = Files.newInputStream(path);

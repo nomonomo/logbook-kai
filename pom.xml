@@ -12,6 +12,8 @@
         <javafx.version>21.0.11</javafx.version>
         <maven.compiler.release>21</maven.compiler.release>
         <maven.compiler.fork>true</maven.compiler.fork>
+        <!-- MANIFEST.MF の Build-Timestamp 用（UTC、ISO 8601） -->
+        <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss'Z'</maven.build.timestamp.format>
         <!--
             ネイティブJNI向けプロパティ（brotli4j.classifier / zstandard.os.* / targetJniPath / logbook.platform.name）は
             下記 OS プロファイルでのみ設定する。未設定時は validate フェーズで enforcer により失敗する。

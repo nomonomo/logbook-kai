@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.SSLHandshakeException;
 
+import logbook.internal.DevMode;
 import logbook.internal.Version;
 
 import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
@@ -260,13 +261,13 @@ public final class ProxyServerImpl implements ProxyServerSpi {
         // Applicationの表示形式: title(vendor) version
         String applicationInfo;
         if (title != null && vendor != null && !vendor.isEmpty()) {
-            applicationInfo = String.format("%s(%s) %s", title, vendor, version.toString());
+            applicationInfo = String.format("%s(%s) %s", title, vendor, DevMode.formatVersionDisplay(version));
         } else if (title != null) {
-            applicationInfo = String.format("%s %s", title, version.toString());
+            applicationInfo = String.format("%s %s", title, DevMode.formatVersionDisplay(version));
         } else if (vendor != null && !vendor.isEmpty()) {
-            applicationInfo = String.format("航海日誌(%s) %s", vendor, version.toString());
+            applicationInfo = String.format("航海日誌(%s) %s", vendor, DevMode.formatVersionDisplay(version));
         } else {
-            applicationInfo = String.format("航海日誌 %s", version.toString());
+            applicationInfo = String.format("航海日誌 %s", DevMode.formatVersionDisplay(version));
         }
         
         log.info("================ Application Information ================");

@@ -20,6 +20,7 @@ import javafx.stage.WindowEvent;
 import logbook.bean.AppConfig;
 import logbook.bean.WindowLocation;
 import logbook.internal.CheckUpdate;
+import logbook.internal.DevMode;
 import logbook.internal.Version;
 import lombok.extern.slf4j.Slf4j;
 
@@ -66,7 +67,7 @@ public class Main extends Application implements SystemSleepListener {
         // 最前面に表示する
         stage.setAlwaysOnTop(AppConfig.get().isOnTop());
 
-        stage.setTitle("航海日誌 " + Version.getCurrent());
+        stage.setTitle("航海日誌 " + DevMode.formatVersionDisplay(Version.getCurrent()));
 
         stage.addEventHandler(WindowEvent.WINDOW_CLOSE_REQUEST, e -> {
             if (AppConfig.get().isCheckDoit()) {

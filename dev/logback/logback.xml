@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 標準出力・ファイル出力（本番 logback.xml と同系統） -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%date{ISO8601} %-5level [%thread] %logger{30} [%file:%line %method]%msg%n</pattern>
+        </encoder>
+    </appender>
+    <appender name="ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/app.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/%d{yyyy-MM,aux}/app-%d{yyyy-MM-dd}.log</fileNamePattern>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%date{ISO8601} %-5level [%thread] %logger{30} [%file:%line]%msg%n</pattern>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+    </appender>
+
+    <!-- アクセスログ（テキスト）: MDC は %X{キー} で自前記載（ProxyAccessLogger の MDC_* 定数を参照） -->
+    <appender name="AccessLog" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/access.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/%d{yyyy-MM,aux}/access-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%date{ISO8601} clientAddr=%X{clientAddr} method=%X{method} uriPath=%X{uriPath} status=%X{status} elapsedMs=%X{elapsedMs} upstreamLatencyMs=%X{upstreamLatencyMs} outcome=%X{outcome}%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- アクセスログ（JSON）: LogstashEncoder + includeMdc=true。要 logstash-logback-encoder（class path） -->
+    <appender name="AccessLogJson" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/access-json.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/%d{yyyy-MM,aux}/access-json-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeCallerData>false</includeCallerData>
+            <includeContext>false</includeContext>
+            <includeMdc>true</includeMdc>
+        </encoder>
+    </appender>
+
+    <logger name="logbook" level="INFO" />
+
+    <!-- アクセスログ専用ロガー。JSON 出力時は appender-ref を AccessLogJson に差し替え -->
+    <logger name="logbook.internal.proxy.AccessLog" level="DEBUG" additivity="false">
+        <appender-ref ref="AccessLog" />
+    </logger>
+
+    <root level="WARN">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="ROLLING" />
+    </root>
+</configuration>
