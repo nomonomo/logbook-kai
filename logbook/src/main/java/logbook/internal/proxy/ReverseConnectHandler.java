@@ -38,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -1218,6 +1219,8 @@ public class ReverseConnectHandler extends Handler.Wrapper
     {
         private static final Logger log = LoggerFactory.getLogger(HttpClientConnectionListener.class);
         private static final Logger accessLog = LoggerFactory.getLogger("logbook.internal.proxy.AccessLog");
+        private static final Logger contentListenerLog =
+            LoggerFactory.getLogger("logbook.internal.proxy.ContentListenerLog");
         
         private final ConnectContext connectContext;
         private final HttpClient httpClient;
@@ -1463,6 +1466,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                         req.setMethod("UNKNOWN");
                         req.setRequestURI(httpRequest.getUri() != null ? httpRequest.getUri() : "unknown");
                     }
+                    req.setRequestId(transaction.getRequestId());
                     
                     // Create ResponseMetaDataWrapper efficiently from CaptureHolder2.HttpResponse
                     ResponseMetaDataWrapper res = new ResponseMetaDataWrapper();
@@ -1572,6 +1576,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 
                 // Process listener asynchronously
                 Runnable task = () -> {
+                    long startNanos = System.nanoTime();
+                    ProxyContentListenerLogger.Outcome outcome = ProxyContentListenerLogger.Outcome.SUCCESS;
+                    String errorDetail = null;
                     try
                     {
                         log.trace("Processing request {} with listener {}", 
@@ -1584,8 +1591,16 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     }
                     catch (Exception e)
                     {
+                        outcome = ProxyContentListenerLogger.Outcome.ERROR;
+                        errorDetail = ProxyContentListenerLogger.formatCause(e);
                         log.warn("Content listener {} failed to process request", 
                             listener.getClass().getSimpleName(), e);
+                    }
+                    finally
+                    {
+                        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+                        ProxyContentListenerLogger.log(
+                            contentListenerLog, listener, req, elapsedMs, outcome, errorDetail);
                     }
                 };
                 
@@ -2305,7 +2320,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     captureHolder.getCurrentRequest().setRequestLine(
                         method, uri, version.toString());
                     // リクエスト開始時刻を記録（keep-alive対応）
-                    captureHolder.getCurrentTransaction().setRequestStartTime(System.currentTimeMillis());
+                    captureHolder.getCurrentTransaction().beginRequest(System.currentTimeMillis());
                 }
             }
             
@@ -2770,6 +2785,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         private String method;
         private String requestURI;
         private String queryString;
+        private String requestId = "";
         private Map<String, String> headers = new LinkedHashMap<>();
         private byte[] requestBodyBytes = null;  // Store as byte array, not InputStream
         private Map<String, List<String>> parameterMap = null;  // Lazy-initialized parameter map
@@ -3002,6 +3018,17 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
 
         @Override
+        public String getRequestId()
+        {
+            return requestId != null ? requestId : "";
+        }
+
+        void setRequestId(String requestId)
+        {
+            this.requestId = requestId != null ? requestId : "";
+        }
+
+        @Override
         public Optional<InputStream> getRequestBody()
         {
             // Return a new ByteArrayInputStream each time for thread-safe reuse
@@ -3020,6 +3047,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 RequestMetaDataWrapper copy = (RequestMetaDataWrapper) super.clone();
                 // Deep copy headers map
                 copy.headers = new LinkedHashMap<>(this.headers);
+                copy.requestId = this.requestId;
                 // Byte array is immutable reference, no need to copy the array itself
                 // (multiple clones can share the same byte array safely)
                 // Parameter map is lazy-initialized, share the reference if already computed
@@ -3034,6 +3062,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 copy.method = this.method;
                 copy.requestURI = this.requestURI;
                 copy.queryString = this.queryString;
+                copy.requestId = this.requestId;
                 copy.headers = new LinkedHashMap<>(this.headers);
                 copy.requestBodyBytes = this.requestBodyBytes;  // Share the byte array reference
                 copy.parameterMap = this.parameterMap;  // Share the parameter map reference
