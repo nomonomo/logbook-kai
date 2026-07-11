@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -19,22 +20,28 @@ import logbook.Messages;
 import logbook.api.API;
 import logbook.api.APIListenerSpi;
 import logbook.internal.Tuple.Pair;
+import logbook.internal.proxy.ProxyContentListenerLogger;
 import logbook.plugin.PluginServices;
 import logbook.proxy.ContentListenerSpi;
 import logbook.proxy.RequestMetaData;
 import logbook.proxy.ResponseMetaData;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * APIを受け取りJSONをAPIListenerSpiを実装したサービスプロバイダに送ります
  *
  */
+@Slf4j
 public final class APIListener implements ContentListenerSpi {
+
+    private static final Logger contentListenerLog =
+        LoggerFactory.getLogger("logbook.internal.proxy.ContentListenerLog");
 
     private final Map<String, List<Pair<String, APIListenerSpi>>> services;
 
     private final List<Pair<String, APIListenerSpi>> all = new ArrayList<>();
-
-    private final boolean isDebugEnabled;
 
     public APIListener() {
         Function<APIListenerSpi, Stream<Pair<String, APIListenerSpi>>> mapper = impl -> {
@@ -50,7 +57,6 @@ public final class APIListener implements ContentListenerSpi {
         this.services = PluginServices.instances(APIListenerSpi.class)
                 .flatMap(mapper)
                 .collect(Collectors.groupingBy(Pair::getKey));
-        this.isDebugEnabled = LoggerHolder.get().isDebugEnabled();
     }
 
     @Override
@@ -75,7 +81,7 @@ public final class APIListener implements ContentListenerSpi {
                 this.send(requestMetaData, responseMetaData, json);
             }
         } catch (Exception e) {
-            LoggerHolder.get().warn(Messages.getString("APIListener.2"), e); //$NON-NLS-1$
+            log.warn(Messages.getString("APIListener.2"), e); //$NON-NLS-1$
             // 例外発生時のレスポンスの内容をログに出力する
             StringBuilder sb = new StringBuilder();
             sb.append("uri=");
@@ -104,7 +110,7 @@ public final class APIListener implements ContentListenerSpi {
             } catch (Exception e2) {
                 sb.append(e2.toString());
             }
-            LoggerHolder.get().warn(sb.toString());
+            log.warn(sb.toString());
         }
     }
 
@@ -125,16 +131,26 @@ public final class APIListener implements ContentListenerSpi {
 
     private void createTask(Pair<String, APIListenerSpi> pair, JsonObject json, RequestMetaData req,
             ResponseMetaData res) {
+        APIListenerSpi handler = pair.getValue();
+        long startNanos = System.nanoTime();
+        ProxyContentListenerLogger.Outcome outcome = ProxyContentListenerLogger.Outcome.SUCCESS;
+        String errorDetail = null;
         try {
-            if (this.isDebugEnabled) {
-                String className = pair.getValue().getClass().getName();
-                LoggerHolder.get().debug(Messages.getString("APIListener.0"), //$NON-NLS-1$
-                        className, req.getRequestURI());
-            }
-            pair.getValue().accept(json, req, res);
+            log.atDebug()
+                .setMessage(() -> Messages.getString("APIListener.0", //$NON-NLS-1$
+                        handler.getClass().getName(), req.getRequestURI()))
+                .log();
+            handler.accept(json, req, res);
         } catch (Exception e) {
-            LoggerHolder.get().warn(Messages.getString("APIListener.1"), e); //$NON-NLS-1$
-            LoggerHolder.get().warn(json.toString());
+            outcome = ProxyContentListenerLogger.Outcome.ERROR;
+            errorDetail = ProxyContentListenerLogger.formatCause(e);
+            log.warn(Messages.getString("APIListener.1"), e); //$NON-NLS-1$
+            log.warn(json.toString());
+        } finally {
+            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+            ProxyContentListenerLogger.log(
+                contentListenerLog, handler.getClass().getName(),
+                ProxyContentListenerLogger.Layer.HANDLER, req, elapsedMs, outcome, errorDetail);
         }
     }
 }

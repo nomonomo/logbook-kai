@@ -66,6 +66,15 @@ public interface RequestMetaData {
     String getRequestURI();
 
     /**
+     * プロキシが付与したリクエスト相関ID。アクセスログとの紐づけに使用する。
+     * @return 相関ID、未設定時は空文字
+     */
+    default String getRequestId()
+    {
+        return "";
+    }
+
+    /**
      * リクエストに含まれるメッセージボディを返します
      * @return リクエストに含まれるメッセージボディ
      */
