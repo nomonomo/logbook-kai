@@ -48,6 +48,7 @@ import org.eclipse.jetty.client.HttpClient;
 
 import logbook.bean.AppConfig;
 import logbook.internal.ThreadManager;
+import logbook.internal.capture.ApiCaptureHook;
 import logbook.plugin.PluginServices;
 import logbook.proxy.ContentListenerSpi;
 import logbook.proxy.RequestMetaData;
@@ -1538,6 +1539,8 @@ public class ReverseConnectHandler extends Handler.Wrapper
          */
         private void invoke(RequestMetaDataWrapper baseReq, ResponseMetaDataWrapper baseRes)
         {
+            ApiCaptureHook.captureIfNeeded(baseReq, baseRes);
+
             // Get content listeners (validated in onSuccess(), guaranteed non-empty here)
             List<ContentListenerSpi> listeners = ReverseConnectHandler.getContentListeners();
             
@@ -2784,6 +2787,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         private String contentType;
         private String method;
         private String requestURI;
+        private String uriPath;
         private String queryString;
         private String requestId = "";
         private Map<String, String> headers = new LinkedHashMap<>();
@@ -2798,6 +2802,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         {
             this.method = httpRequest.getMethod();
             this.requestURI = httpRequest.getUri();
+            this.uriPath = httpRequest.getUriPath();
             this.headers = new LinkedHashMap<>(httpRequest.getHeaders());
             this.contentType = httpRequest.getContentType();
             
@@ -2825,6 +2830,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             this.method = req.getMethod();
             this.requestURI = req.getHttpURI().getPath();
             this.queryString = req.getHttpURI().getQuery();
+            this.uriPath = UriPaths.normalize(this.requestURI);
             
             // Copy headers
             req.getHeaders().forEach(field -> 
@@ -2859,6 +2865,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         void setRequestURI(String requestURI)
         {
             this.requestURI = requestURI;
+            this.uriPath = UriPaths.normalize(requestURI);
             
             // Extract query string from URI
             if (requestURI != null && requestURI.contains("?"))
@@ -3018,6 +3025,15 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
 
         @Override
+        public String getUriPath()
+        {
+            if (uriPath != null) {
+                return uriPath;
+            }
+            return UriPaths.normalize(requestURI);
+        }
+
+        @Override
         public String getRequestId()
         {
             return requestId != null ? requestId : "";
@@ -3061,6 +3077,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 copy.contentType = this.contentType;
                 copy.method = this.method;
                 copy.requestURI = this.requestURI;
+                copy.uriPath = this.uriPath;
                 copy.queryString = this.queryString;
                 copy.requestId = this.requestId;
                 copy.headers = new LinkedHashMap<>(this.headers);

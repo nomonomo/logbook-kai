@@ -260,6 +260,15 @@ public final class AppConfig implements Serializable, ConfigDefaults {
     /** store api_start2 directory */
     private String storeApiStart2Dir = "";
 
+    /** API レスポンス記録を有効にする */
+    private boolean apiCaptureEnabled = false;
+
+    /** API 記録の同意済みフラグ */
+    private boolean apiCaptureConsentAccepted = false;
+
+    /** API 記録の保存先ディレクトリ */
+    private String apiCaptureDir = "";
+
     /**
      * JSON デシリアライズ後に呼び出し、新規フィールドのバージョン差異を解消する。
      * {@link logbook.internal.Config} から読み込み時および新規生成時に適用される。

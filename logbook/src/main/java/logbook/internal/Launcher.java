@@ -12,6 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 import logbook.bean.AppConfig;
+import logbook.internal.capture.ApiCaptureWriter;
 import logbook.internal.gui.Main;
 import logbook.internal.metrics.LogbookBuildInfo;
 import logbook.internal.metrics.LogbookMetrics;
@@ -117,6 +118,7 @@ public final class Launcher {
      * スレッドプールの終了処理
      */
     private void exitLocalThreadPool() {
+        ApiCaptureWriter.shutdown();
         ExecutorService executor = ThreadManager.getExecutorService();
         executor.shutdownNow();
     }

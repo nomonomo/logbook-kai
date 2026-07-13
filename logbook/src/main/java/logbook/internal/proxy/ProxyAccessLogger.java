@@ -2,7 +2,6 @@ package logbook.internal.proxy;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -225,7 +224,7 @@ public final class ProxyAccessLogger
         context.put(MDC_CLIENT_PORT, String.valueOf(clientAddress.port()));
         context.put(MDC_METHOD, nullToDefault(request.getMethod(), "UNKNOWN"));
         context.put(MDC_URI, uri);
-        context.put(MDC_URI_PATH, extractUriPath(uri));
+        context.put(MDC_URI_PATH, nullToDefault(request.getUriPath(), "/"));
         context.put(MDC_REQUEST_ID, nullToEmpty(transaction.getRequestId()));
         context.put(MDC_HOST, nullToEmpty(request.getHeaderIgnoreCase("Host")));
         context.put(MDC_STATUS, String.valueOf(response.getStatus()));
@@ -253,56 +252,6 @@ public final class ProxyAccessLogger
             return System.currentTimeMillis() - requestStartTime;
         }
         return System.currentTimeMillis() - connectionStartTimeMillis;
-    }
-
-    /**
-     * URIからクエリ文字列を除いたパス部分を抽出する（Grafana/Loki集計用）。
-     *
-     * @param uri リクエストURI
-     * @return パス部分
-     */
-    static String extractUriPath(String uri)
-    {
-        if (uri == null || uri.isEmpty())
-        {
-            return "/";
-        }
-
-        if (uri.startsWith("/") || !uri.contains("://"))
-        {
-            return stripQueryAndFragment(uri);
-        }
-
-        try
-        {
-            String path = URI.create(uri).getPath();
-            if (path == null || path.isEmpty())
-            {
-                return "/";
-            }
-            return path;
-        }
-        catch (IllegalArgumentException e)
-        {
-            return stripQueryAndFragment(uri);
-        }
-    }
-
-    private static String stripQueryAndFragment(String uri)
-    {
-        int end = uri.length();
-        int queryIndex = uri.indexOf('?');
-        if (queryIndex >= 0)
-        {
-            end = queryIndex;
-        }
-        int fragmentIndex = uri.indexOf('#');
-        if (fragmentIndex >= 0 && fragmentIndex < end)
-        {
-            end = fragmentIndex;
-        }
-        String path = uri.substring(0, end);
-        return path.isEmpty() ? "/" : path;
     }
 
     private static TimingMetrics resolveTimingMetrics(CaptureHolder2.HttpTransaction transaction, long elapsedMs)

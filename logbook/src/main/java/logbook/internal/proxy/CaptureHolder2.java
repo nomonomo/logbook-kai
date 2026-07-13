@@ -28,6 +28,7 @@ public class CaptureHolder2 {
     public static class HttpRequest {
         private String method;
         private String uri;
+        private String uriPath;
         private String version;
         private final Map<String, String> headers = new LinkedHashMap<>();
         private final List<byte[]> bodyChunks = new ArrayList<>();
@@ -36,6 +37,7 @@ public class CaptureHolder2 {
         public void setRequestLine(String method, String uri, String version) {
             this.method = method;
             this.uri = uri;
+            this.uriPath = UriPaths.normalize(uri);
             this.version = version;
         }
         
@@ -57,7 +59,14 @@ public class CaptureHolder2 {
         public String getUri() {
             return uri;
         }
-        
+
+        /**
+         * ログ・集計用パス（クエリ・フラグメント除外）。
+         */
+        public String getUriPath() {
+            return uriPath;
+        }
+
         public String getVersion() {
             return version;
         }
@@ -119,6 +128,7 @@ public class CaptureHolder2 {
         public void clear() {
             method = null;
             uri = null;
+            uriPath = null;
             version = null;
             headers.clear();
             bodyChunks.clear();

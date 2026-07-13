@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import logbook.internal.proxy.UriPaths;
+
 /**
  * リクエストに含まれている情報を ContentListener に提供するオブジェクト
  *
@@ -64,6 +66,18 @@ public interface RequestMetaData {
      * @return URI
      */
     String getRequestURI();
+
+    /**
+     * ログ・集計用のパス（クエリ・フラグメント除外）。
+     * <p>
+     * {@link #getRequestURI()} とは異なり、API ルーティングには使わない。
+     * </p>
+     *
+     * @return パス部分
+     */
+    default String getUriPath() {
+        return UriPaths.normalize(getRequestURI());
+    }
 
     /**
      * プロキシが付与したリクエスト相関ID。アクセスログとの紐づけに使用する。
