@@ -337,6 +337,22 @@
                               <Button fx:id="storeApiStart2DirRef" mnemonicParsing="false" onAction="#selectApiStart2Dir" text="参照..." GridPane.columnIndex="2" GridPane.rowIndex="10" />
                            </children>
                         </GridPane>
+                        <VBox fx:id="apiCapturePane" spacing="6.0">
+                           <padding>
+                              <Insets top="12.0" />
+                           </padding>
+                           <children>
+                              <Label text="開発者向け: すべての kcsapi レスポンスを JSONL (zstd) で保存します。requestId でアクセスログと紐づけます。" wrapText="true" />
+                              <CheckBox fx:id="apiCaptureEnabled" mnemonicParsing="false" onAction="#apiCaptureEnabledChanged" text="API レスポンスを記録する" />
+                              <HBox alignment="CENTER_LEFT" spacing="8.0">
+                                 <children>
+                                    <Label minWidth="60.0" text="保存先" />
+                                    <TextField fx:id="apiCaptureDir" HBox.hgrow="ALWAYS" maxWidth="1.7976931348623157E308" />
+                                    <Button fx:id="apiCaptureDirRef" mnemonicParsing="false" onAction="#selectApiCaptureDir" text="参照..." />
+                                 </children>
+                              </HBox>
+                           </children>
+                        </VBox>
                      </children>
                   </VBox>
                </content>

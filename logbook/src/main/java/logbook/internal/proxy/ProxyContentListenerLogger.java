@@ -164,10 +164,9 @@ public final class ProxyContentListenerLogger
         Outcome outcome,
         String errorDetail)
     {
-        String uri = nullToDefault(request.getRequestURI(), "/");
         Map<String, String> context = new HashMap<>();
         context.put(MDC_METHOD, nullToDefault(request.getMethod(), "UNKNOWN"));
-        context.put(MDC_URI_PATH, ProxyAccessLogger.extractUriPath(uri));
+        context.put(MDC_URI_PATH, nullToDefault(request.getUriPath(), "/"));
         context.put(ProxyAccessLogger.MDC_REQUEST_ID, nullToEmpty(request.getRequestId()));
         context.put(MDC_LAYER, layer.value());
         context.put(MDC_HANDLER_CLASS, handlerClass);

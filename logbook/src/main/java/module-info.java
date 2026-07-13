@@ -134,6 +134,7 @@ module logbook {
     opens logbook.api;
     opens logbook.bean;
     opens logbook.internal;
+    opens logbook.internal.capture;
     opens logbook.internal.metrics;
     opens logbook.internal.gui;
     opens logbook.internal.log;

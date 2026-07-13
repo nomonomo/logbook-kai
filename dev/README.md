@@ -239,6 +239,59 @@ JSON 形式は `ContentListenerLogJson` appender を参照してください（`
 
 ---
 
+## API レスポンス記録（開発者向け）
+
+kcsapi のレスポンス JSON を `{captureDir}/segments/{日付}.jsonl.zst` に JSONL + zstd で保存します。
+`ReverseConnectHandler.invoke()` 入口の `ApiCaptureHook` が対象 URI のボディ原文を 1 回記録します（既定: すべての `/kcsapi/`）。
+POST リクエストは `request` フィールドにボディ原文、レスポンスは `response` フィールドに解凍後原文として同梱します。
+**別途インデックスファイルは持たず**、各レコードの `requestId` でアクセスログと紐づけます。
+
+### UI 表示の有効化
+
+通常の設定画面には表示されません。次のいずれかを指定してください。
+
+- 環境変数: `LOGBOOK_API_CAPTURE_UI=1`
+- システムプロパティ: `-Dlogbook.apiCapture.ui=true`
+
+### devGate（任意）
+
+リリース JAR でも UI 表示を dev モード限定にする場合:
+
+```
+-Dlogbook.apiCapture.devGate=true
+```
+
+このとき UI 表示には `-Dlogbook.dev=true` または `-Dlogbook.apiCapture.force=true` も必要です。
+
+### 記録の有効化
+
+1. 上記で UI を表示
+2. 設定 → 通信 → 「API レスポンスを記録する」を ON（初回は同意ダイアログ）
+3. 保存先を指定して OK
+4. 記録中はメインウィンドウタイトルに `[API記録中]` が付きます
+
+### 対象 URI の拡張（開発者向け）
+
+既定は `/kcsapi/` のみ。別パスを追加する場合:
+
+```java
+ApiCapturePolicy.register(ApiCaptureTargetRule.prefix("/custom-api/"));
+```
+
+ボディは原文のまま保存されます。分析時に必要なパースは `read_segments.py` 等で行います。
+
+### ログとの突合
+
+```powershell
+# アクセスログから requestId を取得
+Select-String "api_port/port" logs/access-json.log
+
+# セグメントを展開して requestId で検索
+zstd -d captures/segments/2026-07-11.jsonl.zst -c | Select-String "req-uuid-here"
+```
+
+---
+
 ## 関連ドキュメント
 
 - ビルド手順: [how-to-build.md](../how-to-build.md)
