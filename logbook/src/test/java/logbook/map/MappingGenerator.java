@@ -40,7 +40,7 @@ public class MappingGenerator {
                             .filter(cell -> cell.getValue().size() == 2 && !"Start".equals(cell.getValue().get(1)))
                             .map(cell -> ("    \"" + area + "-" + cell.getKey() + "\": \"" + cell.getValue().get(1) + "\""));
                 })
-                .reduce((acc, cur) -> acc + ",\n" + cur)
+                .reduce((acc, cur) -> acc + ",\r\n" + cur)
                 .ifPresent(pw::println);
             pw.println("}");
         }
