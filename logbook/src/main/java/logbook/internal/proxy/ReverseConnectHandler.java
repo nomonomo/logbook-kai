@@ -38,17 +38,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import javax.net.ssl.SSLEngine;
 
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.compression.brotli.BrotliCompression;
-import org.eclipse.jetty.compression.gzip.GzipCompression;
 
 import logbook.bean.AppConfig;
 import logbook.internal.ThreadManager;
+import logbook.internal.capture.ApiCaptureHook;
 import logbook.plugin.PluginServices;
 import logbook.proxy.ContentListenerSpi;
 import logbook.proxy.RequestMetaData;
@@ -184,11 +184,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
     private long idleTimeout = 30000;
     private int bufferSize = 4096;
     
-    // Jetty公式の圧縮API（インスタンスで再利用）
-    // GzipCompressionは標準Java APIを使用するため、staticで共有可能
-    private static final GzipCompression GZIP_COMPRESSION = new GzipCompression();
-    // BrotliCompressionはdoStart()で初期化される
-    private BrotliCompression brotliCompression;  // 初期化失敗時はnull
+    private ResponseBodyDecompressor responseBodyDecompressor;
 
     public ReverseConnectHandler()
     {
@@ -355,8 +351,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         // Initialize content listeners
         initializeContentListeners();
         
-        // Initialize compression handlers (Brotli)
-        brotliCompression = initializeBrotliCompression();
+        responseBodyDecompressor = ResponseBodyDecompressor.createDefault();
 
         super.doStart();
     }
@@ -1167,29 +1162,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
     }
     
     /**
-     * BrotliCompressionを初期化する。
-     * doStart()から呼び出される。
-     * 初期化に失敗した場合はnullを返す（Brotli解凍は使用不可となる）。
-     * 
-     * @return 初期化済みのBrotliCompressionインスタンス、または失敗時はnull
-     */
-    private BrotliCompression initializeBrotliCompression()
-    {
-        try
-        {
-            BrotliCompression brotli = new BrotliCompression();
-            brotli.start();
-            log.debug("BrotliCompressionの初期化に成功しました");
-            return brotli;
-        }
-        catch (Throwable e)
-        {
-            log.error("BrotliCompressionの初期化に失敗しました（Brotli展開は使用不可）", e);
-            return null;  // 初期化失敗時はnullを返す
-        }
-    }
-    
-    /**
      * ContentListenerSpiプラグインを初期化する。
      * doStart()から呼ばれる。
      */
@@ -1248,6 +1220,8 @@ public class ReverseConnectHandler extends Handler.Wrapper
     {
         private static final Logger log = LoggerFactory.getLogger(HttpClientConnectionListener.class);
         private static final Logger accessLog = LoggerFactory.getLogger("logbook.internal.proxy.AccessLog");
+        private static final Logger contentListenerLog =
+            LoggerFactory.getLogger("logbook.internal.proxy.ContentListenerLog");
         
         private final ConnectContext connectContext;
         private final HttpClient httpClient;
@@ -1493,6 +1467,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                         req.setMethod("UNKNOWN");
                         req.setRequestURI(httpRequest.getUri() != null ? httpRequest.getUri() : "unknown");
                     }
+                    req.setRequestId(transaction.getRequestId());
                     
                     // Create ResponseMetaDataWrapper efficiently from CaptureHolder2.HttpResponse
                     ResponseMetaDataWrapper res = new ResponseMetaDataWrapper();
@@ -1564,6 +1539,8 @@ public class ReverseConnectHandler extends Handler.Wrapper
          */
         private void invoke(RequestMetaDataWrapper baseReq, ResponseMetaDataWrapper baseRes)
         {
+            ApiCaptureHook.captureIfNeeded(baseReq, baseRes);
+
             // Get content listeners (validated in onSuccess(), guaranteed non-empty here)
             List<ContentListenerSpi> listeners = ReverseConnectHandler.getContentListeners();
             
@@ -1602,6 +1579,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 
                 // Process listener asynchronously
                 Runnable task = () -> {
+                    long startNanos = System.nanoTime();
+                    ProxyContentListenerLogger.Outcome outcome = ProxyContentListenerLogger.Outcome.SUCCESS;
+                    String errorDetail = null;
                     try
                     {
                         log.trace("Processing request {} with listener {}", 
@@ -1614,8 +1594,16 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     }
                     catch (Exception e)
                     {
+                        outcome = ProxyContentListenerLogger.Outcome.ERROR;
+                        errorDetail = ProxyContentListenerLogger.formatCause(e);
                         log.warn("Content listener {} failed to process request", 
                             listener.getClass().getSimpleName(), e);
+                    }
+                    finally
+                    {
+                        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+                        ProxyContentListenerLogger.log(
+                            contentListenerLog, listener, req, elapsedMs, outcome, errorDetail);
                     }
                 };
                 
@@ -2335,7 +2323,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                     captureHolder.getCurrentRequest().setRequestLine(
                         method, uri, version.toString());
                     // リクエスト開始時刻を記録（keep-alive対応）
-                    captureHolder.getCurrentTransaction().setRequestStartTime(System.currentTimeMillis());
+                    captureHolder.getCurrentTransaction().beginRequest(System.currentTimeMillis());
                 }
             }
             
@@ -2799,7 +2787,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
         private String contentType;
         private String method;
         private String requestURI;
+        private String uriPath;
         private String queryString;
+        private String requestId = "";
         private Map<String, String> headers = new LinkedHashMap<>();
         private byte[] requestBodyBytes = null;  // Store as byte array, not InputStream
         private Map<String, List<String>> parameterMap = null;  // Lazy-initialized parameter map
@@ -2812,6 +2802,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         {
             this.method = httpRequest.getMethod();
             this.requestURI = httpRequest.getUri();
+            this.uriPath = httpRequest.getUriPath();
             this.headers = new LinkedHashMap<>(httpRequest.getHeaders());
             this.contentType = httpRequest.getContentType();
             
@@ -2839,6 +2830,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
             this.method = req.getMethod();
             this.requestURI = req.getHttpURI().getPath();
             this.queryString = req.getHttpURI().getQuery();
+            this.uriPath = UriPaths.normalize(this.requestURI);
             
             // Copy headers
             req.getHeaders().forEach(field -> 
@@ -2873,6 +2865,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
         void setRequestURI(String requestURI)
         {
             this.requestURI = requestURI;
+            this.uriPath = UriPaths.normalize(requestURI);
             
             // Extract query string from URI
             if (requestURI != null && requestURI.contains("?"))
@@ -3032,6 +3025,26 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
 
         @Override
+        public String getUriPath()
+        {
+            if (uriPath != null) {
+                return uriPath;
+            }
+            return UriPaths.normalize(requestURI);
+        }
+
+        @Override
+        public String getRequestId()
+        {
+            return requestId != null ? requestId : "";
+        }
+
+        void setRequestId(String requestId)
+        {
+            this.requestId = requestId != null ? requestId : "";
+        }
+
+        @Override
         public Optional<InputStream> getRequestBody()
         {
             // Return a new ByteArrayInputStream each time for thread-safe reuse
@@ -3050,6 +3063,7 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 RequestMetaDataWrapper copy = (RequestMetaDataWrapper) super.clone();
                 // Deep copy headers map
                 copy.headers = new LinkedHashMap<>(this.headers);
+                copy.requestId = this.requestId;
                 // Byte array is immutable reference, no need to copy the array itself
                 // (multiple clones can share the same byte array safely)
                 // Parameter map is lazy-initialized, share the reference if already computed
@@ -3063,7 +3077,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
                 copy.contentType = this.contentType;
                 copy.method = this.method;
                 copy.requestURI = this.requestURI;
+                copy.uriPath = this.uriPath;
                 copy.queryString = this.queryString;
+                copy.requestId = this.requestId;
                 copy.headers = new LinkedHashMap<>(this.headers);
                 copy.requestBodyBytes = this.requestBodyBytes;  // Share the byte array reference
                 copy.parameterMap = this.parameterMap;  // Share the parameter map reference
@@ -3124,20 +3140,9 @@ public class ReverseConnectHandler extends Handler.Wrapper
             {
                 return new byte[0];
             }
-            
+
             log.trace("Response headers: {}", headers);
-            
-            String contentEncoding = getHeaderCaseInsensitive(headers, "Content-Encoding");
-            CompressionType compressionType = detectCompressionType(contentEncoding, bodyBytes);
-            
-            byte[] decompressed = decompressIfNeeded(bodyBytes, compressionType, contentEncoding);
-            if (compressionType != CompressionType.NONE)
-            {
-                log.debug("レスポンス解凍: {} {}B → {}B",
-                    compressionType == CompressionType.GZIP ? "gzip" : "brotli",
-                    bodyBytes.length, decompressed.length);
-            }
-            return decompressed;
+            return ReverseConnectHandler.this.responseBodyDecompressor.decompress(bodyBytes, headers);
         }
         
         /**
@@ -3157,151 +3162,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
             }
             
             return bodyBytes;
-        }
-        
-        /**
-         * 圧縮形式を検出する。
-         * 
-         * @param contentEncoding Content-Encodingヘッダーの値
-         * @param bodyBytes ボディバイト
-         * @return 検出された圧縮形式
-         * @throws IOException 未対応のContent-Encodingが指定されている場合
-         */
-        private CompressionType detectCompressionType(String contentEncoding, byte[] bodyBytes) throws IOException
-        {
-            log.trace("Content-Encoding header value: '{}', body size: {} bytes", contentEncoding, bodyBytes.length);
-            
-            // ヘッダーベースの検出
-            CompressionType type = switch (contentEncoding == null ? "" : contentEncoding.toLowerCase())
-            {
-                case "gzip" -> CompressionType.GZIP;
-                case "br" -> CompressionType.BROTLI;
-                case "" -> CompressionType.NONE;
-                default -> {
-                    // 未対応のContent-Encodingが指定されている場合、例外をスロー
-                    String errorMsg = String.format("未対応のContent-Encodingです: '%s' (ボディサイズ: %d バイト)", contentEncoding, bodyBytes.length);
-                    log.error("{}", errorMsg);
-                    throw new IOException(errorMsg);
-                }
-            };
-            
-            // マジックバイトによるフォールバック検出（gzipのみ）
-            if (type == CompressionType.NONE && bodyBytes.length >= 2)
-            {
-                boolean isGzipMagic = (bodyBytes[0] & 0xFF) == 0x1f && (bodyBytes[1] & 0xFF) == 0x8b;
-                if (isGzipMagic)
-                {
-                    if (contentEncoding != null)
-                    {
-                        log.warn("gzip圧縮データをマジックバイトで検出しましたが、Content-Encodingは'{}'でした", contentEncoding);
-                    }
-                    else
-                    {
-                        log.trace("gzip圧縮データをマジックバイトで検出しました（Content-Encodingヘッダーなし）");
-                    }
-                    return CompressionType.GZIP;
-                }
-            }
-            
-            return type;
-        }
-        
-        /**
-         * 必要に応じてボディを解凍する。
-         * 
-         * @param bodyBytes ボディバイト
-         * @param type 圧縮形式
-         * @param contentEncoding Content-Encodingヘッダーの値
-         * @return 処理済みのボディバイト配列
-         * @throws IOException 圧縮解凍処理でエラーが発生した場合
-         */
-        private byte[] decompressIfNeeded(byte[] bodyBytes, CompressionType type, String contentEncoding) throws IOException
-        {
-            return switch (type)
-            {
-                case GZIP -> decompressGzip(bodyBytes, contentEncoding);
-                case BROTLI -> decompressBrotli(bodyBytes, contentEncoding);
-                case NONE -> bodyBytes;
-            };
-        }
-        
-        /**
-         * Gzip形式のデータを解凍する。
-         * 
-         * @param bodyBytes ボディバイト
-         * @param contentEncoding Content-Encodingヘッダーの値
-         * @return 解凍済みのボディバイト配列
-         * @throws IOException 解凍処理でエラーが発生した場合、またはGzipCompressionが利用不可の場合
-         */
-        private byte[] decompressGzip(byte[] bodyBytes, String contentEncoding) throws IOException
-        {
-            try (InputStream compressedStream = new ByteArrayInputStream(bodyBytes);
-                 InputStream gzipStream = ReverseConnectHandler.GZIP_COMPRESSION.newDecoderInputStream(compressedStream);
-                 ByteArrayOutputStream baos = new ByteArrayOutputStream())
-            {
-                gzipStream.transferTo(baos);
-                byte[] decompressed = baos.toByteArray();
-                
-                log.trace("Response body ungzipped: {} bytes -> {} bytes (Content-Encoding: {})", 
-                    bodyBytes.length, decompressed.length, contentEncoding);
-                
-                return decompressed;
-            }
-            catch (IOException e)
-            {
-                // 例外を再スローして上位に伝播（ログは上位で出力）
-                throw new IOException(String.format("Gzip解凍に失敗しました: Content-Encoding='%s', ボディサイズ=%d バイト", 
-                    contentEncoding, bodyBytes.length), e);
-            }
-        }
-        
-        /**
-         * Brotli形式のデータを解凍する。
-         * 
-         * @param bodyBytes ボディバイト
-         * @param contentEncoding Content-Encodingヘッダーの値
-         * @return 解凍済みのボディバイト配列
-         * @throws IOException 解凍処理でエラーが発生した場合、またはBrotliCompressionが利用不可の場合
-         */
-        private byte[] decompressBrotli(byte[] bodyBytes, String contentEncoding) throws IOException
-        {
-            if (ReverseConnectHandler.this.brotliCompression == null)
-            {
-                // 例外をスローして上位に伝播（ログは上位で出力）
-                throw new IOException(String.format("BrotliCompressionが利用できません: Content-Encoding='%s', ボディサイズ=%d バイト", 
-                    contentEncoding, bodyBytes.length));
-            }
-            
-            log.trace("Starting Brotli decompression: input size = {} bytes", bodyBytes.length);
-            
-            try (InputStream compressedStream = new ByteArrayInputStream(bodyBytes);
-                 InputStream brotliStream = ReverseConnectHandler.this.brotliCompression.newDecoderInputStream(compressedStream);
-                 ByteArrayOutputStream baos = new ByteArrayOutputStream())
-            {
-                brotliStream.transferTo(baos);
-                byte[] decompressed = baos.toByteArray();
-                
-                log.trace("Response body decompressed (Brotli): {} bytes -> {} bytes (Content-Encoding: {})", 
-                    bodyBytes.length, decompressed.length, contentEncoding);
-                
-                return decompressed;
-            }
-            catch (IOException e)
-            {
-                // 例外を再スローして上位に伝播（ログは上位で出力）
-                throw new IOException(String.format("Brotli解凍に失敗しました: Content-Encoding='%s', ボディサイズ=%d バイト", 
-                    contentEncoding, bodyBytes.length), e);
-            }
-        }
-        
-        /**
-         * 圧縮形式の列挙型
-         */
-        private enum CompressionType
-        {
-            NONE,    // 非圧縮
-            GZIP,    // Gzip圧縮
-            BROTLI   // Brotli圧縮
         }
 
         /**
@@ -3355,36 +3215,6 @@ public class ReverseConnectHandler extends Handler.Wrapper
         public String getHeader(String name)
         {
             return headers.get(name);
-        }
-        
-        /**
-         * Get a specific HTTP header value (case-insensitive).
-         * HTTPヘッダーは大文字小文字を区別しないため、このメソッドを使用する。
-         */
-        private static String getHeaderCaseInsensitive(Map<String, String> headers, String name)
-        {
-            if (headers == null || name == null)
-            {
-                return null;
-            }
-            
-            // 完全一致を優先
-            String value = headers.get(name);
-            if (value != null)
-            {
-                return value;
-            }
-            
-            // ケースインセンシティブ検索
-            for (Map.Entry<String, String> entry : headers.entrySet())
-            {
-                if (name.equalsIgnoreCase(entry.getKey()))
-                {
-                    return entry.getValue();
-                }
-            }
-            
-            return null;
         }
         
         /**

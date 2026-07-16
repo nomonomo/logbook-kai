@@ -1,6 +1,7 @@
 package logbook.internal;
 
 import java.beans.ExceptionListener;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -11,7 +12,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 import logbook.bean.AppConfig;
+import logbook.internal.capture.ApiCaptureWriter;
 import logbook.internal.gui.Main;
+import logbook.internal.metrics.LogbookBuildInfo;
+import logbook.internal.metrics.LogbookMetrics;
 import logbook.internal.proxy.ProxyHolder;
 import logbook.plugin.JarBasedPlugin;
 import logbook.plugin.PluginContainer;
@@ -28,10 +32,12 @@ public final class Launcher {
      * @param args アプリケーション引数
      */
     public static void main(String[] args) {
+        DevMode.configure(args);
         Launcher launcher = new Launcher();
         try {
             try {
                 launcher.initPlugin(args);
+                registerJmxMetrics();
                 launcher.initLocal(args);
                 Runtime.getRuntime().addShutdownHook(new Thread(launcher::exitLocalProxy));
                 Runtime.getRuntime().addShutdownHook(new Thread(launcher::exitLocalThreadPool));
@@ -43,6 +49,21 @@ public final class Launcher {
             }
         } catch (Exception | Error e) {
             LoggerHolder.get().warn("例外が発生しました", e); //$NON-NLS-1$
+        }
+    }
+
+    /**
+     * アプリケーションメトリクス MXBean を JMX に登録します。
+     */
+    private static void registerJmxMetrics() {
+        try {
+            var mBeanServer = ManagementFactory.getPlatformMBeanServer();
+            LogbookBuildInfo buildInfo = new LogbookBuildInfo();
+            mBeanServer.registerMBean(buildInfo, buildInfo.getObjectName());
+            LogbookMetrics metrics = new LogbookMetrics();
+            mBeanServer.registerMBean(metrics, metrics.getObjectName());
+        } catch (Exception e) {
+            LoggerHolder.get().warn("JMXメトリクスの登録に失敗しました", e);
         }
     }
 
@@ -97,6 +118,7 @@ public final class Launcher {
      * スレッドプールの終了処理
      */
     private void exitLocalThreadPool() {
+        ApiCaptureWriter.shutdown();
         ExecutorService executor = ThreadManager.getExecutorService();
         executor.shutdownNow();
     }

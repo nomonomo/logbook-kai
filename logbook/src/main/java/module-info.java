@@ -12,12 +12,19 @@ module logbook {
     requires ch.qos.logback.core;
     requires jdk.crypto.ec;
     requires jdk.charsets;
-    requires com.aayushatharva.brotli4j;
     requires org.eclipse.jetty.compression.gzip;
     requires org.eclipse.jetty.compression.brotli;
+    requires org.eclipse.jetty.compression.zstandard;
     requires org.bouncycastle.provider;
     requires org.bouncycastle.pkix;
-    
+    // JMX Exporter（-javaagent）利用時に jlink イメージへ含める
+    requires java.instrument;
+    requires transitive java.management;
+    requires jdk.httpserver;
+    requires java.net.http;
+
+    requires jdk.jconsole;
+
     requires transitive com.fasterxml.jackson.annotation;
     requires transitive tools.jackson.databind;
     requires transitive jakarta.json;
@@ -39,6 +46,7 @@ module logbook {
     exports logbook.api;
     exports logbook.bean;
     exports logbook.internal;
+    exports logbook.internal.metrics;
     exports logbook.internal.gui;
     exports logbook.internal.log;
     exports logbook.internal.proxy;
@@ -116,7 +124,8 @@ module logbook {
         logbook.api.ApiReqSortieLdShooting,
         logbook.api.ApiStart2;
     provides logbook.plugin.lifecycle.StartUp with
-        logbook.internal.CheckUpdateStartUp;
+        logbook.internal.CheckUpdateStartUp,
+        logbook.internal.CheckGameDataUpdateStartUp;
     provides logbook.proxy.ContentListenerSpi with
         logbook.internal.APIListener,
         logbook.internal.ImageListener;
@@ -127,6 +136,9 @@ module logbook {
     opens logbook.api;
     opens logbook.bean;
     opens logbook.internal;
+    opens logbook.internal.gamedata;
+    opens logbook.internal.capture;
+    opens logbook.internal.metrics;
     opens logbook.internal.gui;
     opens logbook.internal.log;
     opens logbook.internal.proxy;
@@ -140,6 +152,7 @@ module logbook {
     opens logbook.map;
     opens logbook.mission;
     opens logbook.quest;
+    opens logbook.seaarea;
     opens logbook.supplemental;
     
     

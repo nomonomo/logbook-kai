@@ -1,0 +1,10 @@
+{
+  "areas": [
+    { "area": 1, "name": "第三十一戦隊", "imageNo": 4 },
+    { "area": 2, "name": "増強第三十一戦隊", "imageNo": 6 },
+    { "area": 3, "name": "多号作戦部隊", "imageNo": 8 },
+    { "area": 4, "name": "連合艦隊", "imageNo": 10 },
+    { "area": 5, "name": "第六艦隊", "imageNo": 14 },
+    { "area": 6, "name": "ウルシー攻撃部隊", "imageNo": 12 }
+  ]
+}

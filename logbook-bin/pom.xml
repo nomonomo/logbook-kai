@@ -4,7 +4,7 @@
     <parent>
         <groupId>logbook-kai</groupId>
         <artifactId>logbook-kai</artifactId>
-        <version>26.6.3</version>
+        <version>26.7.1</version>
     </parent>
     <artifactId>logbook-jlink</artifactId>
     <properties>
@@ -59,11 +59,11 @@
                     <launcher>logbook=logbook/logbook.internal.Launcher</launcher>
                     <noHeaderFiles>true</noHeaderFiles>
                     <noManPages>true</noManPages>
-                    <!-- logbook の package で展開された brotli4j ネイティブを、jlink イメージの lib へ追加（ZIP 化の直前） -->
+                    <!-- logbook の package で展開された Zstandard と brotli4j JNIライブラリを、jlink イメージの lib へ追加（ZIP 化の直前） -->
                     <additionalResources>
                         <resource>
                             <directory>${project.basedir}/../logbook/target/native-libs/n</directory>
-                            <targetPath>lib</targetPath>
+                            <targetPath>${targetJniPath}</targetPath>
                             <filtering>false</filtering>
                         </resource>
                     </additionalResources>
@@ -83,7 +83,7 @@
                             <descriptors>
                                 <descriptor>assembly.xml</descriptor>
                             </descriptors>
-                            <finalName>logbook-${javafx.platform}</finalName>
+                            <finalName>logbook-${logbook.platform.name}</finalName>
                             <appendAssemblyId>false</appendAssemblyId>
                         </configuration>
                     </execution>

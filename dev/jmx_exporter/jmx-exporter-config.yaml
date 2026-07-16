@@ -1,0 +1,45 @@
+# JMX Exporter 設定（logbook-kai）
+#
+# 必要バージョン: JMX Exporter 1.2.0 以降
+#   - metricCustomizers（attributesAsLabels）は 1.2.0 で追加（PR #996, #1124）
+#   - 1.2.0 未満では本設定ファイルは読み込めない
+# 動作確認: 1.6.0（logbook_build 等の OpenMetrics 命名は 1.6.x で確認）
+# 起動例:
+#   -javaagent:/path/to/jmx_prometheus_javaagent.jar=9404:/path/to/jmx-exporter-config.yaml
+#
+# JVM メトリクス:
+#   - javaagent 組み込みの jvm_*（JvmMetrics）のみを利用する
+#   - catch-all（pattern: ".*"）は使わない（java_lang_* の生ダンプは jvm_* と重複するため不要）
+#
+# logbook MXBean:
+#   - logbook:type=BuildInfo … 起動時確定のビルド識別（1.6.x では logbook_build として出力）
+#   - logbook:type=ApplicationMetrics … 実行中状態（uptime / port / server / plugins）
+
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+
+autoExcludeObjectNameAttributes: true
+
+# BuildInfo の version / buildTimestamp をラベル化（要 JMX Exporter 1.2.0+）
+metricCustomizers:
+  - mbeanFilter:
+      domain: logbook
+      properties:
+        type: BuildInfo
+    attributesAsLabels:
+      - Version
+      - BuildTimestamp
+
+rules:
+  # ビルド情報（1.6.x では OpenMetrics 命名により logbook_build として出力）
+  - pattern: 'logbook<[^>]*type=BuildInfo[^>]*><>Version:'
+    name: logbook_build_info
+    type: GAUGE
+    value: 1
+    help: Logbook build information
+
+  # ApplicationMetrics の数値属性をすべて出力（属性名を snake_case 化して logbook_<name> に）
+  - pattern: 'logbook<[^>]*type=ApplicationMetrics[^>]*><>(\w+):'
+    name: logbook_$1
+    attrNameSnakeCase: true
+    type: GAUGE

@@ -185,14 +185,18 @@ public final class Version implements Comparable<Version>, Serializable {
     
     /**
      * buildTimestampを取得します。
-     * @return buildTimestamp（"-"以降の文字列、nullの場合は日時情報なし）
+     * @return buildTimestamp（MANIFEST.MF の Build-Timestamp、nullの場合は日時情報なし）
      */
     public String getBuildTimestamp() {
         return this.buildTimestamp;
     }
 
-    @Override
-    public String toString() {
+    /**
+     * セマンティックバージョン文字列を返します（ビルド日時を含まない）。
+     *
+     * @return バージョン文字列（例: {@code 26.6.3}）
+     */
+    public String toBaseString() {
         if (this.equals(UNKNOWN)) {
             return "unknown";
         }
@@ -200,11 +204,12 @@ public final class Version implements Comparable<Version>, Serializable {
         if (this.revision > 0) {
             version += "." + this.revision; //$NON-NLS-1$
         }
-        // ビルド日時がある場合は追加（常に含まれる）
-        if (this.buildTimestamp != null && !this.buildTimestamp.isEmpty()) {
-            version += "-" + this.buildTimestamp; //$NON-NLS-1$
-        }
         return version;
+    }
+
+    @Override
+    public String toString() {
+        return toBaseString();
     }
 
     @Override
@@ -263,12 +268,13 @@ public final class Version implements Comparable<Version>, Serializable {
             version = attrs.getValue(Attributes.Name.IMPLEMENTATION_VERSION);
             title = attrs.getValue(Attributes.Name.IMPLEMENTATION_TITLE);
             vendor = attrs.getValue(Attributes.Name.IMPLEMENTATION_VENDOR);
+            String manifestBuildTimestamp = attrs.getValue("Build-Timestamp");
             
             if (version != null && !version.isEmpty()) {
                 source = "MANIFEST.MF (直接読み取り)";
-                log.debug("バージョン情報を取得しました（ソース: {}）: version={}, title={}, vendor={}", 
-                    source, version, title, vendor);
-                return new Version(version, title, vendor);
+                log.debug("バージョン情報を取得しました（ソース: {}）: version={}, buildTimestamp={}, title={}, vendor={}", 
+                    source, version, manifestBuildTimestamp, title, vendor);
+                return fromManifest(version, manifestBuildTimestamp, title, vendor);
             } else {
                 log.debug("MANIFEST.MFにImplementation-Versionが見つかりませんでした");
             }
@@ -297,6 +303,28 @@ public final class Version implements Comparable<Version>, Serializable {
         // どちらからも取得できない場合
         log.debug("すべての方法でバージョン情報を取得できませんでした。UNKNOWNを返します。");
         return UNKNOWN;
+    }
+
+    /**
+     * MANIFEST.MF の属性から Version を生成します。
+     *
+     * @param implementationVersion Implementation-Version
+     * @param manifestBuildTimestamp Build-Timestamp
+     * @param title Implementation-Title
+     * @param vendor Implementation-Vendor
+     * @return Version オブジェクト
+     */
+    private static Version fromManifest(
+            String implementationVersion,
+            String manifestBuildTimestamp,
+            String title,
+            String vendor) {
+        Version parsed = new Version(implementationVersion, title, vendor);
+        String buildTimestamp = manifestBuildTimestamp;
+        if (buildTimestamp == null || buildTimestamp.isEmpty()) {
+            buildTimestamp = parsed.buildTimestamp;
+        }
+        return new Version(parsed.major, parsed.minor, parsed.revision, buildTimestamp, title, vendor);
     }
     
 }

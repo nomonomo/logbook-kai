@@ -20,7 +20,7 @@ import javafx.stage.WindowEvent;
 import logbook.bean.AppConfig;
 import logbook.bean.WindowLocation;
 import logbook.internal.CheckUpdate;
-import logbook.internal.Version;
+import logbook.internal.capture.ApiCaptureTitles;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -66,7 +66,7 @@ public class Main extends Application implements SystemSleepListener {
         // 最前面に表示する
         stage.setAlwaysOnTop(AppConfig.get().isOnTop());
 
-        stage.setTitle("航海日誌 " + Version.getCurrent());
+        stage.setTitle(ApiCaptureTitles.mainWindowTitle());
 
         stage.addEventHandler(WindowEvent.WINDOW_CLOSE_REQUEST, e -> {
             if (AppConfig.get().isCheckDoit()) {
@@ -148,6 +148,18 @@ public class Main extends Application implements SystemSleepListener {
      */
     public static Stage getPrimaryStage() {
         return mainController != null ? mainController.getWindow() : null;
+    }
+
+    /**
+     * メインウィンドウのタイトルを現在の設定に合わせて更新する。
+     */
+    public static void refreshMainWindowTitle() {
+        Platform.runLater(() -> {
+            Stage stage = getPrimaryStage();
+            if (stage != null) {
+                stage.setTitle(ApiCaptureTitles.mainWindowTitle());
+            }
+        });
     }
 
     public static WindowController getMainController() {

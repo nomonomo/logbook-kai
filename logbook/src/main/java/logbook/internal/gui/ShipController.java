@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -204,7 +203,7 @@ public class ShipController extends WindowController {
      * @return ソート順、もし定義にないものの場合は Integer.MAX_VALUE
      */
     private static int labelSortOrder(String label) {
-        return Stream.of(SeaArea.values())
+        return SeaArea.values().stream()
                 .filter(s -> s.getName().equals(label))
                 .findAny()
                 .map(SeaArea::getArea)

@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.SSLHandshakeException;
 
+import logbook.internal.DevMode;
 import logbook.internal.Version;
 
 import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
@@ -77,7 +78,7 @@ public final class ProxyServerImpl implements ProxyServerSpi {
             // JVMバージョン情報をログ出力
             logJvmInfo();
             
-            // 航海日誌のバージョン情報をログ出力（brotli4j情報も含む）
+            // 航海日誌のバージョン情報をログ出力
             logApplicationVersion();
             
             // SSL Context Factoryの初期化（証明書の存在確認を含む）
@@ -260,64 +261,18 @@ public final class ProxyServerImpl implements ProxyServerSpi {
         // Applicationの表示形式: title(vendor) version
         String applicationInfo;
         if (title != null && vendor != null && !vendor.isEmpty()) {
-            applicationInfo = String.format("%s(%s) %s", title, vendor, version.toString());
+            applicationInfo = String.format("%s(%s) %s", title, vendor, DevMode.formatVersionDisplay(version));
         } else if (title != null) {
-            applicationInfo = String.format("%s %s", title, version.toString());
+            applicationInfo = String.format("%s %s", title, DevMode.formatVersionDisplay(version));
         } else if (vendor != null && !vendor.isEmpty()) {
-            applicationInfo = String.format("航海日誌(%s) %s", vendor, version.toString());
+            applicationInfo = String.format("航海日誌(%s) %s", vendor, DevMode.formatVersionDisplay(version));
         } else {
-            applicationInfo = String.format("航海日誌 %s", version.toString());
+            applicationInfo = String.format("航海日誌 %s", DevMode.formatVersionDisplay(version));
         }
         
         log.info("================ Application Information ================");
         log.info("Application     : {}", applicationInfo);
-        configureBrotliNativeLibraryPath();
         log.info("=========================================================");
-    }
-    
-    /**
-     * brotli4jのネイティブライブラリパスを設定する。
-     * jlinkで作成されたランタイムイメージの場合、libディレクトリからbrotli.dllを読み込む。
-     */
-    private static void configureBrotliNativeLibraryPath() {
-        // 既に設定されている場合はスキップ（システムプロパティや環境変数で設定済みの場合）
-        if (System.getProperty("brotli4j.library.path") != null) {
-            log.debug("brotli4j.library.path is already set: {}", System.getProperty("brotli4j.library.path"));
-            return;
-        }
-        
-        // java.homeからlibディレクトリのパスを構築
-        // jlinkで作成されたランタイムイメージの場合、java.homeはランタイムイメージのルートディレクトリ
-        String javaHome = System.getProperty("java.home");
-        if (javaHome == null) {
-            log.warn("java.home is not set, cannot configure brotli4j.library.path");
-            return;
-        }
-        
-        // プラットフォームごとのネイティブライブラリ名を決定
-        String osName = System.getProperty("os.name", "").toLowerCase();
-        String nativeLibName;
-        if (osName.contains("win")) {
-            nativeLibName = "brotli.dll";
-        } else if (osName.contains("linux")) {
-            nativeLibName = "libbrotli.so";
-        } else if (osName.contains("mac")) {
-            nativeLibName = "libbrotli.dylib";
-        } else {
-            log.debug("Unsupported OS for brotli native library: {}", osName);
-            return;
-        }
-        
-        // libディレクトリのパスを構築
-        Path libPath = Paths.get(javaHome, "lib", nativeLibName);
-        
-        // ファイルが存在するか確認
-        if (Files.exists(libPath)) {
-            System.setProperty("brotli4j.library.path", libPath.toAbsolutePath().toString());
-            log.info("Brotli4j        : Loaded from lib directory: {}", nativeLibName);
-        } else {
-            log.info("Brotli4j        : Loaded from temp directory: {}", nativeLibName);
-        }
     }
     
     /**

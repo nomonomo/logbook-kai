@@ -3,21 +3,24 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>logbook-kai</groupId>
     <artifactId>logbook-kai</artifactId>
-    <version>26.6.3</version>
+    <version>26.7.1</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <lombok.version>1.18.46</lombok.version>
         <!-- JavaFXバージョン: 一元管理 -->
         <javafx.version>21.0.11</javafx.version>
-        <!-- JavaFX classifier: 外部から -Djavafx.platform=win のように指定可能 -->
-        <!-- 指定可能な値: win, linux, mac, mac-aarch64 -->
-        <!-- デフォルト値: win（外部から指定されない場合） -->
-        <javafx.platform>win</javafx.platform>
         <maven.compiler.release>21</maven.compiler.release>
         <maven.compiler.fork>true</maven.compiler.fork>
+        <!-- MANIFEST.MF の Build-Timestamp 用（UTC、ISO 8601） -->
+        <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss'Z'</maven.build.timestamp.format>
+        <!--
+            ネイティブJNI向けプロパティ（brotli4j.classifier / zstandard.os.* / targetJniPath / logbook.platform.name）は
+            下記 OS プロファイルでのみ設定する。未設定時は validate フェーズで enforcer により失敗する。
+        -->
     </properties>
     <modules>
+        <module>logbook-data</module>
         <module>logbook</module>
         <module>logbook-bin</module>
     </modules>  
@@ -34,35 +37,42 @@
             <dependency>
                 <groupId>tools.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
-                <version>3.1.4</version>
+                <version>3.1.5</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-bom</artifactId>
-                <version>12.1.10</version>
+                <version>12.1.11</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty.ee11</groupId>
                 <artifactId>jetty-ee11-bom</artifactId>
-                <version>12.1.10</version>
+                <version>12.1.11</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>6.1.0</version>
+                <version>6.1.1</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-bom</artifactId>
+                <version>5.16.0</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
             <dependency>
                 <groupId>net.javacrumbs.json-unit</groupId>
                 <artifactId>json-unit-bom</artifactId>
-                <version>5.1.2</version>
+                <version>6.0.1</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -108,7 +118,146 @@
                     <artifactId>maven-clean-plugin</artifactId>
                     <version>3.5.0</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.6.3</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <version>3.6.3</version>
+                </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <!-- ネイティブJNI用プロパティが未設定のままビルドされるのを防ぐ -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>require-supported-native-platform</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireProperty>
+                                    <property>brotli4j.classifier</property>
+                                    <message>必須プロパティ 'brotli4j.classifier' が未設定です。</message>
+                                </requireProperty>
+                                <requireProperty>
+                                    <property>zstandard.os.name</property>
+                                    <message>必須プロパティ 'zstandard.os.name' が未設定です。</message>
+                                </requireProperty>
+                                <requireProperty>
+                                    <property>zstandard.os.arch</property>
+                                    <message>必須プロパティ 'zstandard.os.arch' が未設定です。</message>
+                                </requireProperty>
+                                <requireProperty>
+                                    <property>targetJniPath</property>
+                                    <message>必須プロパティ 'targetJniPath' が未設定です。</message>
+                                </requireProperty>
+                                <requireProperty>
+                                    <property>logbook.platform.name</property>
+                                    <message>必須プロパティ 'logbook.platform.name' が未設定です。</message>
+                                </requireProperty>
+                            </rules>
+                            <failFast>false</failFast>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>windows-x86_64</id>
+            <activation>
+                <os>
+                    <family>Windows</family>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <properties>
+                <brotli4j.classifier>windows-x86_64</brotli4j.classifier>
+                <zstandard.os.name>win</zstandard.os.name>
+                <zstandard.os.arch>amd64</zstandard.os.arch>
+                <targetJniPath>bin</targetJniPath>
+                <logbook.platform.name>win</logbook.platform.name>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>windows-aarch64</id>
+            <activation>
+                <os>
+                    <family>Windows</family>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <brotli4j.classifier>windows-aarch64</brotli4j.classifier>
+                <zstandard.os.name>win</zstandard.os.name>
+                <zstandard.os.arch>aarch64</zstandard.os.arch>
+                <targetJniPath>bin</targetJniPath>
+                <logbook.platform.name>win-aarch64</logbook.platform.name>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>osx-x86_64</id>
+            <activation>
+                <os>
+                    <family>Mac</family>
+                    <arch>x86_64</arch>
+                </os>
+            </activation>
+            <properties>
+                <brotli4j.classifier>osx-x86_64</brotli4j.classifier>
+                <zstandard.os.name>darwin</zstandard.os.name>
+                <zstandard.os.arch>x86_64</zstandard.os.arch>
+                <targetJniPath>lib</targetJniPath>
+                <logbook.platform.name>mac</logbook.platform.name>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>osx-aarch64</id>
+            <activation>
+                <os>
+                    <family>Mac</family>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <brotli4j.classifier>osx-aarch64</brotli4j.classifier>
+                <zstandard.os.name>darwin</zstandard.os.name>
+                <zstandard.os.arch>aarch64</zstandard.os.arch>
+                <targetJniPath>lib</targetJniPath>
+                <logbook.platform.name>mac-aarch64</logbook.platform.name>
+            </properties>
+        </profile>
+
+        <!-- data CI / 開発用（配布 ZIP は作らない。enforcer 充足用） -->
+        <profile>
+            <id>linux-x86_64</id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                    <name>linux</name>
+                </os>
+            </activation>
+            <properties>
+                <brotli4j.classifier>linux-x86_64</brotli4j.classifier>
+                <zstandard.os.name>linux</zstandard.os.name>
+                <zstandard.os.arch>amd64</zstandard.os.arch>
+                <targetJniPath>lib</targetJniPath>
+                <logbook.platform.name>linux</logbook.platform.name>
+            </properties>
+        </profile>
+    </profiles>
 </project>

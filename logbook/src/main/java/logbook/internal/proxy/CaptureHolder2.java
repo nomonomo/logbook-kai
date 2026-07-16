@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * HTTPリクエスト/レスポンスペアをより効率的に管理するCaptureHolderの改良版。
@@ -27,6 +28,7 @@ public class CaptureHolder2 {
     public static class HttpRequest {
         private String method;
         private String uri;
+        private String uriPath;
         private String version;
         private final Map<String, String> headers = new LinkedHashMap<>();
         private final List<byte[]> bodyChunks = new ArrayList<>();
@@ -35,6 +37,7 @@ public class CaptureHolder2 {
         public void setRequestLine(String method, String uri, String version) {
             this.method = method;
             this.uri = uri;
+            this.uriPath = UriPaths.normalize(uri);
             this.version = version;
         }
         
@@ -56,7 +59,14 @@ public class CaptureHolder2 {
         public String getUri() {
             return uri;
         }
-        
+
+        /**
+         * ログ・集計用パス（クエリ・フラグメント除外）。
+         */
+        public String getUriPath() {
+            return uriPath;
+        }
+
         public String getVersion() {
             return version;
         }
@@ -118,6 +128,7 @@ public class CaptureHolder2 {
         public void clear() {
             method = null;
             uri = null;
+            uriPath = null;
             version = null;
             headers.clear();
             bodyChunks.clear();
@@ -264,6 +275,8 @@ public class CaptureHolder2 {
         private final HttpResponse response = new HttpResponse();
         /** リクエスト開始時刻（ミリ秒、keep-alive対応用） */
         private long requestStartTimeMillis = 0;
+        /** アクセスログ・リスナー処理ログの相関用ID */
+        private String requestId;
         /** アップストリームからレスポンス行を受信した時刻（ミリ秒） */
         private long responseStartTimeMillis = 0;
         /** アップストリームからレスポンス全体を受信した時刻（ミリ秒） */
@@ -278,10 +291,13 @@ public class CaptureHolder2 {
         }
         
         /**
-         * リクエスト開始時刻を設定します。
+         * リクエスト開始を記録する（開始時刻と相関IDを付与）。
+         *
          * @param startTimeMillis リクエスト開始時刻（ミリ秒）
          */
-        public void setRequestStartTime(long startTimeMillis) {
+        public void beginRequest(long startTimeMillis)
+        {
+            this.requestId = UUID.randomUUID().toString();
             this.requestStartTimeMillis = startTimeMillis;
         }
         
@@ -291,6 +307,16 @@ public class CaptureHolder2 {
          */
         public long getRequestStartTime() {
             return requestStartTimeMillis;
+        }
+
+        /**
+         * リクエスト相関IDを取得します。
+         *
+         * @return 相関ID、未設定時は空文字
+         */
+        public String getRequestId()
+        {
+            return requestId != null ? requestId : "";
         }
 
         /**
@@ -333,6 +359,7 @@ public class CaptureHolder2 {
             request.clear();
             response.clear();
             requestStartTimeMillis = 0;
+            requestId = null;
             responseStartTimeMillis = 0;
             responseCompleteTimeMillis = 0;
         }

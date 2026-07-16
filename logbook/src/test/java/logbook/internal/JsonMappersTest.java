@@ -1,16 +1,19 @@
 package logbook.internal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.InputStream;
+import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.cfg.DateTimeFeature;
 
 /**
  * {@link JsonMappers} の各 Reader（MAPPER / LENIENT_READER /
@@ -178,5 +181,23 @@ class JsonMappersTest {
                 JsonMappers.STRICT_CREATOR_READER_WITH_COMMENTS
                         .forType(NameValueBean.class)
                         .readValue(jsonMissingValue));
+    }
+
+    /**
+     * API キャプチャの {@code capturedAt} 等、{@link Instant} を ISO-8601 文字列で書き出す前提。
+     * Jackson のデフォルトが数値タイムスタンプに変わった場合にここで検知する。
+     */
+    @Test
+    void mapperWritesInstantAsIso8601String() throws Exception {
+        assertFalse(JsonMappers.MAPPER.isEnabled(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS));
+
+        Instant instant = Instant.parse("2026-07-12T00:00:00Z");
+        assertEquals("\"2026-07-12T00:00:00Z\"", JsonMappers.MAPPER.writeValueAsString(instant));
+
+        record InstantHolder(Instant capturedAt) {
+        }
+        assertEquals(
+                "{\"capturedAt\":\"2026-07-12T00:00:00Z\"}",
+                JsonMappers.MAPPER.writeValueAsString(new InstantHolder(instant)));
     }
 }

@@ -1,0 +1,52 @@
+# data/ 配下の変更時に logbook-data + gamedata テストで検証する（logbook-bin / フル配布ビルドは行わない）
+name: Data Validate
+
+on:
+  push:
+    paths:
+      - 'data/**'
+      - 'logbook-data/**'
+      - 'logbook/src/test/java/logbook/internal/gamedata/**'
+  pull_request:
+    paths:
+      - 'data/**'
+      - 'logbook-data/**'
+      - 'logbook/src/test/java/logbook/internal/gamedata/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  verify-gamedata:
+    name: Verify Game Data
+    if: ( github.event_name == 'push' || ( github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork ) )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: 'false'
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'microsoft'
+          cache: 'maven'
+      - name: quests 生成・manifest 整合・gamedata 正当化テスト
+        shell: bash
+        run: |
+          mvn -pl logbook-data,logbook -am --batch-mode verify \
+            -Pgamedata-update \
+            -Djavafx.platform=linux
+      - name: data/ がツール出力と一致していること
+        shell: bash
+        run: |
+          if [ -n "$(git status --porcelain -- data/)" ]; then
+            echo "::error::data/ に未コミット差分があります。ローカルで -Pgamedata-update を実行し、結果をコミットしてください"
+            git --no-pager status --porcelain -- data/
+            git --no-pager diff -- data/
+            exit 1
+          fi

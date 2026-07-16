@@ -37,6 +37,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.text.TextFlow;
 import javafx.stage.DirectoryChooser;
@@ -56,6 +57,8 @@ import logbook.internal.Config;
 import logbook.internal.LoggerHolder;
 import logbook.internal.ShipImageCacheStrategy;
 import logbook.internal.ThreadManager;
+import logbook.internal.gamedata.CheckGameDataUpdate;
+import logbook.internal.capture.ApiCaptureGate;
 import logbook.internal.ToStringConverter;
 import logbook.internal.Tuple;
 import logbook.internal.Tuple.Pair;
@@ -261,6 +264,10 @@ public class ConfigController extends WindowController {
     @FXML
     private CheckBox checkUpdate;
 
+    /** ゲームデータ更新チェック */
+    @FXML
+    private CheckBox checkGameDataUpdate;
+
     /** 報告書の保存先 */
     @FXML
     private TextField reportDir;
@@ -371,6 +378,21 @@ public class ConfigController extends WindowController {
 
     @FXML
     private Button storeApiStart2DirRef;
+
+    @FXML
+    private VBox apiCapturePane;
+
+    @FXML
+    private CheckBox apiCaptureEnabled;
+
+    @FXML
+    private TextField apiCaptureDir;
+
+    @FXML
+    private Button apiCaptureDirRef;
+
+    /** セッション中に API 記録の同意ダイアログを通過したか */
+    private boolean apiCaptureConsentAcceptedInSession;
 
     /** FFmpeg 実行ファイル */
     @FXML
@@ -545,6 +567,7 @@ public class ConfigController extends WindowController {
         this.onTop.setSelected(conf.isOnTop());
         this.checkDoit.setSelected(conf.isCheckDoit());
         this.checkUpdate.setSelected(conf.isCheckUpdate());
+        this.checkGameDataUpdate.setSelected(conf.isCheckGameDataUpdate());
         this.reportDir.setText(conf.getReportPath());
         ShipImageCacheStrategy shipImageCacheStrategy = conf.getShipImageCacheStrategy();
         if (shipImageCacheStrategy != null) {
@@ -586,8 +609,16 @@ public class ConfigController extends WindowController {
         this.usePlugin.setSelected(conf.isUsePlugin());
         this.storeInternal.setSelected(conf.isStoreApiStart2());
         this.storeApiStart2.setSelected(conf.isStoreApiStart2());
-        this.storeApiStart2Dir.setText(conf.getStoreApiStart2Dir());
+        this.storeApiStart2Dir.setText(conf.getStoreApiStart2Dir() != null ? conf.getStoreApiStart2Dir() : "");
         this.storeInternal.getOnAction().handle(new ActionEvent());
+        this.apiCaptureConsentAcceptedInSession = conf.isApiCaptureConsentAccepted();
+        if (ApiCaptureGate.isUiAvailable()) {
+            this.apiCaptureEnabled.setSelected(conf.isApiCaptureEnabled());
+            this.apiCaptureDir.setText(conf.getApiCaptureDir() != null ? conf.getApiCaptureDir() : "");
+        } else {
+            this.apiCapturePane.setVisible(false);
+            this.apiCapturePane.setManaged(false);
+        }
 
         this.pluginName.setCellValueFactory(new PropertyValueFactory<>("name"));
         this.pluginVendor.setCellValueFactory(new PropertyValueFactory<>("vendor"));
@@ -606,6 +637,9 @@ public class ConfigController extends WindowController {
                 (ob, o, n) -> Tools.Controls.showNotify(null, "確認", "この位置に表示されます。", Duration.seconds(5), Pos.valueOf(n.getValue())));
 
         this.bouyomiChanInit();
+
+        // 設定画面を開いたタイミングでゲームデータ更新を確認
+        CheckGameDataUpdate.getInstance().runAsyncIfEnabled();
     }
 
     /**
@@ -660,6 +694,7 @@ public class ConfigController extends WindowController {
         conf.setOnTop(this.onTop.isSelected());
         conf.setCheckDoit(this.checkDoit.isSelected());
         conf.setCheckUpdate(this.checkUpdate.isSelected());
+        conf.setCheckGameDataUpdate(this.checkGameDataUpdate.isSelected());
         conf.setReportPath(this.reportDir.getText());
         
         conf.setApplyBattle(this.applyBattle.isSelected());
@@ -707,13 +742,23 @@ public class ConfigController extends WindowController {
         conf.setProxyPort(this.toInt(this.proxyPort.getText()));
         conf.setStoreApiStart2(this.storeApiStart2.isSelected());
         conf.setStoreApiStart2Dir(this.storeApiStart2Dir.getText());
-        
+        if (ApiCaptureGate.isUiAvailable()) {
+            conf.setApiCaptureEnabled(this.apiCaptureEnabled.isSelected());
+            if (conf.isApiCaptureEnabled()) {
+                conf.setApiCaptureConsentAccepted(
+                        conf.isApiCaptureConsentAccepted() || this.apiCaptureConsentAcceptedInSession);
+            }
+            conf.setApiCaptureDir(this.apiCaptureDir.getText());
+        }
+
         conf.setFfmpegPath(this.ffmpegPath.getText());
         conf.setFfmpegArgs(this.ffmpegArgs.getText());
         conf.setFfmpegExt(this.ffmpegExt.getText());
         conf.setUsePlugin(this.usePlugin.isSelected());
 
         this.bouyomiChanStore();
+
+        Main.refreshMainWindowTitle();
 
         ThreadManager.getExecutorService()
                 .execute(Config.getDefault()::store);
@@ -889,6 +934,47 @@ public class ConfigController extends WindowController {
                 .filter(File::exists)
                 .map(File::getAbsolutePath)
                 .ifPresent(this.storeApiStart2Dir::setText);
+    }
+
+    @FXML
+    void apiCaptureEnabledChanged(ActionEvent event) {
+        if (!this.apiCaptureEnabled.isSelected()) {
+            return;
+        }
+        AppConfig conf = AppConfig.get();
+        if (conf.isApiCaptureConsentAccepted() || this.apiCaptureConsentAcceptedInSession) {
+            return;
+        }
+        if (!this.confirmApiCaptureConsent()) {
+            this.apiCaptureEnabled.setSelected(false);
+            return;
+        }
+        this.apiCaptureConsentAcceptedInSession = true;
+    }
+
+    @FXML
+    void selectApiCaptureDir(ActionEvent event) {
+        DirectoryChooser dc = new DirectoryChooser();
+        dc.setTitle("API 記録の保存先");
+        if (Files.exists(Paths.get(this.apiCaptureDir.getText()))) {
+            dc.setInitialDirectory(Paths.get(this.apiCaptureDir.getText()).toAbsolutePath().toFile());
+        }
+        Optional.ofNullable(dc.showDialog(this.getWindow()))
+                .filter(File::exists)
+                .map(File::getAbsolutePath)
+                .ifPresent(this.apiCaptureDir::setText);
+    }
+
+    private boolean confirmApiCaptureConsent() {
+        Alert alert = new Alert(AlertType.CONFIRMATION);
+        alert.initOwner(this.getWindow());
+        alert.setTitle("API 記録の確認");
+        alert.setHeaderText("API レスポンスを記録します");
+        alert.setContentText("""
+                ゲーム API のレスポンス JSON が指定ディレクトリへ保存されます。
+                個人情報が含まれる可能性があります。記録中はウィンドウタイトルに [API記録中] と表示されます。
+                requestId でアクセスログと紐づけできます。続行しますか？""");
+        return alert.showAndWait().filter(ButtonType.OK::equals).isPresent();
     }
 
     /**

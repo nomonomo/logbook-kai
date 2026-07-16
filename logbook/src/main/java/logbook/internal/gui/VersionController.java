@@ -20,6 +20,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import logbook.internal.CheckUpdate;
+import logbook.internal.DevMode;
 import logbook.internal.LoggerHolder;
 import logbook.internal.ThreadManager;
 import logbook.internal.Version;
@@ -51,7 +52,7 @@ public class VersionController extends WindowController {
             this.appName.setText(Optional.ofNullable(this.getClass().getPackage())
                     .map(Package::getImplementationTitle)
                     .orElse(""));
-            this.appVersion.setText(Version.getCurrent().toString());
+            this.appVersion.setText(DevMode.formatVersionDisplay(Version.getCurrent()));
             this.appName2.setText(Optional.ofNullable(this.getClass().getPackage())
                     .map(Package::getImplementationTitle)
                     .orElse(""));

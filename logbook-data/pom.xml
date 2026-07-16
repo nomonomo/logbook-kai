@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>logbook-kai</groupId>
+        <artifactId>logbook-kai</artifactId>
+        <version>26.7.1</version>
+    </parent>
+
+    <artifactId>logbook-data</artifactId>
+    <name>logbook-data</name>
+    <description>data/ の quest 結合・JSON 検証・manifest sha / version 更新</description>
+
+    <properties>
+        <gamedata.dir>${project.basedir}/../data</gamedata.dir>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 常に quest/src から quests.json を生成する（manifest は更新しない） -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>pack-quests</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>logbook.data.GameDataTool</mainClass>
+                            <arguments>
+                                <argument>pack</argument>
+                                <argument>--data-dir</argument>
+                                <argument>${gamedata.dir}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- data 更新・CI: pack に update-sha、verify。logbook 同名 profile の groups と併用 -->
+        <profile>
+            <id>gamedata-update</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>pack-quests</id>
+                                <phase>process-classes</phase>
+                                <goals>
+                                    <goal>java</goal>
+                                </goals>
+                                <configuration>
+                                    <mainClass>logbook.data.GameDataTool</mainClass>
+                                    <arguments>
+                                        <argument>pack</argument>
+                                        <argument>--data-dir</argument>
+                                        <argument>${gamedata.dir}</argument>
+                                        <argument>--update-sha</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>verify-gamedata</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>java</goal>
+                                </goals>
+                                <configuration>
+                                    <mainClass>logbook.data.GameDataTool</mainClass>
+                                    <arguments>
+                                        <argument>verify</argument>
+                                        <argument>--data-dir</argument>
+                                        <argument>${gamedata.dir}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

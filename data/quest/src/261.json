@@ -1,0 +1,7 @@
+/* [261]海上輸送路の安全確保に努めよ！ */
+{
+    "resetType" : "ウィークリー",
+    "conditions" : [
+        {"boss": true, "area": ["1-5"], "rank": ["S", "A"], "count": 3}
+    ]
+}

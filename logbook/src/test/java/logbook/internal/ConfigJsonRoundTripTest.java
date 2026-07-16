@@ -28,11 +28,11 @@ public class ConfigJsonRoundTripTest {
     @EnabledIfSystemProperty(named = "test.profile", matches = "dev")
     @TestFactory
     Stream<DynamicTest> testConfigJsonRoundTrip() throws IOException, URISyntaxException {
-        URL resource = ConfigJsonRoundTripTest.class.getClassLoader().getResource("logbook/config");
-        if (resource == null) {
+        URL marker = ConfigJsonRoundTripTest.class.getClassLoader().getResource("logbook/config/.gitignore");
+        if (marker == null) {
             throw new IllegalStateException("テストリソース logbook/config が見つかりません");
         }
-        Path root = Paths.get(resource.toURI());
+        Path root = Paths.get(marker.toURI()).getParent();
         List<Path> jsonPaths;
         try (Stream<Path> walk = Files.walk(root)) {
             jsonPaths = walk
@@ -40,6 +40,9 @@ public class ConfigJsonRoundTripTest {
                     .filter(path -> path.getFileName().toString().endsWith(".json"))
                     .sorted(Comparator.naturalOrder())
                     .collect(Collectors.toList());
+        }
+        if (jsonPaths.isEmpty()) {
+            throw new IllegalStateException("テスト用 JSON が 1 件もありません: " + root);
         }
         ClassLoader loader = ConfigJsonRoundTripTest.class.getClassLoader();
         return jsonPaths.stream().map(path -> DynamicTest.dynamicTest(path.getFileName().toString(), () -> {

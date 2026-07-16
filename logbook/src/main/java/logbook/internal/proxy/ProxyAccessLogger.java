@@ -2,7 +2,6 @@ package logbook.internal.proxy;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,7 +13,8 @@ import org.slf4j.MDC;
  * プロキシのアクセスログをMDC経由で出力する。
  * <p>
  * テキスト形式・JSON形式のいずれも logback.xml の appender 設定で切り替え可能。
- * JSON 出力は {@code LogstashEncoder}（{@code includeMdc=true}）で MDC キーをトップレベルフィールドに展開する。
+ * JSON 出力時の数値フィールドは SLF4J KeyValue で付与する（LogstashEncoder の keyValuePairs）。
+ * テキスト出力は MDC の文字列値を使用する。
  * Java側では {@link #MDC_*} キーに値を設定し、メッセージは固定文字列とする。
  * </p>
  * <p><b>JettyスレッドプールとMDC:</b></p>
@@ -40,6 +40,8 @@ public final class ProxyAccessLogger
     public static final String MDC_URI = "uri";
     /** リクエストURIのパス部分（クエリ文字列を除く、集計用） */
     public static final String MDC_URI_PATH = "uriPath";
+    /** プロキシが付与したリクエスト相関ID */
+    public static final String MDC_REQUEST_ID = "requestId";
     /** Hostヘッダー値 */
     public static final String MDC_HOST = "host";
     /** HTTPステータスコード（レスポンス未受信時は0） */
@@ -134,11 +136,21 @@ public final class ProxyAccessLogger
         long elapsedMs = resolveElapsedMs(transaction, connectionStartTimeMillis);
         TimingMetrics timing = resolveTimingMetrics(transaction, elapsedMs);
         Map<String, String> accessLogContext = buildAccessLogContext(
-            clientAddress, request, response, elapsedMs, timing, outcome, errorDetail);
+            clientAddress, request, response, transaction, elapsedMs, timing, outcome, errorDetail);
 
         try (AccessLogMdcScope ignored = AccessLogMdcScope.open(accessLogContext))
         {
-            logger.debug("proxy access");
+            logger.atDebug()
+                .addKeyValue(MDC_ELAPSED_MS, elapsedMs)
+                .addKeyValue(MDC_UPSTREAM_LATENCY_MS, timing.upstreamLatencyMs())
+                .addKeyValue(MDC_UPSTREAM_BODY_MS, timing.upstreamBodyMs())
+                .addKeyValue(MDC_PROXY_OVERHEAD_MS, timing.proxyOverheadMs())
+                .addKeyValue(MDC_STATUS, response.getStatus())
+                .addKeyValue(MDC_REQUEST_SIZE, request.getBodySize())
+                .addKeyValue(MDC_RESPONSE_SIZE, response.getBodySize())
+                .addKeyValue(MDC_CONTENT_LENGTH, response.getContentLength())
+                .addKeyValue(MDC_CLIENT_PORT, clientAddress.port())
+                .log("proxy access");
         }
     }
 
@@ -200,6 +212,7 @@ public final class ProxyAccessLogger
         ClientAddress clientAddress,
         CaptureHolder2.HttpRequest request,
         CaptureHolder2.HttpResponse response,
+        CaptureHolder2.HttpTransaction transaction,
         long elapsedMs,
         TimingMetrics timing,
         Outcome outcome,
@@ -211,7 +224,8 @@ public final class ProxyAccessLogger
         context.put(MDC_CLIENT_PORT, String.valueOf(clientAddress.port()));
         context.put(MDC_METHOD, nullToDefault(request.getMethod(), "UNKNOWN"));
         context.put(MDC_URI, uri);
-        context.put(MDC_URI_PATH, extractUriPath(uri));
+        context.put(MDC_URI_PATH, nullToDefault(request.getUriPath(), "/"));
+        context.put(MDC_REQUEST_ID, nullToEmpty(transaction.getRequestId()));
         context.put(MDC_HOST, nullToEmpty(request.getHeaderIgnoreCase("Host")));
         context.put(MDC_STATUS, String.valueOf(response.getStatus()));
         context.put(MDC_REQUEST_SIZE, String.valueOf(request.getBodySize()));
@@ -238,56 +252,6 @@ public final class ProxyAccessLogger
             return System.currentTimeMillis() - requestStartTime;
         }
         return System.currentTimeMillis() - connectionStartTimeMillis;
-    }
-
-    /**
-     * URIからクエリ文字列を除いたパス部分を抽出する（Grafana/Loki集計用）。
-     *
-     * @param uri リクエストURI
-     * @return パス部分
-     */
-    static String extractUriPath(String uri)
-    {
-        if (uri == null || uri.isEmpty())
-        {
-            return "/";
-        }
-
-        if (uri.startsWith("/") || !uri.contains("://"))
-        {
-            return stripQueryAndFragment(uri);
-        }
-
-        try
-        {
-            String path = URI.create(uri).getPath();
-            if (path == null || path.isEmpty())
-            {
-                return "/";
-            }
-            return path;
-        }
-        catch (IllegalArgumentException e)
-        {
-            return stripQueryAndFragment(uri);
-        }
-    }
-
-    private static String stripQueryAndFragment(String uri)
-    {
-        int end = uri.length();
-        int queryIndex = uri.indexOf('?');
-        if (queryIndex >= 0)
-        {
-            end = queryIndex;
-        }
-        int fragmentIndex = uri.indexOf('#');
-        if (fragmentIndex >= 0 && fragmentIndex < end)
-        {
-            end = fragmentIndex;
-        }
-        String path = uri.substring(0, end);
-        return path.isEmpty() ? "/" : path;
     }
 
     private static TimingMetrics resolveTimingMetrics(CaptureHolder2.HttpTransaction transaction, long elapsedMs)

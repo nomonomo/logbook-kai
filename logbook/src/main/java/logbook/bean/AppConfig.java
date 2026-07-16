@@ -133,6 +133,12 @@ public final class AppConfig implements Serializable, ConfigDefaults {
     /** 起動時にアップデートチェック */
     private boolean checkUpdate = true;
 
+    /** ゲームデータ（マップ・任務・識別札）の更新チェック（起動時・設定画面・前回から12時間） */
+    private boolean checkGameDataUpdate = true;
+
+    /** ゲームデータのローカル外部ディレクトリ */
+    private String gameDataDir = "./config/gamedata/";
+
     /** 通信エラーの抑止 */
     private boolean connectionClose = true;
 
@@ -259,6 +265,15 @@ public final class AppConfig implements Serializable, ConfigDefaults {
 
     /** store api_start2 directory */
     private String storeApiStart2Dir = "";
+
+    /** API レスポンス記録を有効にする */
+    private boolean apiCaptureEnabled = false;
+
+    /** API 記録の同意済みフラグ */
+    private boolean apiCaptureConsentAccepted = false;
+
+    /** API 記録の保存先ディレクトリ */
+    private String apiCaptureDir = "";
 
     /**
      * JSON デシリアライズ後に呼び出し、新規フィールドのバージョン差異を解消する。
