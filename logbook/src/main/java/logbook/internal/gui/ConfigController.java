@@ -57,6 +57,7 @@ import logbook.internal.Config;
 import logbook.internal.LoggerHolder;
 import logbook.internal.ShipImageCacheStrategy;
 import logbook.internal.ThreadManager;
+import logbook.internal.gamedata.CheckGameDataUpdate;
 import logbook.internal.capture.ApiCaptureGate;
 import logbook.internal.ToStringConverter;
 import logbook.internal.Tuple;
@@ -262,6 +263,10 @@ public class ConfigController extends WindowController {
     /** 起動時にアップデートチェック */
     @FXML
     private CheckBox checkUpdate;
+
+    /** ゲームデータ更新チェック */
+    @FXML
+    private CheckBox checkGameDataUpdate;
 
     /** 報告書の保存先 */
     @FXML
@@ -562,6 +567,7 @@ public class ConfigController extends WindowController {
         this.onTop.setSelected(conf.isOnTop());
         this.checkDoit.setSelected(conf.isCheckDoit());
         this.checkUpdate.setSelected(conf.isCheckUpdate());
+        this.checkGameDataUpdate.setSelected(conf.isCheckGameDataUpdate());
         this.reportDir.setText(conf.getReportPath());
         ShipImageCacheStrategy shipImageCacheStrategy = conf.getShipImageCacheStrategy();
         if (shipImageCacheStrategy != null) {
@@ -631,6 +637,9 @@ public class ConfigController extends WindowController {
                 (ob, o, n) -> Tools.Controls.showNotify(null, "確認", "この位置に表示されます。", Duration.seconds(5), Pos.valueOf(n.getValue())));
 
         this.bouyomiChanInit();
+
+        // 設定画面を開いたタイミングでゲームデータ更新を確認
+        CheckGameDataUpdate.getInstance().runAsyncIfEnabled();
     }
 
     /**
@@ -685,6 +694,7 @@ public class ConfigController extends WindowController {
         conf.setOnTop(this.onTop.isSelected());
         conf.setCheckDoit(this.checkDoit.isSelected());
         conf.setCheckUpdate(this.checkUpdate.isSelected());
+        conf.setCheckGameDataUpdate(this.checkGameDataUpdate.isSelected());
         conf.setReportPath(this.reportDir.getText());
         
         conf.setApplyBattle(this.applyBattle.isSelected());

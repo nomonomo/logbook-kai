@@ -133,6 +133,12 @@ public final class AppConfig implements Serializable, ConfigDefaults {
     /** 起動時にアップデートチェック */
     private boolean checkUpdate = true;
 
+    /** ゲームデータ（マップ・任務・識別札）の更新チェック（起動時・設定画面・前回から12時間） */
+    private boolean checkGameDataUpdate = true;
+
+    /** ゲームデータのローカル外部ディレクトリ */
+    private String gameDataDir = "./config/gamedata/";
+
     /** 通信エラーの抑止 */
     private boolean connectionClose = true;
 

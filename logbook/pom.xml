@@ -22,6 +22,22 @@
     </properties>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- data/ を正本とし、ビルド時にクラスパスへ同梱する -->
+            <resource>
+                <directory>${project.basedir}/../data</directory>
+                <targetPath>logbook</targetPath>
+                <includes>
+                    <include>manifest.json</include>
+                    <include>map/**</include>
+                    <include>quest/quests.json</include>
+                    <include>seaarea/**</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -73,7 +89,9 @@
                     <useModulePath>true</useModulePath>
                     <systemPropertyVariables>
                         <test.profile>${test.profile}</test.profile>
+                        <logbook.data.dir>${project.basedir}/../data</logbook.data.dir>
                     </systemPropertyVariables>
+                    <!-- data 更新時は -Pgamedata-update -->
                 </configuration>
             </plugin>
             <plugin>
@@ -248,6 +266,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>net.javacrumbs.json-unit</groupId>
             <artifactId>json-unit-assertj</artifactId>
             <scope>test</scope>
@@ -256,6 +279,12 @@
     
     <!-- 手動実行用のプロファイル -->
     <profiles>
+        <profile>
+            <id>gamedata-update</id>
+            <properties>
+                <groups>gamedata</groups>
+            </properties>
+        </profile>
         <profile>
             <id>dev</id>
             <properties>

@@ -5,7 +5,13 @@ name: Maven Package
 
 on:
   push:
+    paths-ignore:
+      - 'data/**'
+      - '**.md'
   pull_request:
+    paths-ignore:
+      - 'data/**'
+      - '**.md'
 
 #連続実行された場合、古いWorkflowを止める
 concurrency:

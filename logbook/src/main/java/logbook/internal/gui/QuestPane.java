@@ -20,9 +20,9 @@ import javafx.stage.Stage;
 import logbook.bean.AppQuest;
 import logbook.bean.AppQuestCollection;
 import logbook.bean.QuestList.Quest;
+import logbook.internal.AppQuestConditionLoader;
 import logbook.internal.LoggerHolder;
 import logbook.internal.ThreadManager;
-import logbook.plugin.PluginServices;
 
 /**
  * 任務
@@ -134,7 +134,7 @@ public class QuestPane extends HBox {
             this.detail.setText(quest.getDetail().replaceAll("<br>", ""));
             this.setOnContextMenuRequested(this::showContextMenu);
 
-            if (PluginServices.getQuestResource(quest.getNo()) == null) {
+            if (!AppQuestConditionLoader.contains(quest.getNo())) {
                 this.condition.setVisible(false);
             }
         } catch (Exception e) {

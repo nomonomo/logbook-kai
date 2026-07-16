@@ -20,6 +20,7 @@
         -->
     </properties>
     <modules>
+        <module>logbook-data</module>
         <module>logbook</module>
         <module>logbook-bin</module>
     </modules>  
@@ -58,6 +59,13 @@
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
                 <version>6.1.1</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-bom</artifactId>
+                <version>5.16.0</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -113,6 +121,11 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.6.3</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
                     <version>3.6.3</version>
                 </plugin>
             </plugins>
@@ -226,6 +239,24 @@
                 <zstandard.os.arch>aarch64</zstandard.os.arch>
                 <targetJniPath>lib</targetJniPath>
                 <logbook.platform.name>mac-aarch64</logbook.platform.name>
+            </properties>
+        </profile>
+
+        <!-- data CI / 開発用（配布 ZIP は作らない。enforcer 充足用） -->
+        <profile>
+            <id>linux-x86_64</id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                    <name>linux</name>
+                </os>
+            </activation>
+            <properties>
+                <brotli4j.classifier>linux-x86_64</brotli4j.classifier>
+                <zstandard.os.name>linux</zstandard.os.name>
+                <zstandard.os.arch>amd64</zstandard.os.arch>
+                <targetJniPath>lib</targetJniPath>
+                <logbook.platform.name>linux</logbook.platform.name>
             </properties>
         </profile>
     </profiles>

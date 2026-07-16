@@ -108,15 +108,16 @@
                               <CheckBox fx:id="onTop" mnemonicParsing="false" text="最前面に表示する*" GridPane.columnSpan="2147483647" GridPane.rowIndex="13" />
                               <CheckBox fx:id="checkDoit" mnemonicParsing="false" text="終了時に確認する" GridPane.rowIndex="14" />
                               <CheckBox fx:id="checkUpdate" mnemonicParsing="false" text="起動時にアップデートチェック*" GridPane.columnSpan="2147483647" GridPane.rowIndex="15" />
-                              <Label text="報告書の保存先" GridPane.rowIndex="16" />
-                              <TextField fx:id="reportDir" prefWidth="300.0" GridPane.columnIndex="1" GridPane.rowIndex="16" />
-                              <Button mnemonicParsing="false" onAction="#selectReportDir" text="参照..." GridPane.columnIndex="2" GridPane.rowIndex="16" />
-                              <Label text="母港タブ表示内容" GridPane.rowIndex="17" />
-                              <HBox  alignment="CENTER_LEFT" GridPane.rowIndex="17" GridPane.columnIndex="1" GridPane.columnSpan="2147483647" spacing="5">
-                              <CheckBox fx:id="showAchievement" mnemonicParsing="false" text="戦果" GridPane.columnIndex="1" GridPane.rowIndex="17"/>
-                              <CheckBox fx:id="showMission" mnemonicParsing="false" text="遠征" GridPane.columnIndex="2" GridPane.rowIndex="17"/>
-                              <CheckBox fx:id="showNdock" mnemonicParsing="false" text="入渠" GridPane.columnIndex="3" GridPane.rowIndex="17"/>
-                              <CheckBox fx:id="showQuest" mnemonicParsing="false" text="任務" GridPane.columnIndex="3" GridPane.rowIndex="17"/>
+                              <CheckBox fx:id="checkGameDataUpdate" mnemonicParsing="false" text="ゲームデータ更新チェック" GridPane.columnSpan="2147483647" GridPane.rowIndex="16" />
+                              <Label text="報告書の保存先" GridPane.rowIndex="17" />
+                              <TextField fx:id="reportDir" prefWidth="300.0" GridPane.columnIndex="1" GridPane.rowIndex="17" />
+                              <Button mnemonicParsing="false" onAction="#selectReportDir" text="参照..." GridPane.columnIndex="2" GridPane.rowIndex="17" />
+                              <Label text="母港タブ表示内容" GridPane.rowIndex="18" />
+                              <HBox  alignment="CENTER_LEFT" GridPane.rowIndex="18" GridPane.columnIndex="1" GridPane.columnSpan="2147483647" spacing="5">
+                              <CheckBox fx:id="showAchievement" mnemonicParsing="false" text="戦果" GridPane.columnIndex="1" GridPane.rowIndex="18"/>
+                              <CheckBox fx:id="showMission" mnemonicParsing="false" text="遠征" GridPane.columnIndex="2" GridPane.rowIndex="18"/>
+                              <CheckBox fx:id="showNdock" mnemonicParsing="false" text="入渠" GridPane.columnIndex="3" GridPane.rowIndex="18"/>
+                              <CheckBox fx:id="showQuest" mnemonicParsing="false" text="任務" GridPane.columnIndex="3" GridPane.rowIndex="18"/>
                               </HBox>
                            </children>
                         </GridPane>
