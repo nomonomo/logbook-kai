@@ -1,8 +1,8 @@
 {
-  "version" : 3,
+  "version" : 1,
   "files" : {
     "map/mapping.json" : {
-      "sha256" : "5bdb0252b01206c3a605007d9debc3620d9754ba4d7c63cd93c7c5160e4046e2"
+      "sha256" : "5a7d1e3f1ae82b270bdc31b05cf3ecd8f7e3d346bc79e6d7655e5c966823511c"
     },
     "seaarea/seaarea.json" : {
       "sha256" : "d78bc46759e8aa15926c42a28b557aa157575ecf17a40d31dd4d19d8134743e1"

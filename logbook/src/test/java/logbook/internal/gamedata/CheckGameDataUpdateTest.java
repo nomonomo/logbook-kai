@@ -89,6 +89,18 @@ class CheckGameDataUpdateTest {
                     () -> GameDataUpdateRunner.resolveUnderParent(staging, absoluteKey));
             assertTrue(absoluteEscape.getMessage().contains("パストラバーサル"));
         }
+
+        /** CRLF / LF が混在しても SHA は同じ（配信は LF 前提） */
+        @Test
+        void sha256IgnoresCrLfDifference() throws Exception {
+            byte[] lf = "{\"a\":1}\n".getBytes(StandardCharsets.UTF_8);
+            byte[] crlf = "{\"a\":1}\r\n".getBytes(StandardCharsets.UTF_8);
+            assertEquals(GameDataUpdateRunner.sha256Hex(lf), GameDataUpdateRunner.sha256Hex(crlf));
+
+            Path crlfFile = tempDir.resolve("crlf.json");
+            Files.write(crlfFile, crlf);
+            assertEquals(GameDataUpdateRunner.sha256Hex(lf), GameDataUpdateRunner.sha256Hex(crlfFile));
+        }
     }
 
     // -------------------------------------------------------------------------

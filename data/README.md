@@ -23,6 +23,10 @@
 
 `quest/src/` は編集用のため配信・JAR 同梱しません。
 
+## 改行コードと SHA-256
+
+`data/` は `.gitattributes` で LF 固定です。あわせて、manifest の SHA-256 計算（ツール／アプリ）は **CRLF を LF に正規化してから**行います。Windows で CRLF 保存されても、GitHub raw（LF）と同じハッシュになります。
+
 ## Maven（親プロジェクトから）
 
 ```bash

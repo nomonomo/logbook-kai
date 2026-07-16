@@ -1,11 +1,8 @@
 package logbook.data;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.util.Comparator;
 import java.util.HexFormat;
@@ -366,12 +363,49 @@ public final class GameDataTool {
     }
 
     private static String sha256Hex(Path path) throws Exception {
+        return sha256Hex(Files.readAllBytes(path));
+    }
+
+    private static String sha256Hex(byte[] data) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        try (InputStream in = Files.newInputStream(path);
-                DigestInputStream din = new DigestInputStream(in, digest);
-                OutputStream discard = OutputStream.nullOutputStream()) {
-            din.transferTo(discard);
+        return HexFormat.of().formatHex(digest.digest(normalizeNewlinesToLf(data)));
+    }
+
+    /**
+     * 改行を LF に揃える。Windows で CRLF 保存されても、Git / GitHub raw（LF）と同じ SHA になるようにする。
+     */
+    static byte[] normalizeNewlinesToLf(byte[] data) {
+        if (data == null || data.length == 0) {
+            return data == null ? new byte[0] : data;
         }
-        return HexFormat.of().formatHex(digest.digest());
+        boolean hasCr = false;
+        for (byte b : data) {
+            if (b == '\r') {
+                hasCr = true;
+                break;
+            }
+        }
+        if (!hasCr) {
+            return data;
+        }
+        byte[] out = new byte[data.length];
+        int j = 0;
+        for (int i = 0; i < data.length; i++) {
+            byte b = data[i];
+            if (b == '\r') {
+                if (i + 1 < data.length && data[i + 1] == '\n') {
+                    i++;
+                }
+                out[j++] = '\n';
+            } else {
+                out[j++] = b;
+            }
+        }
+        if (j == data.length) {
+            return out;
+        }
+        byte[] trimmed = new byte[j];
+        System.arraycopy(out, 0, trimmed, 0, j);
+        return trimmed;
     }
 }
