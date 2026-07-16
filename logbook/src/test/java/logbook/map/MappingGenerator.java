@@ -27,7 +27,7 @@ public class MappingGenerator {
         try (InputStream in = URI.create(SOURCE_URL).toURL().openStream()) {
             json = mapper.readValue(in, Map.class);
         }
-        try (FileOutputStream fos = new FileOutputStream(new File("src/main/resources/logbook/map/mapping.json"));
+        try (FileOutputStream fos = new FileOutputStream(new File("../data/map/mapping.json"));
                 PrintWriter pw = new PrintWriter(fos)) {
             // generate the JSON on our own to keep the order in the original JSON file
             pw.println("{");

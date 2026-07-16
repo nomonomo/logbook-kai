@@ -21,6 +21,7 @@ module logbook {
     requires java.instrument;
     requires transitive java.management;
     requires jdk.httpserver;
+    requires java.net.http;
 
     requires jdk.jconsole;
 
@@ -123,7 +124,8 @@ module logbook {
         logbook.api.ApiReqSortieLdShooting,
         logbook.api.ApiStart2;
     provides logbook.plugin.lifecycle.StartUp with
-        logbook.internal.CheckUpdateStartUp;
+        logbook.internal.CheckUpdateStartUp,
+        logbook.internal.CheckGameDataUpdateStartUp;
     provides logbook.proxy.ContentListenerSpi with
         logbook.internal.APIListener,
         logbook.internal.ImageListener;
@@ -134,6 +136,7 @@ module logbook {
     opens logbook.api;
     opens logbook.bean;
     opens logbook.internal;
+    opens logbook.internal.gamedata;
     opens logbook.internal.capture;
     opens logbook.internal.metrics;
     opens logbook.internal.gui;
@@ -149,6 +152,7 @@ module logbook {
     opens logbook.map;
     opens logbook.mission;
     opens logbook.quest;
+    opens logbook.seaarea;
     opens logbook.supplemental;
     
     

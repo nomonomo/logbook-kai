@@ -1,6 +1,5 @@
 package logbook.internal;
 
-import java.io.InputStream;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -10,7 +9,8 @@ import tools.jackson.core.type.TypeReference;
 
 import logbook.bean.MapinfoMst;
 import logbook.bean.MapinfoMstCollection;
-import logbook.plugin.PluginServices;
+import logbook.internal.gamedata.GameDataLoader;
+import logbook.internal.gamedata.GameDataPaths;
 
 /**
  * セルNoと記号のマッピング
@@ -24,17 +24,25 @@ public class Mapping {
     private Map<String, String> mapping;
 
     private Mapping() {
-        // readValue(InputStream) に渡したストリームは Jackson が閉じるため close 不要（StreamReadFeature.AUTO_CLOSE_SOURCE デフォルト true）
-        InputStream is = PluginServices.getResourceAsStream("logbook/map/mapping.json");
-        Map<String, String> mapping = Collections.emptyMap();
-        if (is != null) {
-            try {
-                mapping = JsonMappers.READER_WITH_COMMENTS.forType(new TypeReference<LinkedHashMap<String, String>>() {}).readValue(is);
-            } catch (Exception e) {
-                LoggerHolder.get().error("マッピングの初期化に失敗しました", e);
-            }
-        }
-        this.mapping = mapping;
+        this.mapping = loadMapping();
+    }
+
+    private static Map<String, String> loadMapping() {
+        // readValue(InputStream) に渡したストリームは Jackson が閉じるため、load 側の try-with-resources との二重 close は問題ない
+        return GameDataLoader.load(
+                GameDataPaths.MAPPING,
+                GameDataPaths.CLASSPATH_MAPPING,
+                is -> JsonMappers.READER_WITH_COMMENTS
+                        .forType(new TypeReference<LinkedHashMap<String, String>>() {})
+                        .readValue(is),
+                Collections.emptyMap());
+    }
+
+    /**
+     * マッピングを再読み込みします。
+     */
+    public static synchronized void reload() {
+        INSTANCE.mapping = loadMapping();
     }
 
     public Map<String, String> getMapping() {

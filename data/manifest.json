@@ -1,0 +1,15 @@
+{
+  "version" : 1,
+  "files" : {
+    "map/mapping.json" : {
+      "sha256" : "0427148b3b1af7373877f07afb1d42a9fa8be9b335717b7faecbd82dc06c2b09"
+    },
+    "seaarea/seaarea.json" : {
+      "sha256" : "d78bc46759e8aa15926c42a28b557aa157575ecf17a40d31dd4d19d8134743e1"
+    },
+    "quest/quests.json" : {
+      "sha256" : "bfa9955ec8f05d7316cfaa139c93122dd6307828015c3b808cd76ff29911a213"
+    }
+  },
+  "formatVersion" : 1
+}
