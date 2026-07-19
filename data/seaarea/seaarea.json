@@ -1,10 +1,17 @@
 {
   "areas": [
     { "area": 1, "name": "第三十一戦隊", "imageNo": 4 },
-    { "area": 2, "name": "増強第三十一戦隊", "imageNo": 6 },
-    { "area": 3, "name": "多号作戦部隊", "imageNo": 8 },
-    { "area": 4, "name": "連合艦隊", "imageNo": 10 },
-    { "area": 5, "name": "第六艦隊", "imageNo": 14 },
-    { "area": 6, "name": "ウルシー攻撃部隊", "imageNo": 12 }
+    { "area": 2, "name": "増強第三十一戦隊", "imageNo": 14 },
+    { "area": 3, "name": "多号作戦部隊", "imageNo": 16 },
+    { "area": 4, "name": "連合艦隊", "imageNo": 18 },
+    { "area": 5, "name": "ウルシー攻撃部隊", "imageNo": 20 },
+    { "area": 6, "name": "第六艦隊", "imageNo": 22 },
+    { "area": 7, "name": "仏第３艦隊", "imageNo": 24 },
+    { "area": 8, "name": "仏地中海艦隊", "imageNo": 26 },
+    { "area": 9, "name": "2ème Escadre Légère", "imageNo": 28 },
+    { "area": 10, "name": "イギリス救援艦隊", "imageNo": 5 },
+    { "area": 11, "name": "Force de Raid", "imageNo": 7 },
+    { "area": 12, "name": "Force H", "imageNo": 9 },
+    { "area": 13, "name": "欧州連合艦隊", "imageNo": 11 }
   ]
 }
