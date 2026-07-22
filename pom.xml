@@ -9,7 +9,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <lombok.version>1.18.46</lombok.version>
         <!-- JavaFXバージョン: 一元管理 -->
-        <javafx.version>21.0.11</javafx.version>
+        <javafx.version>21.0.12</javafx.version>
         <maven.compiler.release>21</maven.compiler.release>
         <maven.compiler.fork>true</maven.compiler.fork>
         <!-- MANIFEST.MF の Build-Timestamp 用（UTC、ISO 8601） -->
