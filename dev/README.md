@@ -7,6 +7,7 @@
 | [jmx_exporter/jmx-exporter-config.yaml](jmx_exporter/jmx-exporter-config.yaml) | Prometheus JMX Exporter 設定 |
 | [logback/logback.xml](logback/logback.xml) | アクセスログ出力用 logback 設定サンプル |
 | [api-capture-rules.properties](api-capture-rules.properties) | API キャプチャ対象（`mvn -Pdev` で同梱。配布は空） |
+| [image-listener.properties](image-listener.properties) | ImageListener の img category（`mvn -Pdev` で同梱） |
 
 ---
 
