@@ -149,7 +149,11 @@ class ApiCaptureSegmentStoreTest {
                 requestId,
                 "POST",
                 "/kcsapi/api_port/port",
+                "/kcsapi/api_port/port",
+                "text/plain",
                 null,
-                "svdata={}");
+                null,
+                "svdata={}",
+                ApiCaptureBodies.ENCODING_UTF8);
     }
 }

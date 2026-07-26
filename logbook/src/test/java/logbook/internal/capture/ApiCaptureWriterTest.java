@@ -78,19 +78,26 @@ class ApiCaptureWriterTest {
                 "req-123",
                 "POST",
                 "/kcsapi/api_port/port",
+                "/kcsapi/api_port/port?api_verno=1",
+                "text/plain",
                 "api_token=abc",
-                responseBody);
+                ApiCaptureBodies.ENCODING_UTF8,
+                responseBody,
+                ApiCaptureBodies.ENCODING_UTF8);
 
         assertTrue(this.service.enqueue(record));
         this.service.flush();
 
         JsonObject envelope = readFirstEnvelope(findSegment(captureDir));
-        assertEquals(1, envelope.getInt("v"));
+        assertEquals(3, envelope.getInt("v"));
         assertEquals("req-123", envelope.getString("requestId"));
         assertEquals("POST", envelope.getString("method"));
         assertEquals("/kcsapi/api_port/port", envelope.getString("uriPath"));
-        assertFalse(envelope.containsKey("uri"));
+        assertEquals("/kcsapi/api_port/port?api_verno=1", envelope.getString("uri"));
+        assertEquals("text/plain", envelope.getString("contentType"));
+        assertEquals(ApiCaptureBodies.ENCODING_UTF8, envelope.getString("requestEncoding"));
         assertEquals("api_token=abc", envelope.getString("request"));
+        assertEquals(ApiCaptureBodies.ENCODING_UTF8, envelope.getString("responseEncoding"));
         assertEquals(responseBody, envelope.getString("response"));
         assertTrue(envelope.containsKey("capturedAt"));
     }
@@ -104,13 +111,44 @@ class ApiCaptureWriterTest {
                 "req-no-body",
                 "POST",
                 "/kcsapi/api_port/port",
+                "/kcsapi/api_port/port",
+                "text/plain",
                 null,
-                "svdata={}")));
+                null,
+                "svdata={}",
+                ApiCaptureBodies.ENCODING_UTF8)));
         this.service.flush();
 
         JsonObject envelope = readFirstEnvelope(findSegment(captureDir));
         assertFalse(envelope.containsKey("request"));
+        assertFalse(envelope.containsKey("requestEncoding"));
         assertEquals("svdata={}", envelope.getString("response"));
+        assertEquals(ApiCaptureBodies.ENCODING_UTF8, envelope.getString("responseEncoding"));
+    }
+
+    @Test
+    void writesBase64ResponseForBinaryBody() throws Exception {
+        Path captureDir = tempDir.resolve("captures");
+        this.service = newService(captureDir, () -> true);
+
+        String base64 = java.util.Base64.getEncoder().encodeToString(new byte[] { (byte) 0x89, 0x50, 0x4E, 0x47 });
+        assertTrue(this.service.enqueue(new ApiCaptureRecord(
+                "req-bin",
+                "GET",
+                "/kcs2/resources/map/007/02_image.png",
+                "/kcs2/resources/map/007/02_image.png",
+                "image/png",
+                null,
+                null,
+                base64,
+                ApiCaptureBodies.ENCODING_BASE64)));
+        this.service.flush();
+
+        JsonObject envelope = readFirstEnvelope(findSegment(captureDir));
+        assertEquals(3, envelope.getInt("v"));
+        assertEquals("image/png", envelope.getString("contentType"));
+        assertEquals(ApiCaptureBodies.ENCODING_BASE64, envelope.getString("responseEncoding"));
+        assertEquals(base64, envelope.getString("response"));
     }
 
     @Test
@@ -127,12 +165,24 @@ class ApiCaptureWriterTest {
     @Test
     void envelopeOmitsNullRequest() {
         ApiCaptureEnvelope envelope = ApiCaptureEnvelope.from(
-                new ApiCaptureRecord("id", "POST", "/kcsapi/x", null, "svdata={}"),
+                new ApiCaptureRecord(
+                        "id",
+                        "POST",
+                        "/kcsapi/x",
+                        "/kcsapi/x",
+                        null,
+                        null,
+                        null,
+                        "svdata={}",
+                        ApiCaptureBodies.ENCODING_UTF8),
                 Instant.parse("2026-07-12T00:00:00Z"));
         String json = JsonMappers.MAPPER.writeValueAsString(envelope);
         assertFalse(json.contains("\"request\""));
+        assertFalse(json.contains("\"requestEncoding\""));
         assertTrue(json.contains("\"response\":\"svdata={}\""));
+        assertTrue(json.contains("\"responseEncoding\":\"utf8\""));
         assertTrue(json.contains("\"capturedAt\":\"2026-07-12T00:00:00Z\""));
+        assertTrue(json.contains("\"v\":3"));
     }
 
     @Test
@@ -169,8 +219,12 @@ class ApiCaptureWriterTest {
                 requestId,
                 "POST",
                 "/kcsapi/api_port/port",
+                "/kcsapi/api_port/port",
+                "text/plain",
                 null,
-                "svdata={}");
+                null,
+                "svdata={}",
+                ApiCaptureBodies.ENCODING_UTF8);
     }
 
     private static Path findSegment(Path captureDir) throws Exception {
