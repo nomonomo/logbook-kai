@@ -6,6 +6,7 @@
 |------|------|
 | [jmx_exporter/jmx-exporter-config.yaml](jmx_exporter/jmx-exporter-config.yaml) | Prometheus JMX Exporter 設定 |
 | [logback/logback.xml](logback/logback.xml) | アクセスログ出力用 logback 設定サンプル |
+| [api-capture-rules.properties](api-capture-rules.properties) | API キャプチャ対象（`mvn -Pdev` で同梱。配布は空） |
 
 ---
 
@@ -242,7 +243,15 @@ JSON 形式は `ContentListenerLogJson` appender を参照してください（`
 ## API レスポンス記録（開発者向け）
 
 kcsapi のレスポンス JSON を `{captureDir}/segments/{日付}.jsonl.zst` に JSONL + zstd で保存します。
-`ReverseConnectHandler.invoke()` 入口の `ApiCaptureHook` が対象 URI のボディ原文を 1 回記録します（既定: すべての `/kcsapi/`）。
+`ReverseConnectHandler.invoke()` 入口の `ApiCaptureHook` が対象 URI のボディ原文を 1 回記録します。
+対象 URI はプロパティ `logbook/capture/api-capture-rules.properties` で定義します。
+
+| ビルド | ルール |
+|--------|--------|
+| 配布（通常の `mvn package`） | **空**（記録を ON にしてもキャプチャされない） |
+| 開発（`mvn -Pdev package`） | [`dev/api-capture-rules.properties`](api-capture-rules.properties) を同梱（現行: `/kcsapi/`・`/kcs2/js/`・`/kcs2/version.json`・`/kcs2/resources/map/`） |
+
+`--dev` / `-Dlogbook.dev=true` ではルールは切り替わりません（ビルド成果物の同梱内容が正）。
 POST リクエストは `request` フィールドにボディ原文、レスポンスは `response` フィールドに解凍後原文として同梱します。
 **別途インデックスファイルは持たず**、各レコードの `requestId` でアクセスログと紐づけます。
 
@@ -270,15 +279,27 @@ POST リクエストは `request` フィールドにボディ原文、レスポ�
 3. 保存先を指定して OK
 4. 記録中はメインウィンドウタイトルに `[API記録中]` が付きます
 
-### 対象 URI の拡張（開発者向け）
+### 対象 URI の変更（開発者向け）
 
-既定は `/kcsapi/` のみ。別パスを追加する場合:
+ルールは Java ではなくプロパティで管理します。
 
-```java
-ApiCapturePolicy.register(ApiCaptureTargetRule.prefix("/custom-api/"));
+1. [`dev/api-capture-rules.properties`](api-capture-rules.properties) を編集
+2. `mvn -Pdev package` で再ビルド
+
+形式:
+
+```properties
+prefix.1=/kcsapi/
+prefix.2=/kcs2/js/
+prefix.3=/kcs2/version.json
+prefix.4=/kcs2/resources/map/
 ```
 
-ボディは原文のまま保存されます。分析時に必要なパースは `read_segments.py` 等で行います。
+プロセス内の一時追加のみ `ApiCapturePolicy.register(...)` を使えます（上書きではなく末尾追加）。
+
+ボディはテキストを UTF-8 原文、バイナリを Base64 で可逆保存します（スキーマ v3。詳細は document の `docs/api-capture/format.md`）。
+**304 Not Modified は記録しません**（ボディなし。アクセスログで確認）。
+分析時に必要なパースは `read_segments.py` 等で行います。map 資産のファイル復元は document の `tools/client-assets/extract_map_assets.py`。
 
 ### ログとの突合
 

@@ -290,6 +290,36 @@
             <properties>
                 <test.profile>dev</test.profile>
             </properties>
+            <build>
+                <plugins>
+                    <!-- 配布用プロパティを開発用（dev/*.properties）で上書きしてから JAR 化 -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>api-capture-rules-dev</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.outputDirectory}/logbook/capture</outputDirectory>
+                                    <overwrite>true</overwrite>
+                                    <resources>
+                                        <resource>
+                                            <directory>${project.basedir}/../dev</directory>
+                                            <includes>
+                                                <include>api-capture-rules.properties</include>
+                                            </includes>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
         <profile>
             <id>extract-sources</id>

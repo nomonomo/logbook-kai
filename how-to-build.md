@@ -17,9 +17,13 @@ MANIFEST.MF には次の情報が記録されます。
 
 ## ビルドオプション（プロファイル）
 
-### -Pdev（開発用テスト）
+### -Pdev（開発用テスト / 開発用プロパティ同梱）
 
-`-Pdev` を付けてビルドすると、Maven Surefire にシステムプロパティ `test.profile=dev` が渡され、**一部のテストだけが有効化**されます。通常の `mvn package` ではこれらのテストはスキップされます。
+`-Pdev` を付けてビルドすると、次が行われます。
+
+1. Maven Surefire にシステムプロパティ `test.profile=dev` が渡され、**一部のテストだけが有効化**される
+2. 次の開発用プロパティが JAR に同梱される（通常ビルドは配布用）
+   - [`dev/api-capture-rules.properties`](dev/api-capture-rules.properties)（API キャプチャ対象。配布は空）
 
 ```
 mvn -Pdev package
