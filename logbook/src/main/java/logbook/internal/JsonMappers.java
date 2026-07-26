@@ -1,5 +1,6 @@
 package logbook.internal;
 
+import tools.jackson.core.StreamReadFeature;
 import tools.jackson.core.json.JsonReadFeature;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectReader;
@@ -9,11 +10,16 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * アプリケーション全体で共有する JsonMapper と ObjectReader の定数です。
  * Jackson3 の JSON 読み書きはここで定義した定数を使用してください。
+ * <p>
+ * {@link StreamReadFeature#AUTO_CLOSE_SOURCE} は無効です。
+ * {@code InputStream} を渡す場合は、呼び出し側の try-with-resources で閉じてください。
+ * </p>
  */
 public final class JsonMappers {
 
     /** デフォルト設定の JsonMapper（strict: 未知プロパティで失敗）。書き込みおよび strict な読み込みに使用。 */
     public static final JsonMapper MAPPER = JsonMapper.builder()
+                .disable(StreamReadFeature.AUTO_CLOSE_SOURCE)           // 呼び出し側で InputStream を閉じる
                 .disable(EnumFeature.WRITE_ENUMS_USING_TO_STRING)       // 列挙型をtoString()で書き込まない
                 .disable(EnumFeature.READ_ENUMS_USING_TO_STRING)        // 列挙型をtoString()で読み込まない
                 .build();

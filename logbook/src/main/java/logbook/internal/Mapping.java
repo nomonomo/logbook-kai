@@ -28,7 +28,7 @@ public class Mapping {
     }
 
     private static Map<String, String> loadMapping() {
-        // readValue(InputStream) に渡したストリームは Jackson が閉じるため、load 側の try-with-resources との二重 close は問題ない
+        // InputStream のクローズは GameDataLoader.load 側の try-with-resources に任せる
         return GameDataLoader.load(
                 GameDataPaths.MAPPING,
                 GameDataPaths.CLASSPATH_MAPPING,

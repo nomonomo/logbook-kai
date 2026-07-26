@@ -77,6 +77,7 @@ public final class AppQuestConditionLoader {
 
     /**
      * 任務条件 JSON を AppQuestCondition にデシリアライズする。
+     * ストリームのクローズは呼び出し元の責務。
      */
     public static AppQuestCondition load(InputStream is) throws IOException {
         return JsonMappers.READER_WITH_COMMENTS

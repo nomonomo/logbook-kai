@@ -71,9 +71,9 @@ public class BattleLogs {
 
     /**
      * InputStream から戦闘ログをデシリアライズします。
-     * GZIP やパスは扱わず、呼び出し元でストリームを組み立てること。
+     * GZIP やパスは扱わず、呼び出し元でストリームを組み立て・クローズすること。
      *
-     * @param in JSON 入力ストリーム（UTF-8 想定）
+     * @param in JSON 入力ストリーム（UTF-8 想定）。クローズは呼び出し元の責務
      * @return 戦闘ログ
      * @throws IOException 入出力例外
      */
@@ -103,15 +103,17 @@ public class BattleLogs {
             List<Path> paths = tryReadPaths(dateString);
             for (Path path : paths) {
                 if (Files.isReadable(path)) {
-                    // readValue(InputStream) に渡したストリームは Jackson が閉じるため close 不要（StreamReadFeature.AUTO_CLOSE_SOURCE デフォルト true）
-                    InputStream in = new BufferedInputStream(Files.newInputStream(path));
-                    in.mark(1024);
-                    int header = (in.read() | (in.read() << 8));
-                    in.reset();
-                    if (header == GZIPInputStream.GZIP_MAGIC) {
-                        in = new GZIPInputStream(in);
+                    try (InputStream fileIn = new BufferedInputStream(Files.newInputStream(path))) {
+                        fileIn.mark(1024);
+                        int header = (fileIn.read() | (fileIn.read() << 8));
+                        fileIn.reset();
+                        if (header == GZIPInputStream.GZIP_MAGIC) {
+                            try (InputStream in = new GZIPInputStream(fileIn)) {
+                                return fromJson(in);
+                            }
+                        }
+                        return fromJson(fileIn);
                     }
-                    return fromJson(in);
                 }
             }
         } catch (Exception e) {
