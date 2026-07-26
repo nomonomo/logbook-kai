@@ -24,6 +24,7 @@ MANIFEST.MF には次の情報が記録されます。
 1. Maven Surefire にシステムプロパティ `test.profile=dev` が渡され、**一部のテストだけが有効化**される
 2. 次の開発用プロパティが JAR に同梱される（通常ビルドは配布用）
    - [`dev/api-capture-rules.properties`](dev/api-capture-rules.properties)（API キャプチャ対象。配布は空）
+   - [`dev/image-listener.properties`](dev/image-listener.properties)（img category 拡張。配布は従来 3 category）
 
 ```
 mvn -Pdev package
