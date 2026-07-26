@@ -15,6 +15,7 @@ final class MissionConditionLoader {
 
     /**
      * 遠征条件 JSON を読み込み、MissionCondition に変換して返す。
+     * ストリームのクローズは呼び出し元の責務。
      */
     static MissionCondition load(InputStream is) throws IOException {
         MissionCondition record = JsonMappers.READER_WITH_COMMENTS

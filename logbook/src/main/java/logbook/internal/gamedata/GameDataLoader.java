@@ -230,6 +230,7 @@ public final class GameDataLoader {
 
     /**
      * ストリームからマニフェストを読みます。
+     * ストリームのクローズは呼び出し元の責務。
      *
      * @param is 入力
      * @return マニフェスト
