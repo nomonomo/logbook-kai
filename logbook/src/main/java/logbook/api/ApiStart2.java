@@ -7,6 +7,9 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
@@ -38,6 +41,7 @@ import logbook.bean.UseitemMstCollection;
 import logbook.internal.Config;
 import logbook.internal.JsonHelper;
 import logbook.internal.LoggerHolder;
+import logbook.internal.api.ApiSchemaLog;
 import logbook.proxy.RequestMetaData;
 import logbook.proxy.ResponseMetaData;
 
@@ -48,22 +52,57 @@ import logbook.proxy.ResponseMetaData;
 @API("/kcsapi/api_start2/getData")
 public class ApiStart2 implements APIListenerSpi {
 
+    /** Collection に反映するキー */
+    private static final Set<String> HANDLED_API_DATA_KEYS = Set.of(
+            "api_mst_ship",
+            "api_mst_shipgraph",
+            "api_mst_slotitem_equiptype",
+            "api_mst_stype",
+            "api_mst_slotitem",
+            "api_mst_useitem",
+            "api_mst_mission",
+            "api_mst_maparea",
+            "api_mst_mapinfo");
+
+    /** 未対応でよいと確認済みのキー */
+    private static final Set<String> IGNORED_API_DATA_KEYS = Set.of(
+            "api_mst_equip_exslot",
+            "api_mst_equip_exslot_ship",
+            "api_mst_equip_limit_exslot",
+            "api_mst_payitem",
+            "api_mst_item_shop",
+            "api_mst_mapbgm",
+            "api_mst_const",
+            "api_mst_shipupgrade",
+            "api_mst_bgm",
+            "api_mst_equip_ship",
+            "api_mst_furniture");
+
+    /** 未知キー報告の対象外（対応済み + 意図的未対応） */
+    private static final Set<String> KNOWN_API_DATA_KEYS = Stream
+            .concat(HANDLED_API_DATA_KEYS.stream(), IGNORED_API_DATA_KEYS.stream())
+            .collect(Collectors.toUnmodifiableSet());
+
     @Override
     public void accept(JsonObject json, RequestMetaData req, ResponseMetaData res) {
-        JsonObject data = json.getJsonObject("api_data");
-        if (data != null) {
-            this.apiMstShip(data.getJsonArray("api_mst_ship"));
-            this.apiMstShipgraph(data.getJsonArray("api_mst_shipgraph"));
-            this.apiMstSlotitemEquiptype(data.getJsonArray("api_mst_slotitem_equiptype"));
-            this.apiMstStype(data.getJsonArray("api_mst_stype"));
-            this.apiMstSlotitem(data.getJsonArray("api_mst_slotitem"));
-            this.apiMstUseitem(data.getJsonArray("api_mst_useitem"));
-            this.apiMstMission(data.getJsonArray("api_mst_mission"));
-            this.apiMstMaparea(data.getJsonArray("api_mst_maparea"));
-            this.apiMstMapinfo(data.getJsonArray("api_mst_mapinfo"));
-            this.store(data);
+        try (ApiSchemaLog.Scope ignored = ApiSchemaLog.openRequest(
+                req.getRequestURI(), req.getRequestId(), getClass().getName())) {
+            JsonObject data = json.getJsonObject("api_data");
+            if (data != null) {
+                JsonHelper.reportUnknownKeys(data, "api_data", KNOWN_API_DATA_KEYS);
+                this.apiMstShip(data.getJsonArray("api_mst_ship"));
+                this.apiMstShipgraph(data.getJsonArray("api_mst_shipgraph"));
+                this.apiMstSlotitemEquiptype(data.getJsonArray("api_mst_slotitem_equiptype"));
+                this.apiMstStype(data.getJsonArray("api_mst_stype"));
+                this.apiMstSlotitem(data.getJsonArray("api_mst_slotitem"));
+                this.apiMstUseitem(data.getJsonArray("api_mst_useitem"));
+                this.apiMstMission(data.getJsonArray("api_mst_mission"));
+                this.apiMstMaparea(data.getJsonArray("api_mst_maparea"));
+                this.apiMstMapinfo(data.getJsonArray("api_mst_mapinfo"));
+                this.store(data);
+            }
+            Config.getDefault().store();
         }
-        Config.getDefault().store();
     }
 
     /**
@@ -85,11 +124,11 @@ public class ApiStart2 implements APIListenerSpi {
         Map<Integer, ShipMst> map = ShipMstCollection.get()
                 .getShipMap();
         for (JsonValue val : array) {
-            JsonObject json = (JsonObject) val;
-            Integer key = json.getInt("api_id");
+            JsonObject item = (JsonObject) val;
+            Integer key = item.getInt("api_id");
             ShipMst bean = map.get(key);
             if (bean != null) {
-                bean.setGraph(json.getString("api_filename"));
+                bean.setGraph(item.getString("api_filename"));
             }
         }
         ShipgraphCollection.get()

@@ -9,6 +9,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import logbook.internal.api.ApiSchemaLog;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -556,14 +558,36 @@ public final class JsonHelper {
     }
 
     /**
+     * {@link JsonObject} のうち、既知キー以外を {@link ApiSchemaLog} へ報告する。
+     *
+     * @param json 対象オブジェクト
+     * @param jsonPath JSON 上の位置（例: {@code api_data}）
+     * @param knownKeys 既知キー名
+     */
+    public static void reportUnknownKeys(JsonObject json, String jsonPath, Set<String> knownKeys) {
+        if (json == null || jsonPath == null || knownKeys == null) {
+            return;
+        }
+        for (String key : json.keySet()) {
+            if (!knownKeys.contains(key)) {
+                ApiSchemaLog.unknownField(jsonPath, key);
+            }
+        }
+    }
+
+    /**
      * JsonObjectから別のオブジェクトへの単方向バインディングを提供します。<br>
      *
      */
     public static class Bind {
 
-        private JsonObject json;
+        private final JsonObject json;
 
-        private BindListener listener;
+        private final BindListener listener;
+
+        private final Set<String> boundKeys = new LinkedHashSet<>();
+
+        private String jsonPath;
 
         /**
          * コンストラクター
@@ -572,6 +596,7 @@ public final class JsonHelper {
          */
         private Bind(JsonObject json) {
             this.json = json;
+            this.listener = null;
         }
 
         /**
@@ -586,6 +611,34 @@ public final class JsonHelper {
         }
 
         /**
+         * 未知キー報告時の JSON 位置を指定する。
+         *
+         * @param jsonPath JSON 上の位置（例: {@code api_data.api_mst_ship[]}）
+         * @return {@link Bind}
+         */
+        public Bind at(String jsonPath) {
+            this.jsonPath = jsonPath;
+            return this;
+        }
+
+        /**
+         * {@link #at(String)} で指定した位置について、バインドしなかったキーを報告する。
+         *
+         * @return {@link Bind}
+         */
+        public Bind reportUnknown() {
+            if (this.jsonPath == null) {
+                return this;
+            }
+            for (String key : this.json.keySet()) {
+                if (!this.boundKeys.contains(key)) {
+                    ApiSchemaLog.unknownField(this.jsonPath, key);
+                }
+            }
+            return this;
+        }
+
+        /**
          * keyで取得したJsonValueをconverterで変換したものをconsumerへ設定します<br>
          *
          * @param <T> JsonObject#get(Object) の戻り値の型
@@ -597,6 +650,7 @@ public final class JsonHelper {
          */
         @SuppressWarnings("unchecked")
         public <T extends JsonValue, R> Bind set(String key, Consumer<R> consumer, Function<T, R> converter) {
+            this.boundKeys.add(key);
             JsonValue val = this.json.get(key);
             if (val != null && JsonValue.NULL != val) {
                 R obj = converter.apply((T) val);

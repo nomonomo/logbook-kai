@@ -77,6 +77,7 @@ public class Shipgraph {
     public static Shipgraph toShipgraph(JsonObject json) {
         Shipgraph bean = new Shipgraph();
         JsonHelper.bind(json)
+                .at("api_data.api_mst_shipgraph[]")
                 .setInteger("api_id", bean::setId)
                 .setInteger("api_sortno", bean::setSortno)
                 .setIntegerList("api_battle_d", bean::setBattleD)
@@ -96,7 +97,8 @@ public class Shipgraph {
                 .setIntegerList("api_pa", bean::setPa)
                 .setStringList("api_version", bean::setVersion)
                 .setIntegerList("api_weda", bean::setWeda)
-                .setIntegerList("api_wedb", bean::setWedb);
+                .setIntegerList("api_wedb", bean::setWedb)
+                .reportUnknown();
 
         return bean;
     }

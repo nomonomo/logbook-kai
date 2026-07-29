@@ -99,6 +99,28 @@
         </encoder>
     </appender>
 
+    <!-- API スキーマ検知ログ（JSON） -->
+    <appender name="ApiSchemaLogJson" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/api-schema-json.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/%d{yyyy-MM,aux}/api-schema-json-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp/>
+                <version/>
+                <message/>
+                <loggerName/>
+                <threadName/>
+                <logLevel/>
+                <logLevelValue/>
+                <mdc/>
+                <keyValuePairs/>
+            </providers>
+        </encoder>
+    </appender>
+
     <logger name="logbook" level="INFO" />
 
     <!-- アクセスログ専用ロガー。JSON 出力時は appender-ref を AccessLogJson に差し替え -->
@@ -109,6 +131,11 @@
     <!-- コンテンツリスナー処理ログ専用ロガー。JSON 出力時は appender-ref を ContentListenerLogJson に差し替え -->
     <logger name="logbook.internal.proxy.ContentListenerLog" level="DEBUG" additivity="false">
         <appender-ref ref="ContentListenerLog" />
+    </logger>
+
+    <!-- API スキーマ検知ログ専用ロガー。JSON 出力時は appender-ref を ApiSchemaLogJson に差し替え -->
+    <logger name="logbook.internal.api.ApiSchemaLog" level="DEBUG" additivity="false">
+        <appender-ref ref="ApiSchemaLogJson" />
     </logger>
 
     <root level="WARN">
