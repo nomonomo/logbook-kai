@@ -39,9 +39,11 @@ public class SlotitemEquiptype implements Serializable {
     public static SlotitemEquiptype toSlotitemEquiptype(JsonObject json) {
         SlotitemEquiptype bean = new SlotitemEquiptype();
         JsonHelper.bind(json)
+                .at("api_data.api_mst_slotitem_equiptype[]")
                 .setInteger("api_id", bean::setId)
                 .setString("api_name", bean::setName)
-                .setInteger("api_show_flg", bean::setShowFlg);
+                .setInteger("api_show_flg", bean::setShowFlg)
+                .reportUnknown();
         return bean;
     }
 }

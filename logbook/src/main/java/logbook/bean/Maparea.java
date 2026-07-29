@@ -34,9 +34,11 @@ public class Maparea implements Serializable {
     public static Maparea toMaparea(JsonObject json) {
         Maparea bean = new Maparea();
         JsonHelper.bind(json)
+                .at("api_data.api_mst_maparea[]")
                 .setInteger("api_id", bean::setId)
                 .setString("api_name", bean::setName)
-                .setInteger("api_type", bean::setType);
+                .setInteger("api_type", bean::setType)
+                .reportUnknown();
         return bean;
     }
 }

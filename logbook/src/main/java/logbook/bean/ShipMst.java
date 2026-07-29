@@ -184,6 +184,7 @@ public class ShipMst implements Serializable {
     public static ShipMst toShip(JsonObject json) {
         ShipMst bean = new ShipMst();
         JsonHelper.bind(json)
+                .at("api_data.api_mst_ship[]")
                 .setInteger("api_id", bean::setId)
                 .setInteger("api_sortno", bean::setSortno)
                 .setInteger("api_sort_id", bean::setSortId)
@@ -207,7 +208,8 @@ public class ShipMst implements Serializable {
                 .setInteger("api_afterfuel", bean::setAfterfuel)
                 .setInteger("api_afterbull", bean::setAfterbull)
                 .setInteger("api_fuel_max", bean::setFuelMax)
-                .setInteger("api_bull_max", bean::setBullMax);
+                .setInteger("api_bull_max", bean::setBullMax)
+                .reportUnknown();
         return bean;
     }
 }

@@ -5,7 +5,7 @@
 | パス | 内容 |
 |------|------|
 | [jmx_exporter/jmx-exporter-config.yaml](jmx_exporter/jmx-exporter-config.yaml) | Prometheus JMX Exporter 設定 |
-| [logback/logback.xml](logback/logback.xml) | アクセスログ出力用 logback 設定サンプル |
+| [logback/logback.xml](logback/logback.xml) | アクセスログ・コンテンツリスナー・API スキーマ検知用 logback 設定サンプル |
 | [api-capture-rules.properties](api-capture-rules.properties) | API キャプチャ対象（`mvn -Pdev` で同梱。配布は空） |
 | [image-listener.properties](image-listener.properties) | ImageListener の img category（`mvn -Pdev` で同梱） |
 
@@ -21,7 +21,7 @@ logbook\bin\java -Dlogback.configurationFile=D:\path\to\logbook-kai\dev\logback\
 
 ログファイルは作業ディレクトリ（通常はアプリのインストールフォルダ）配下の `logs/` に出力されます。
 
-本サンプルは本番 `logback.xml` をベースに、**プロキシアクセスログ**（テキスト／JSON）の appender のみを追加した最小構成です。Jetty や個別パッケージ向けのロガー設定は含みません。プロキシ本体の DEBUG ログが必要な場合は、例えば `<logger name="logbook.internal.proxy" level="DEBUG" />` を追記してください。
+本サンプルは本番 `logback.xml` をベースに、**プロキシアクセスログ**・**コンテンツリスナー処理ログ**・**API スキーマ検知ログ**（テキスト／JSON）の appender を追加した構成です。Jetty や個別パッケージ向けのロガー設定は含みません。プロキシ本体の DEBUG ログが必要な場合は、例えば `<logger name="logbook.internal.proxy" level="DEBUG" />` を追記してください。
 
 ### LogstashEncoder（JSON 出力）について
 
@@ -238,6 +238,59 @@ JSON 形式は `ContentListenerLogJson` appender を参照してください（`
 | `errorDetail` | エラー詳細（正常時は空文字） |
 
 `layer` の取りうる値は `ProxyContentListenerLogger.Layer`、`outcome` の取りうる値は `ProxyContentListenerLogger.Outcome` 列挙型を参照してください。
+
+---
+
+## API スキーマ検知ログ
+
+API レスポンス JSON のうち、bean / ハンドラが把握していないキーを記録します。実装は `ApiSchemaLog` が専用ロガー `logbook.internal.api.ApiSchemaLog` へ DEBUG 出力します。
+
+一般向け（同梱 `logback.xml`）ではこのロガーに appender を付けないため出力されません。開発ホストでは `dev/logback/logback.xml` の JSON appender を使います。
+
+対象 API は段階的に増やします。現状は `/kcsapi/api_start2/getData`（`ApiStart2` と各マスタ bean）です。
+
+### 有効化
+
+`dev/logback/logback.xml` では次のロガーで制御します。
+
+```xml
+<logger name="logbook.internal.api.ApiSchemaLog" level="DEBUG" additivity="false">
+    <appender-ref ref="ApiSchemaLogJson" />
+</logger>
+```
+
+- `level="DEBUG"` … 有効
+- `level="OFF"` … 無効
+
+出力先は `logs/api-schema-json.log`（`ApiSchemaLogJson` appender）です。
+
+### 仕組み
+
+1. ハンドラ入口で `ApiSchemaLog.openRequest(uriPath, requestId, handlerClass)` によりリクエスト文脈を MDC に載せる
+2. `JsonHelper.bind(json).at("…").reportUnknown()` で、バインドしなかったキーを報告する
+3. ハンドラ直下など bind しない箇所は `JsonHelper.reportUnknownKeys(json, jsonPath, knownKeys)` を使う
+4. 同一 `(uriPath, jsonPath, field)` はプロセス内で 1 回だけ報告する（重複抑制）
+
+**既知キーの意味**: 「処理するキー」だけでなく、「未対応でよいと確認済みのキー」も含める。`ApiStart2` では `HANDLED_API_DATA_KEYS`（Collection 反映）と `IGNORED_API_DATA_KEYS`（意図的未対応）の和を `KNOWN_API_DATA_KEYS` として渡し、**新規追加キーだけ**がログに出る。
+
+### MDC キー一覧
+
+| MDC キー | 内容 |
+|----------|------|
+| `event` | 固定値 `api_unknown_field` |
+| `uriPath` | リクエスト URI パス |
+| `jsonPath` | JSON 上の位置（例: `api_data`、`api_data.api_mst_ship[]`） |
+| `field` | 未知のキー名 |
+| `handlerClass` | ハンドラ FQCN（例: `logbook.api.ApiStart2`） |
+| `requestId` | リクエスト相関 ID（アクセスログ・キャプチャと同一） |
+
+メッセージは固定文字列 `"api unknown field"` です。フィールドはすべて MDC 経由（JSON appender の `<mdc>` プロバイダ）で出力します。
+
+### 他 API への追加手順（概要）
+
+1. `accept` 内を `ApiSchemaLog.openRequest(...)` で囲む
+2. bean の `JsonHelper.bind` に `.at("…").reportUnknown()` を付ける
+3. ハンドラ直下のオブジェクトは `reportUnknownKeys` と `KNOWN`（対応済み ∪ 意図的未対応）を用意する
 
 ---
 
