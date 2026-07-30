@@ -267,11 +267,11 @@ API レスポンス JSON のうち、bean / ハンドラが把握していない
 ### 仕組み
 
 1. ハンドラ入口で `ApiSchemaLog.openRequest(uriPath, requestId, handlerClass)` によりリクエスト文脈を MDC に載せる
-2. `JsonHelper.bind(json).at("…").reportUnknown()` で、バインドしなかったキーを報告する
+2. `JsonHelper.bind(json).at("…").set…(...).ignore(…).reportUnknown()` で、バインドも ignore もしなかったキーを報告する
 3. ハンドラ直下など bind しない箇所は `JsonHelper.reportUnknownKeys(json, jsonPath, knownKeys)` を使う
 4. 同一 `(uriPath, jsonPath, field)` はプロセス内で 1 回だけ報告する（重複抑制）
 
-**既知キーの意味**: 「処理するキー」だけでなく、「未対応でよいと確認済みのキー」も含める。`ApiStart2` では `HANDLED_API_DATA_KEYS`（Collection 反映）と `IGNORED_API_DATA_KEYS`（意図的未対応）の和を `KNOWN_API_DATA_KEYS` として渡し、**新規追加キーだけ**がログに出る。
+**既知キーの意味**: 「処理するキー」だけでなく、「未対応でよいと確認済みのキー」も含める。bind では `set` が前者、`ignore` が後者。`ApiStart2` の `api_data` では `HANDLED_API_DATA_KEYS` と `IGNORED_API_DATA_KEYS` の和を `KNOWN_API_DATA_KEYS` として渡し、**新規追加キーだけ**がログに出る。
 
 ### MDC キー一覧
 
@@ -289,7 +289,7 @@ API レスポンス JSON のうち、bean / ハンドラが把握していない
 ### 他 API への追加手順（概要）
 
 1. `accept` 内を `ApiSchemaLog.openRequest(...)` で囲む
-2. bean の `JsonHelper.bind` に `.at("…").reportUnknown()` を付ける
+2. bean の `JsonHelper.bind` に `.at("…")` と、使うキーは `.set…`、意図的未対応は `.ignore(…)`、末尾に `.reportUnknown()` を付ける
 3. ハンドラ直下のオブジェクトは `reportUnknownKeys` と `KNOWN`（対応済み ∪ 意図的未対応）を用意する
 
 ---

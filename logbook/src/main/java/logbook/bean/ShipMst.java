@@ -209,6 +209,13 @@ public class ShipMst implements Serializable {
                 .setInteger("api_afterbull", bean::setAfterbull)
                 .setInteger("api_fuel_max", bean::setFuelMax)
                 .setInteger("api_bull_max", bean::setBullMax)
+                .ignore(
+                        "api_buildtime", // 建造時間（分）
+                        "api_broken", // 解体時に得られる資材
+                        "api_powup", // 近代化改修の元になった際に上がるパラメータ
+                        "api_backs", // レアリティ（背景）
+                        "api_getmes", // 入手時メッセージ
+                        "api_voicef") // ボイスフラグ
                 .reportUnknown();
         return bean;
     }
