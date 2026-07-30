@@ -98,6 +98,11 @@ public class Shipgraph {
                 .setStringList("api_version", bean::setVersion)
                 .setIntegerList("api_weda", bean::setWeda)
                 .setIntegerList("api_wedb", bean::setWedb)
+                .ignore(
+                        "api_pab", // その他オフセット？
+                        "api_wedc", // 結婚枠オフセット C
+                        "api_wedd", // 結婚枠オフセット D
+                        "api_sp_flag") // 特殊表示フラグ？
                 .reportUnknown();
 
         return bean;

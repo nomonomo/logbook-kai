@@ -183,6 +183,10 @@ public class SlotitemMst implements Serializable {
                 .setInteger("api_rare", bean::setRare)
                 .setInteger("api_cost", bean::setCost)
                 .setInteger("api_distance", bean::setDistance)
+                .ignore(
+                        "api_broken", // 廃棄資材
+                        "api_usebull", // 不明
+                        "api_version") // リソースバージョン
                 .reportUnknown();
         return bean;
     }

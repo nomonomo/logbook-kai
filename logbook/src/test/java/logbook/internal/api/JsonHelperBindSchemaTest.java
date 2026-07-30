@@ -74,6 +74,8 @@ class JsonHelperBindSchemaTest {
                 .add("api_afterbull", 0)
                 .add("api_fuel_max", 10)
                 .add("api_bull_max", 10)
+                .add("api_buildtime", 30)
+                .add("api_broken", Json.createArrayBuilder().add(1).add(1).add(1).add(0))
                 .add("api_new_field", 99)
                 .build();
 
@@ -91,6 +93,31 @@ class JsonHelperBindSchemaTest {
         assertEquals("api_data.api_mst_ship[]", events.get(0).getMDCPropertyMap().get(ApiSchemaLog.MDC_JSON_PATH));
         assertEquals("/kcsapi/api_start2/getData",
                 events.get(0).getMDCPropertyMap().get(ApiSchemaLog.MDC_URI_PATH));
+    }
+
+    @Test
+    void ignorePreventsUnknownReport() {
+        JsonObject json = Json.createObjectBuilder()
+                .add("known", 1)
+                .add("ignored", 2)
+                .add("unknown", 3)
+                .build();
+
+        try (ApiSchemaLog.Scope scope = ApiSchemaLog.openRequest(
+                "/kcsapi/test", "req-ignore", "logbook.internal.api.JsonHelperBindSchemaTest")) {
+            JsonHelper.bind(json)
+                    .at("test")
+                    .setInteger("known", value -> {
+                    })
+                    .ignore("ignored")
+                    .reportUnknown();
+        }
+
+        List<ILoggingEvent> events = appender.list.stream()
+                .filter(event -> "api unknown field".equals(event.getMessage()))
+                .toList();
+        assertEquals(1, events.size());
+        assertEquals("unknown", events.get(0).getMDCPropertyMap().get(ApiSchemaLog.MDC_FIELD));
     }
 
     @Test

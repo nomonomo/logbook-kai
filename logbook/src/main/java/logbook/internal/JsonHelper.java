@@ -622,7 +622,25 @@ public final class JsonHelper {
         }
 
         /**
-         * {@link #at(String)} で指定した位置について、バインドしなかったキーを報告する。
+         * 意図的に読み捨てるキーを既知扱いにする（bean には載せない）。
+         * {@link #reportUnknown()} の報告対象から除外する。
+         *
+         * @param keys キー名
+         * @return {@link Bind}
+         */
+        public Bind ignore(String... keys) {
+            if (keys != null) {
+                for (String key : keys) {
+                    if (key != null) {
+                        this.boundKeys.add(key);
+                    }
+                }
+            }
+            return this;
+        }
+
+        /**
+         * {@link #at(String)} で指定した位置について、バインドも ignore もしなかったキーを報告する。
          *
          * @return {@link Bind}
          */

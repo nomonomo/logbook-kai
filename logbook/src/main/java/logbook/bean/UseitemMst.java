@@ -43,6 +43,10 @@ public class UseitemMst implements Serializable {
                 .setInteger("api_id", bean::setId)
                 .setString("api_name", bean::setName)
                 .setStringList("api_description", bean::setDescription)
+                .ignore(
+                        "api_usetype", // 使用種別
+                        "api_category", // カテゴリ
+                        "api_price") // 価格（表示用）
                 .reportUnknown();
         return bean;
     }
