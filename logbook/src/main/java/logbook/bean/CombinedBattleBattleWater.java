@@ -137,6 +137,7 @@ public class CombinedBattleBattleWater implements ICombinedBattle,  ISortieHouge
     public static CombinedBattleBattleWater toBattle(JsonObject json) {
         CombinedBattleBattleWater bean = new CombinedBattleBattleWater();
         JsonHelper.bind(json)
+                .at("api_data")
                 .set("api_air_base_injection", bean::setAirBaseInjection,
                         BattleTypes.AirBaseAttack::toAirBaseAttack)
                 .set("api_air_base_attack", bean::setAirBaseAttack,
@@ -174,7 +175,8 @@ public class CombinedBattleBattleWater implements ICombinedBattle,  ISortieHouge
                 .set("api_hougeki1", bean::setHougeki1, BattleTypes.Hougeki::toHougeki)
                 .set("api_hougeki2", bean::setHougeki2, BattleTypes.Hougeki::toHougeki)
                 .set("api_hougeki3", bean::setHougeki3, BattleTypes.Hougeki::toHougeki)
-                .set("api_raigeki", bean::setRaigeki, BattleTypes.Raigeki::toRaigeki);
+                .set("api_raigeki", bean::setRaigeki, BattleTypes.Raigeki::toRaigeki)
+                .reportUnknown();
         return bean;
     }
 }

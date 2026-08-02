@@ -92,6 +92,7 @@ public class CombinedBattleSpMidnight implements ICombinedBattle, IMidnightBattl
     public static CombinedBattleSpMidnight toBattle(JsonObject json) {
         CombinedBattleSpMidnight bean = new CombinedBattleSpMidnight();
         JsonHelper.bind(json)
+                .at("api_data")
                 .setInteger("api_dock_id", bean::setDockId)
                 .setInteger("api_deck_id", bean::setDockId)
                 .setIntegerList("api_ship_ke", bean::setShipKe)
@@ -113,7 +114,8 @@ public class CombinedBattleSpMidnight implements ICombinedBattle, IMidnightBattl
                 .setIntegerList("api_flare_pos", bean::setFlarePos)
                 .set("api_hougeki", bean::setHougeki, BattleTypes.MidnightHougeki::toMidnightHougeki)
                 .setInteger("api_n_support_flag", bean::setNSupportFlag)
-                .set("api_n_support_info", bean::setNSupportInfo, BattleTypes.SupportInfo::toSupportInfo);
+                .set("api_n_support_info", bean::setNSupportInfo, BattleTypes.SupportInfo::toSupportInfo)
+                .reportUnknown();
         return bean;
     }
 }
