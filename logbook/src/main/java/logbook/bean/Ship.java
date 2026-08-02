@@ -191,6 +191,7 @@ public class Ship implements Chara, Serializable {
     public static Ship toShip(JsonObject json) {
         Ship bean = new Ship();
         JsonHelper.bind(json)
+                .at("api_data.api_ship[]")
                 .setInteger("api_id", bean::setId)
                 .setInteger("api_sortno", bean::setSortno)
                 .setInteger("api_ship_id", bean::setShipId)
@@ -223,7 +224,8 @@ public class Ship implements Chara, Serializable {
                 .setBoolean("api_locked", bean::setLocked)
                 .setBoolean("api_locked_equip", bean::setLockedEquip)
                 .set("api_sp_effect_items", bean::setSpEffectItems, JsonHelper.toList(SpEffectItem::toSpEffectItem))
-                .setInteger("api_sally_area", bean::setSallyArea);
+                .setInteger("api_sally_area", bean::setSallyArea)
+                .reportUnknown();
         return bean;
     }
 
@@ -257,11 +259,13 @@ public class Ship implements Chara, Serializable {
         public static SpEffectItem toSpEffectItem(JsonObject json) {
             SpEffectItem bean = new SpEffectItem();
             JsonHelper.bind(json)
-            .setInteger("api_kind", bean::setKind)
-            .setInteger("api_houg", bean::setHoug)
-            .setInteger("api_raig", bean::setRaig)
-            .setInteger("api_souk", bean::setSouk)
-            .setInteger("api_kaih", bean::setKaih);
+                    .at("api_data.api_ship[].api_sp_effect_items[]")
+                    .setInteger("api_kind", bean::setKind)
+                    .setInteger("api_houg", bean::setHoug)
+                    .setInteger("api_raig", bean::setRaig)
+                    .setInteger("api_souk", bean::setSouk)
+                    .setInteger("api_kaih", bean::setKaih)
+                    .reportUnknown();
             return bean;
         }
     }

@@ -65,6 +65,7 @@ public class Basic implements Serializable {
      */
     public static Basic updateBasic(Basic bean, JsonObject json) {
         JsonHelper.bind(json)
+                .at("api_data.api_basic")
                 .setString("api_comment", bean::setComment)
                 .setInteger("api_count_deck", bean::setCountDeck)
                 .setInteger("api_count_kdock", bean::setCountKdock)
@@ -77,7 +78,30 @@ public class Basic implements Serializable {
                 .setInteger("api_max_chara", bean::setMaxChara)
                 .setInteger("api_max_slotitem", bean::setMaxSlotitem)
                 .setInteger("api_medals", bean::setMedals)
-                .setString("api_nickname", bean::setNickname);
+                .setString("api_nickname", bean::setNickname)
+                .ignore(
+                        "api_member_id", // 提督 ID
+                        "api_nickname_id", // ニックネーム ID
+                        "api_active_flag", // アクティブフラグ
+                        "api_starttime", // セッション開始時刻らしき値
+                        "api_fleetname", // 連合艦隊名など
+                        "api_comment_id", // コメント ID
+                        "api_max_kagu", // 家具上限関連
+                        "api_playtime", // プレイ時間（クライアント用）
+                        "api_tutorial", // チュートリアルフラグ
+                        "api_furniture", // 設置家具 ID
+                        "api_st_win", // 出撃勝利数
+                        "api_st_lose", // 出撃敗北数
+                        "api_ms_count", // 遠征回数
+                        "api_ms_success", // 遠征成功数
+                        "api_pt_win", // 演習勝利数
+                        "api_pt_lose", // 演習敗北数
+                        "api_pt_challenged", // 演習被挑戦
+                        "api_pt_challenged_win", // 演習被挑戦勝利
+                        "api_firstflag", // 初回フラグ
+                        "api_tutorial_progress", // チュートリアル進捗
+                        "api_pvp") // 演習関連カウンタ
+                .reportUnknown();
         return bean;
     }
 

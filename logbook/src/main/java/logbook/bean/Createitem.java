@@ -59,10 +59,12 @@ public class Createitem implements Serializable {
         bean.setItem4(Integer.valueOf(req.getParameter("api_item4", "0")));
 
         JsonHelper.bind(json)
+                .at("api_data")
                 .setBoolean("api_create_flag", bean::setCreateFlag)
                 .setIntegerList("api_material", bean::setMaterial)
                 .set("api_get_items", bean::setGetItems, JsonHelper.toList(SlotItem::toSlotItem))
-                .set("api_unset_items", bean::setUnsetItems, JsonHelper.toList(UnsetItems::toUnsetItems));
+                .set("api_unset_items", bean::setUnsetItems, JsonHelper.toList(UnsetItems::toUnsetItems))
+                .reportUnknown();
 
         Ship secretary = null;
         DeckPort port = DeckPortCollection.get()
@@ -100,8 +102,10 @@ public class Createitem implements Serializable {
         public static UnsetItems toUnsetItems(JsonObject json) {
             UnsetItems bean = new UnsetItems();
             JsonHelper.bind(json)
+                    .at("api_data.api_unset_items[]")
                     .setInteger("api_type3", bean::setType3)
-                    .setIntegerList("api_unsetslot", bean::setUnsetslot);
+                    .setIntegerList("api_unsetslot", bean::setUnsetslot)
+                    .reportUnknown();
             return bean;
         }
     }

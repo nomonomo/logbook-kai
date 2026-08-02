@@ -56,6 +56,7 @@ public class Kdock implements Serializable {
     public static Kdock toKdock(JsonValue json) {
         Kdock bean = new Kdock();
         JsonHelper.bind((JsonObject) json)
+                .at("api_data.api_kdock[]")
                 .setInteger("api_id", bean::setId)
                 .setInteger("api_state", bean::setState)
                 .setInteger("api_created_ship_id", bean::setCreatedShipId)
@@ -65,7 +66,8 @@ public class Kdock implements Serializable {
                 .setInteger("api_item2", bean::setItem2)
                 .setInteger("api_item3", bean::setItem3)
                 .setInteger("api_item4", bean::setItem4)
-                .setInteger("api_item5", bean::setItem5);
+                .setInteger("api_item5", bean::setItem5)
+                .reportUnknown();
         return bean;
     }
 }

@@ -20,6 +20,7 @@ import logbook.Messages;
 import logbook.api.API;
 import logbook.api.APIListenerSpi;
 import logbook.internal.Tuple.Pair;
+import logbook.internal.api.ApiSchemaLog;
 import logbook.internal.proxy.ProxyContentListenerLogger;
 import logbook.plugin.PluginServices;
 import logbook.proxy.ContentListenerSpi;
@@ -135,7 +136,8 @@ public final class APIListener implements ContentListenerSpi {
         long startNanos = System.nanoTime();
         ProxyContentListenerLogger.Outcome outcome = ProxyContentListenerLogger.Outcome.SUCCESS;
         String errorDetail = null;
-        try {
+        try (ApiSchemaLog.Scope ignored = ApiSchemaLog.openRequest(
+                req.getRequestURI(), req.getRequestId(), handler.getClass().getName())) {
             log.atDebug()
                 .setMessage(() -> Messages.getString("APIListener.0", //$NON-NLS-1$
                         handler.getClass().getName(), req.getRequestURI()))

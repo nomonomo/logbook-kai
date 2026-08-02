@@ -41,7 +41,6 @@ import logbook.bean.UseitemMstCollection;
 import logbook.internal.Config;
 import logbook.internal.JsonHelper;
 import logbook.internal.LoggerHolder;
-import logbook.internal.api.ApiSchemaLog;
 import logbook.proxy.RequestMetaData;
 import logbook.proxy.ResponseMetaData;
 
@@ -85,24 +84,21 @@ public class ApiStart2 implements APIListenerSpi {
 
     @Override
     public void accept(JsonObject json, RequestMetaData req, ResponseMetaData res) {
-        try (ApiSchemaLog.Scope ignored = ApiSchemaLog.openRequest(
-                req.getRequestURI(), req.getRequestId(), getClass().getName())) {
-            JsonObject data = json.getJsonObject("api_data");
-            if (data != null) {
-                JsonHelper.reportUnknownKeys(data, "api_data", KNOWN_API_DATA_KEYS);
-                this.apiMstShip(data.getJsonArray("api_mst_ship"));
-                this.apiMstShipgraph(data.getJsonArray("api_mst_shipgraph"));
-                this.apiMstSlotitemEquiptype(data.getJsonArray("api_mst_slotitem_equiptype"));
-                this.apiMstStype(data.getJsonArray("api_mst_stype"));
-                this.apiMstSlotitem(data.getJsonArray("api_mst_slotitem"));
-                this.apiMstUseitem(data.getJsonArray("api_mst_useitem"));
-                this.apiMstMission(data.getJsonArray("api_mst_mission"));
-                this.apiMstMaparea(data.getJsonArray("api_mst_maparea"));
-                this.apiMstMapinfo(data.getJsonArray("api_mst_mapinfo"));
-                this.store(data);
-            }
-            Config.getDefault().store();
+        JsonObject data = json.getJsonObject("api_data");
+        if (data != null) {
+            JsonHelper.reportUnknownKeys(data, "api_data", KNOWN_API_DATA_KEYS);
+            this.apiMstShip(data.getJsonArray("api_mst_ship"));
+            this.apiMstShipgraph(data.getJsonArray("api_mst_shipgraph"));
+            this.apiMstSlotitemEquiptype(data.getJsonArray("api_mst_slotitem_equiptype"));
+            this.apiMstStype(data.getJsonArray("api_mst_stype"));
+            this.apiMstSlotitem(data.getJsonArray("api_mst_slotitem"));
+            this.apiMstUseitem(data.getJsonArray("api_mst_useitem"));
+            this.apiMstMission(data.getJsonArray("api_mst_mission"));
+            this.apiMstMaparea(data.getJsonArray("api_mst_maparea"));
+            this.apiMstMapinfo(data.getJsonArray("api_mst_mapinfo"));
+            this.store(data);
         }
+        Config.getDefault().store();
     }
 
     /**
