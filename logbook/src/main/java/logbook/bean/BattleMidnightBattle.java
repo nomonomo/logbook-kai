@@ -80,6 +80,7 @@ public class BattleMidnightBattle implements IMidnightBattle {
     public static BattleMidnightBattle toBattle(JsonObject json) {
         BattleMidnightBattle bean = new BattleMidnightBattle();
         JsonHelper.bind(json)
+                .at("api_data")
                 .setInteger("api_dock_id", bean::setDockId)
                 .setInteger("api_deck_id", bean::setDockId)
                 .setIntegerList("api_ship_ke", bean::setShipKe)
@@ -98,7 +99,9 @@ public class BattleMidnightBattle implements IMidnightBattle {
                 .setInteger("api_smoke_type", bean::setSmokeType)
                 .setInteger("api_balloon_cell", bean::setBalloonCell)
                 .setInteger("api_atoll_cell", bean::setAtollCell)
-                .set("api_hougeki", bean::setHougeki, BattleTypes.MidnightHougeki::toMidnightHougeki);
+                .set("api_hougeki", bean::setHougeki, BattleTypes.MidnightHougeki::toMidnightHougeki)
+                .ignore("api_formation") // 昼戦レスポンスと同内容の再送。IMidnightBattle では未使用
+                .reportUnknown();
         return bean;
     }
 }

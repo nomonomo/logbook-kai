@@ -156,6 +156,7 @@ public class CombinedBattleEachBattle implements ICombinedBattle, ICombinedEcBat
     public static CombinedBattleEachBattle toBattle(JsonObject json) {
         CombinedBattleEachBattle bean = new CombinedBattleEachBattle();
         JsonHelper.bind(json)
+                .at("api_data")
                 .set("api_air_base_injection", bean::setAirBaseInjection,
                         BattleTypes.AirBaseAttack::toAirBaseAttack)
                 .set("api_air_base_attack", bean::setAirBaseAttack,
@@ -199,7 +200,8 @@ public class CombinedBattleEachBattle implements ICombinedBattle, ICombinedEcBat
                 .set("api_hougeki1", bean::setHougeki1, BattleTypes.Hougeki::toHougeki)
                 .set("api_raigeki", bean::setRaigeki, BattleTypes.Raigeki::toRaigeki)
                 .set("api_hougeki2", bean::setHougeki2, BattleTypes.Hougeki::toHougeki)
-                .set("api_hougeki3", bean::setHougeki3, BattleTypes.Hougeki::toHougeki);
+                .set("api_hougeki3", bean::setHougeki3, BattleTypes.Hougeki::toHougeki)
+                .reportUnknown();
         return bean;
     }
 }

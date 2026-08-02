@@ -105,6 +105,7 @@ public class SortieAirbattle implements ISortieBattle, IFormation, IAirbattle, I
     public static SortieAirbattle toAirbattle(JsonObject json) {
         SortieAirbattle bean = new SortieAirbattle();
         JsonHelper.bind(json)
+                .at("api_data")
                 .set("api_air_base_injection", bean::setAirBaseInjection,
                         BattleTypes.AirBaseAttack::toAirBaseAttack)
                 .set("api_air_base_attack", bean::setAirBaseAttack,
@@ -132,7 +133,8 @@ public class SortieAirbattle implements ISortieBattle, IFormation, IAirbattle, I
                 .setInteger("api_support_flag", bean::setSupportFlag)
                 .set("api_support_info", bean::setSupportInfo, BattleTypes.SupportInfo::toSupportInfo)
                 .setIntegerList("api_stage_flag2", bean::setStageFlag2)
-                .set("api_kouku2", bean::setKouku2, BattleTypes.Kouku::toKouku);
+                .set("api_kouku2", bean::setKouku2, BattleTypes.Kouku::toKouku)
+                .reportUnknown();
         return bean;
     }
 }
