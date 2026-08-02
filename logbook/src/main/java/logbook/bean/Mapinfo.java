@@ -61,11 +61,20 @@ public class Mapinfo implements Serializable {
         public static MapInfo toMapInfo(JsonValue json) {
             MapInfo bean = new MapInfo();
             JsonHelper.bind((JsonObject) json)
+                    .at("api_data.api_map_info[]")
                     .setInteger("api_id", bean::setId)
                     .setInteger("api_cleared", bean::setCleared)
                     .setInteger("api_exboss_flag", bean::setExbossFlag)
                     .setInteger("api_defeat_count", bean::setDefeatCount)
-                    .setInteger("api_air_base_decks", bean::setAirBaseDecks);
+                    .setInteger("api_air_base_decks", bean::setAirBaseDecks)
+                    .ignore(
+                            "api_gauge_num", // ゲージ番号
+                            "api_gauge_type", // ゲージ種別
+                            "api_required_defeat_count", // 必要撃破数
+                            "api_eventmap", // イベントマップ状態
+                            "api_sally_flag", // 出撃フラグ
+                            "api_s_no") // 海域内番号等
+                    .reportUnknown();
             return bean;
         }
     }
@@ -105,12 +114,14 @@ public class Mapinfo implements Serializable {
         public static AirBase toAirBase(JsonValue json) {
             AirBase bean = new AirBase();
             JsonHelper.bind((JsonObject) json)
+                    .at("api_data.api_air_base[]")
                     .setInteger("api_area_id", bean::setAreaId)
                     .setInteger("api_rid", bean::setRid)
                     .setString("api_name", bean::setName)
                     .set("api_distance", bean::setDistance, Distance::toDistance)
                     .setInteger("api_action_kind", bean::setActionKind)
-                    .set("api_plane_info", bean::setPlaneInfo, JsonHelper.toList(PlaneInfo::toPlaneInfo));
+                    .set("api_plane_info", bean::setPlaneInfo, JsonHelper.toList(PlaneInfo::toPlaneInfo))
+                    .reportUnknown();
             return bean;
         }
     }
@@ -138,8 +149,10 @@ public class Mapinfo implements Serializable {
         public static Distance toDistance(JsonValue json) {
             Distance bean = new Distance();
             JsonHelper.bind((JsonObject) json)
+                    .at("api_data.api_air_base[].api_distance")
                     .setInteger("api_base", bean::setBase)
-                    .setInteger("api_bonus", bean::setBonus);
+                    .setInteger("api_bonus", bean::setBonus)
+                    .reportUnknown();
             return bean;
         }
     }
@@ -179,12 +192,14 @@ public class Mapinfo implements Serializable {
         public static PlaneInfo toPlaneInfo(JsonValue json) {
             PlaneInfo bean = new PlaneInfo();
             JsonHelper.bind((JsonObject) json)
+                    .at("api_data.api_air_base[].api_plane_info[]")
                     .setInteger("api_squadron_id", bean::setSquadronId)
                     .setInteger("api_state", bean::setState)
                     .setInteger("api_slotid", bean::setSlotid)
                     .setInteger("api_count", bean::setCount)
                     .setInteger("api_max_count", bean::setMaxCount)
-                    .setInteger("api_cond", bean::setCond);
+                    .setInteger("api_cond", bean::setCond)
+                    .reportUnknown();
             return bean;
         }
     }

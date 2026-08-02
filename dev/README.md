@@ -247,7 +247,18 @@ API レスポンス JSON のうち、bean / ハンドラが把握していない
 
 一般向け（同梱 `logback.xml`）ではこのロガーに appender を付けないため出力されません。開発ホストでは `dev/logback/logback.xml` の JSON appender を使います。
 
-対象 API は段階的に増やします。現状は `/kcsapi/api_start2/getData`（`ApiStart2` と各マスタ bean）です。
+### 対応範囲
+
+| 区分 | 状態 | 内容 |
+|------|------|------|
+| リクエスト文脈 | 対応済み | `APIListener.createTask` が全ハンドラで `ApiSchemaLog.openRequest`（uri / requestId / handlerClass） |
+| `api_start2/getData` | 対応済み | `ApiStart2` の `api_data` KNOWN + 各マスタ bean の `at` / `ignore` / `reportUnknown` |
+| 母港・メンバー・日常系 | 対応済み（第1波） | 下記 bean / ハンドラ。`api_data` を選択読取する主要ハンドラは KNOWN 付き |
+| 戦闘系 | **未対応（第2波）** | `BattleTypes`・各戦闘 bean・戦闘結果。別 Issue で `at` / `reportUnknown` と ignore 整理 |
+
+**第1波の bean（`at` + `reportUnknown`）**: `Basic`, `Ship`, `SlotItem`, `Useitem`, `DeckPort`, `Material`, `Ndock`, `Kdock`, `MapStartNext`, `MissionResult`, `QuestList`, `Createitem`, `Mapinfo`, `MapTypes`（および既存の start2 マスタ bean）
+
+**第1波のハンドラ `api_data` KNOWN**: `ApiStart2`, `ApiPortPort`, `ApiGetMemberRequireInfo`, `ApiGetMemberShipDeck`, `ApiGetMemberShip3`, `ApiGetMemberMapinfo`
 
 ### 有効化
 
@@ -266,12 +277,12 @@ API レスポンス JSON のうち、bean / ハンドラが把握していない
 
 ### 仕組み
 
-1. ハンドラ入口で `ApiSchemaLog.openRequest(uriPath, requestId, handlerClass)` によりリクエスト文脈を MDC に載せる
+1. `APIListener.createTask` が `ApiSchemaLog.openRequest(uriPath, requestId, handlerClass)` でリクエスト文脈を MDC に載せる（ハンドラ側で個別に open しない）
 2. `JsonHelper.bind(json).at("…").set…(...).ignore(…).reportUnknown()` で、バインドも ignore もしなかったキーを報告する
 3. ハンドラ直下など bind しない箇所は `JsonHelper.reportUnknownKeys(json, jsonPath, knownKeys)` を使う
 4. 同一 `(uriPath, jsonPath, field)` はプロセス内で 1 回だけ報告する（重複抑制）
 
-**既知キーの意味**: 「処理するキー」だけでなく、「未対応でよいと確認済みのキー」も含める。bind では `set` が前者、`ignore` が後者。`ApiStart2` の `api_data` では `HANDLED_API_DATA_KEYS` と `IGNORED_API_DATA_KEYS` の和を `KNOWN_API_DATA_KEYS` として渡し、**新規追加キーだけ**がログに出る。
+**既知キーの意味**: 「処理するキー」だけでなく、「未対応でよいと確認済みのキー」も含める。bind では `set` が前者、`ignore` が後者。ハンドラの `api_data` では `HANDLED_API_DATA_KEYS` と `IGNORED_API_DATA_KEYS` の和を `KNOWN_API_DATA_KEYS` として渡し、**新規追加キーだけ**がログに出る。
 
 ### MDC キー一覧
 
@@ -288,11 +299,12 @@ API レスポンス JSON のうち、bean / ハンドラが把握していない
 
 ### 他 API への追加手順（概要）
 
-1. `accept` 内を `ApiSchemaLog.openRequest(...)` で囲む
+1. リクエスト文脈は `APIListener` 側で付与済み。ハンドラで `openRequest` を重ねない
 2. bean の `JsonHelper.bind` に `.at("…")` と、使うキーは `.set…`、意図的未対応は `.ignore(…)`、末尾に `.reportUnknown()` を付ける
 3. ハンドラ直下のオブジェクトは `reportUnknownKeys` と `KNOWN`（対応済み ∪ 意図的未対応）を用意する
+4. キャプチャ突合でノイズになった既存キーは `ignore` / `IGNORED_API_DATA_KEYS` に移す（start2 と同じ手順）
 
----
+戦闘系への展開は第2波（別 Issue）。`api_max_slotplus` など実装が必要な未知キーは別途対応する。
 
 ## API レスポンス記録（開発者向け）
 

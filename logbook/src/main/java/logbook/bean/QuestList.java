@@ -83,6 +83,7 @@ public class QuestList implements Serializable {
             if (value instanceof JsonObject) {
                 Quest bean = new Quest();
                 JsonHelper.bind((JsonObject) value)
+                        .at("api_data.api_list[]")
                         .setInteger("api_no", bean::setNo)
                         .setInteger("api_category", bean::setCategory)
                         .setInteger("api_type", bean::setType)
@@ -92,7 +93,12 @@ public class QuestList implements Serializable {
                         .setIntegerList("api_get_material", bean::setGetMaterial)
                         .setInteger("api_bonus_flag", bean::setBonusFlag)
                         .setInteger("api_progress_flag", bean::setProgressFlag)
-                        .setInteger("api_invalid_flag", bean::setInvalidFlag);
+                        .setInteger("api_invalid_flag", bean::setInvalidFlag)
+                        .ignore(
+                                "api_voice_id", // ボイス
+                                "api_lost_badges", // 勲章消費？
+                                "api_select_rewards") // 選択報酬
+                        .reportUnknown();
                 return bean;
             } else {
                 return null;
@@ -109,12 +115,15 @@ public class QuestList implements Serializable {
     public static QuestList toQuestList(JsonObject json) {
         QuestList bean = new QuestList();
         JsonHelper.bind(json)
+                .at("api_data")
                 .setInteger("api_count", bean::setCount)
                 .setInteger("api_completed_kind", bean::setCompletedKind)
                 .setInteger("api_page_count", bean::setPageCount)
                 .setInteger("api_disp_page", bean::setDispPage)
                 .set("api_list", bean::setList, JsonHelper.toList(Quest::toQuest))
-                .setInteger("api_exec_count", bean::setExecCount);
+                .setInteger("api_exec_count", bean::setExecCount)
+                .ignore("api_exec_type") // 実行タイプ
+                .reportUnknown();
         return bean;
     }
 }

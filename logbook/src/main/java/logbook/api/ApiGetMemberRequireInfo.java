@@ -1,5 +1,9 @@
 package logbook.api;
 
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
 
@@ -19,10 +23,32 @@ import logbook.proxy.ResponseMetaData;
 @API("/kcsapi/api_get_member/require_info")
 public class ApiGetMemberRequireInfo implements APIListenerSpi {
 
+    /** Collection 等に反映するキー */
+    private static final Set<String> HANDLED_API_DATA_KEYS = Set.of(
+            "api_basic",
+            "api_slot_item",
+            "api_useitem");
+
+    /** 未対応でよいと確認済みのキー */
+    private static final Set<String> IGNORED_API_DATA_KEYS = Set.of(
+            "api_unsetslot",
+            "api_kdock",
+            "api_furniture",
+            "api_extra_supply",
+            "api_oss_setting",
+            "api_skin_id",
+            "api_position_id");
+
+    /** 未知キー報告の対象外（対応済み + 意図的未対応） */
+    private static final Set<String> KNOWN_API_DATA_KEYS = Stream
+            .concat(HANDLED_API_DATA_KEYS.stream(), IGNORED_API_DATA_KEYS.stream())
+            .collect(Collectors.toUnmodifiableSet());
+
     @Override
     public void accept(JsonObject json, RequestMetaData req, ResponseMetaData res) {
         JsonObject data = json.getJsonObject("api_data");
         if (data != null) {
+            JsonHelper.reportUnknownKeys(data, "api_data", KNOWN_API_DATA_KEYS);
             this.apiBasic(data.getJsonObject("api_basic"));
             this.apiSlotItem(data.getJsonArray("api_slot_item"));
             // api_useitem (オプショナル)

@@ -118,6 +118,7 @@ public class MapStartNext implements Serializable {
     public static MapStartNext toMapStartNext(JsonObject json) {
         MapStartNext bean = new MapStartNext();
         JsonHelper.bind(json)
+                .at("api_data")
                 .setInteger("api_rashin_flg", bean::setRashinFlg)
                 .setInteger("api_rashin_id", bean::setRashinId)
                 .setInteger("api_maparea_id", bean::setMapareaId)
@@ -139,7 +140,18 @@ public class MapStartNext implements Serializable {
                 .setInteger("api_from_no", bean::setFromNo)
                 .set("api_destruction_battle", bean::setDestructionBattle, DestructionBattle::toDestructionBattle)
                 .setInteger("api_m1", bean::setM1)
-                .setInteger("api_m2", bean::setM2);
+                .setInteger("api_m2", bean::setM2)
+                .ignore(
+                        "api_cell_data", // マップセル一覧（start・クライアント描画用）
+                        "api_airsearch", // 索敵機演出
+                        "api_limit_state", // 制限状態（観測は常に 0）
+                        "api_e_deck_info", // 敵編成プレビュー
+                        "api_ration_flag", // 給糧関連（観測は常に 0。要再検討）
+                        "api_cell_flavor", // セル文言（クライアント表示）
+                        "api_itemget_eo_comment", // 1-6 EO 資材コメント
+                        "api_itemget_eo_result", // 1-6 EO 最終クリア報酬（他 EO は battleresult）
+                        "api_get_eo_rate") // 1-6 EO 最終クリア戦果（他 EO は battleresult）
+                .reportUnknown();
         return bean;
     }
 
@@ -164,9 +176,11 @@ public class MapStartNext implements Serializable {
         public static DestructionBattle toDestructionBattle(JsonObject json) {
             DestructionBattle bean = new DestructionBattle();
             JsonHelper.bind(json)
+                    .at("api_data.api_destruction_battle")
                     .setInteger("api_lost_kind", bean::setLostKind)
                     .setInteger("api_m1", bean::setM1)
-                    .setInteger("api_m2", bean::setM2);
+                    .setInteger("api_m2", bean::setM2)
+                    .reportUnknown();
 
             return bean;
         }

@@ -83,11 +83,16 @@ public class DeckPort implements Serializable, Cloneable {
     public static DeckPort toDeckPort(JsonObject json) {
         DeckPort bean = new DeckPort();
         JsonHelper.bind(json)
+                .at("api_data.api_deck_port[]")
                 .setInteger("api_flagship", bean::setFlagship)
                 .setInteger("api_id", bean::setId)
                 .setLongList("api_mission", bean::setMission)
                 .setString("api_name", bean::setName)
-                .setIntegerList("api_ship", bean::setShip);
+                .setIntegerList("api_ship", bean::setShip)
+                .ignore(
+                        "api_member_id", // 提督 ID
+                        "api_name_id") // 艦隊名に紐づくID？
+                .reportUnknown();
         return bean;
     }
 

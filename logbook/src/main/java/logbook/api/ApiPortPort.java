@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
@@ -46,10 +47,34 @@ import logbook.proxy.ResponseMetaData;
 @API("/kcsapi/api_port/port")
 public class ApiPortPort implements APIListenerSpi {
 
+    /** Collection 等に反映するキー */
+    private static final Set<String> HANDLED_API_DATA_KEYS = Set.of(
+            "api_basic",
+            "api_ship",
+            "api_deck_port",
+            "api_ndock",
+            "api_material",
+            "api_combined_flag",
+            "api_event_object");
+
+    /** 未対応でよいと確認済みのキー */
+    private static final Set<String> IGNORED_API_DATA_KEYS = Set.of(
+            "api_log",
+            "api_p_bgm_id",
+            "api_furniture_affect_items",
+            "api_parallel_quest_count",
+            "api_dest_ship_slot");
+
+    /** 未知キー報告の対象外（対応済み + 意図的未対応） */
+    private static final Set<String> KNOWN_API_DATA_KEYS = Stream
+            .concat(HANDLED_API_DATA_KEYS.stream(), IGNORED_API_DATA_KEYS.stream())
+            .collect(Collectors.toUnmodifiableSet());
+
     @Override
     public void accept(JsonObject json, RequestMetaData req, ResponseMetaData res) {
         JsonObject data = json.getJsonObject("api_data");
         if (data != null) {
+            JsonHelper.reportUnknownKeys(data, "api_data", KNOWN_API_DATA_KEYS);
             this.apiBasic(data.getJsonObject("api_basic"));
             this.apiShip(data.getJsonArray("api_ship"));
             this.apiDeckPort(data.getJsonArray("api_deck_port"));
