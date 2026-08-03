@@ -35,9 +35,6 @@ public class Createitem implements Serializable {
     /** api_get_items */
     private List<SlotItem> getItems;
 
-    /** api_unset_items */
-    private List<UnsetItems> unsetItems;
-    
     /** SlotItem */
     private SlotItem slotItem;
 
@@ -63,7 +60,8 @@ public class Createitem implements Serializable {
                 .setBoolean("api_create_flag", bean::setCreateFlag)
                 .setIntegerList("api_material", bean::setMaterial)
                 .set("api_get_items", bean::setGetItems, JsonHelper.toList(SlotItem::toSlotItem))
-                .set("api_unset_items", bean::setUnsetItems, JsonHelper.toList(UnsetItems::toUnsetItems))
+                // type3 別未装備 ID。所持装備は SlotItemCollection（get_items / slot_item）で管理し未使用
+                .ignore("api_unset_items")
                 .reportUnknown();
 
         Ship secretary = null;
@@ -82,31 +80,5 @@ public class Createitem implements Serializable {
         bean.setSecretary(secretary);
 
         return bean;
-    }
-
-    @Data
-    public static class UnsetItems {
-
-        /** api_type3 */
-        private Integer type3;
-
-        /** api_unsetslot */
-        private List<Integer> unsetslot;
-
-        /**
-         * JsonObjectから{@link UnsetItems}を構築します
-         *
-         * @param json JsonObject
-         * @return {@link UnsetItems}
-         */
-        public static UnsetItems toUnsetItems(JsonObject json) {
-            UnsetItems bean = new UnsetItems();
-            JsonHelper.bind(json)
-                    .at("api_data.api_unset_items[]")
-                    .setInteger("api_type3", bean::setType3)
-                    .setIntegerList("api_unsetslot", bean::setUnsetslot)
-                    .reportUnknown();
-            return bean;
-        }
     }
 }
