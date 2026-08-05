@@ -160,6 +160,7 @@ public class BattleResult implements Serializable {
                     .setString("api_level", bean::setLevel)
                     .setString("api_rank", bean::setRank)
                     .setString("api_deck_name", bean::setDeckName)
+                    .ignore("api_user_name") // 演習のみ
                     .reportUnknown();
             return bean;
         }
