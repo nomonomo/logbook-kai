@@ -19,6 +19,7 @@ import javafx.scene.paint.Color;
 import logbook.bean.AppConfig;
 import logbook.bean.Chara;
 import logbook.bean.DeckPortCollection;
+import logbook.bean.Enemy;
 import logbook.bean.NdockCollection;
 import logbook.bean.Ship;
 import logbook.bean.Ship.SpEffectItem;
@@ -251,15 +252,29 @@ class ShipImage {
             boolean isEscape = isShip && Ships.isEscape(chara.asShip(), escape);
 
             // 特殊効果
-            if (isShip && banner && chara.asShip().getSpEffectItems() != null) {
-                for (SpEffectItem spEffectItem : chara.asShip().getSpEffectItems()) {
-                    switch (spEffectItem.getKind()) {
-                        case SpEffectItem.KIND_BLUE_RIBBON:
-                            layers.add(SP_EFFECT_BLUE_RIBBON);
-                            break;
-                        case SpEffectItem.KIND_WHITE_TASUKI:
-                            layers.add(SP_EFFECT_WHITE_TASUKI);
-                            break;
+            if (banner) {
+                if (isShip && chara.asShip().getSpEffectItems() != null) {
+                    for (SpEffectItem spEffectItem : chara.asShip().getSpEffectItems()) {
+                        switch (spEffectItem.getKind()) {
+                            case SpEffectItem.KIND_BLUE_RIBBON:
+                                layers.add(SP_EFFECT_BLUE_RIBBON);
+                                break;
+                            case SpEffectItem.KIND_WHITE_TASUKI:
+                                layers.add(SP_EFFECT_WHITE_TASUKI);
+                                break;
+                        }
+                    }
+                } else if (chara.isEnemy()) {
+                    Enemy enemy = chara.asEnemy();
+                    if (enemy.getSpEffectKind() != null) {
+                        switch (enemy.getSpEffectKind()) {
+                            case SpEffectItem.KIND_BLUE_RIBBON:
+                                layers.add(SP_EFFECT_BLUE_RIBBON);
+                                break;
+                            case SpEffectItem.KIND_WHITE_TASUKI:
+                                layers.add(SP_EFFECT_WHITE_TASUKI);
+                                break;
+                        }
                     }
                 }
             }

@@ -70,6 +70,9 @@ public class SortieBattle
     /** api_eParam */
     private List<List<Integer>> eParam;
 
+    /** api_e_effect_list（演習相手艦のリボン種別・表示用） */
+    private List<List<Integer>> eEffectList;
+
     /** api_search */
     private List<Integer> search;
 
@@ -147,6 +150,7 @@ public class SortieBattle
                 .set("api_eSlot", bean::setESlot, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_fParam", bean::setFParam, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_eParam", bean::setEParam, JsonHelper.toList(JsonHelper::toIntegerList))
+                .set("api_e_effect_list", bean::setEEffectList, JsonHelper.toList(JsonHelper::toIntegerList))
                 .setIntegerList("api_search", bean::setSearch)
                 .setIntegerList("api_formation", bean::setFormation)
                 .setIntegerList("api_stage_flag", bean::setStageFlag)
