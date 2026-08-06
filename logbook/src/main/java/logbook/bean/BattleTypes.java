@@ -97,6 +97,15 @@ public class BattleTypes {
         List<List<Integer>> getEParam();
 
         /**
+         * api_e_effect_listを取得します。
+         * 演習相手艦のリボン種別（表示用）。持たない戦闘クラスはnullを返します。
+         * @return api_e_effect_list
+         */
+        default List<List<Integer>> getEEffectList() {
+            return null;
+        }
+
+        /**
          * api_smoke_typeを取得します。
          * 煙幕タイプを持たない戦闘クラスはnullを返します。
          * @return api_smoke_type (0: 無し, 1: 一重煙幕, 2: 二重煙幕, 3: 三重煙幕)

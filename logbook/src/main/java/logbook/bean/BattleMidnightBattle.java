@@ -47,6 +47,9 @@ public class BattleMidnightBattle implements IMidnightBattle {
     /** api_eParam */
     private List<List<Integer>> eParam;
 
+    /** api_e_effect_list（演習相手艦のリボン種別・表示用） */
+    private List<List<Integer>> eEffectList;
+
     /** api_friendly_info */
     private BattleTypes.FriendlyInfo friendlyInfo;
 
@@ -92,6 +95,7 @@ public class BattleMidnightBattle implements IMidnightBattle {
                 .set("api_eSlot", bean::setESlot, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_fParam", bean::setFParam, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_eParam", bean::setEParam, JsonHelper.toList(JsonHelper::toIntegerList))
+                .set("api_e_effect_list", bean::setEEffectList, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_friendly_info", bean::setFriendlyInfo, BattleTypes.FriendlyInfo::toFriendlyInfo)
                 .set("api_friendly_battle", bean::setFriendlyBattle, BattleTypes.FriendlyBattle::toFriendlyBattle)
                 .setIntegerList("api_touch_plane", bean::setTouchPlane)

@@ -139,6 +139,7 @@ public class PhaseState {
             }
         }
         // 敵
+        List<List<Integer>> eEffectList = b.getEEffectList();
         for (int i = 0, s = b.getShipKe().size(); i < s; i++) {
             if (b.getShipKe().get(i) != -1) {
                 Enemy e = new Enemy();
@@ -146,6 +147,15 @@ public class PhaseState {
                 e.setLv(b.getShipLv().get(i));
                 e.setSlot(b.getESlot().get(i));
                 e.setOrder(i);
+                if (eEffectList != null && i < eEffectList.size()) {
+                    List<Integer> kinds = eEffectList.get(i);
+                    if (kinds != null && !kinds.isEmpty()) {
+                        Integer kind = kinds.get(0);
+                        if (kind != null && kind != 0) {
+                            e.setSpEffectKind(kind);
+                        }
+                    }
+                }
 
                 this.afterEnemy.add(e);
             }
