@@ -52,6 +52,9 @@ public class QuestList implements Serializable {
         /** api_type */
         private Integer type;
 
+        /** api_label_type */
+        private Integer labelType;
+
         /** api_state */
         private Integer state;
 
@@ -87,6 +90,7 @@ public class QuestList implements Serializable {
                         .setInteger("api_no", bean::setNo)
                         .setInteger("api_category", bean::setCategory)
                         .setInteger("api_type", bean::setType)
+                        .setInteger("api_label_type", bean::setLabelType)
                         .setInteger("api_state", bean::setState)
                         .setString("api_title", bean::setTitle)
                         .setString("api_detail", bean::setDetail)

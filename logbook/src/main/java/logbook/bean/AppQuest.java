@@ -58,37 +58,9 @@ public class AppQuest implements Serializable {
                 .truncatedTo(ChronoUnit.DAYS);
         ZonedDateTime expire = null;
 
-        int type = quest.getType();
-        int yearlyResetMonth = 0;
-        
-        AppQuestCondition condition = AppQuestCondition.loadFromResource(quest.getNo());
-        if (condition != null) {
-            String resetType = condition.getResetType();
-            if (resetType != null) {
-                switch (resetType) {
-                case "デイリー":
-                    type = DAILY;
-                    break;
-                case "ウィークリー":
-                    type = WEEKLY;
-                    break;
-                case "マンスリー":
-                    type = MONTHLY;
-                    break;
-                case "単発":
-                    type = ONECE;
-                    break;
-                case "クオータリー":
-                case "クォータリー":
-                    type = QUARTRELY;
-                    break;
-                case "イヤリー":
-                    type = YEARLY;
-                    yearlyResetMonth = condition.getYearlyResetMonth();
-                    break;
-                }
-            }
-        }
+        Cycle cycle = resolveCycle(quest);
+        int type = cycle.type();
+        int yearlyResetMonth = cycle.yearlyResetMonth();
 
         if (type == DAILY) {
             // 1=デイリー
@@ -139,5 +111,76 @@ public class AppQuest implements Serializable {
         }
 
         return bean;
+    }
+
+    /**
+     * 周期を決める。{@code labelType}（既知）を正とし、無ければ条件 JSON、それも無ければ {@code api_type}。
+     */
+    private static Cycle resolveCycle(Quest quest) {
+        Cycle fromLabel = cycleFromLabelType(quest.getLabelType());
+        if (fromLabel != null) {
+            return fromLabel;
+        }
+        Cycle fromCondition = cycleFromCondition(quest.getNo());
+        if (fromCondition != null) {
+            return fromCondition;
+        }
+        Integer apiType = quest.getType();
+        return new Cycle(apiType != null ? apiType : 0, 0);
+    }
+
+    /**
+     * {@code api_label_type} から周期を決める。未知・未設定は null。
+     */
+    private static Cycle cycleFromLabelType(Integer labelType) {
+        if (labelType == null) {
+            return null;
+        }
+        return switch (labelType) {
+        case 1 -> new Cycle(ONECE, 0);
+        case 2 -> new Cycle(DAILY, 0);
+        case 3 -> new Cycle(WEEKLY, 0);
+        case 6 -> new Cycle(MONTHLY, 0);
+        case 7 -> new Cycle(QUARTRELY, 0);
+        default -> {
+            if (labelType >= 101 && labelType <= 112) {
+                yield new Cycle(YEARLY, labelType - 100);
+            }
+            yield null;
+        }
+        };
+    }
+
+    /**
+     * 条件 JSON の {@code resetType} / {@code yearlyResetMonth} から周期を決める。無ければ null。
+     */
+    private static Cycle cycleFromCondition(Integer questNo) {
+        if (questNo == null) {
+            return null;
+        }
+        AppQuestCondition condition = AppQuestCondition.loadFromResource(questNo);
+        if (condition == null) {
+            return null;
+        }
+        String resetType = condition.getResetType();
+        if (resetType == null) {
+            return null;
+        }
+        return switch (resetType) {
+        case "デイリー" -> new Cycle(DAILY, 0);
+        case "ウィークリー" -> new Cycle(WEEKLY, 0);
+        case "マンスリー" -> new Cycle(MONTHLY, 0);
+        case "単発" -> new Cycle(ONECE, 0);
+        case "クオータリー", "クォータリー" -> new Cycle(QUARTRELY, 0);
+        case "イヤリー" -> new Cycle(YEARLY,
+                condition.getYearlyResetMonth() != null ? condition.getYearlyResetMonth() : 0);
+        default -> null;
+        };
+    }
+
+    /**
+     * expire 計算用の内部周期。{@code api_type} の番号とは一致しない場合がある。
+     */
+    private record Cycle(int type, int yearlyResetMonth) {
     }
 }

@@ -27,10 +27,10 @@ public class AppQuestCondition implements Predicate<QuestCollect> {
     /** 任務のタイプ(enum: 出撃, 遠征) */
     private Type type;
 
-    /** 任務期間(文字列:単発,デイリー,ウィークリー,マンスリー,クオータリー) */
+    /** 任務期間(文字列:単発,デイリー,ウィークリー,マンスリー,クオータリー)。周期・期限は {@code api_label_type} 優先。labelType が無い・未知のときのみ使用 */
     private String resetType;
 
-    /** イヤリーのリセット月（イヤリー8月なら8） */
+    /** イヤリーのリセット月（イヤリー8月なら8）。周期・期限は {@code api_label_type} 優先。labelType が無い・未知のときのみ使用 */
     private Integer yearlyResetMonth;
 
     /** フィルター条件 */

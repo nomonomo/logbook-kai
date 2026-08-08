@@ -308,7 +308,7 @@ API レスポンス JSON のうち、bean / ハンドラが把握していない
 3. ハンドラ直下のオブジェクトは `reportUnknownKeys` と `KNOWN`（対応済み ∪ 意図的未対応）を用意する
 4. キャプチャ突合でノイズになった既存キーは `ignore` / `IGNORED_API_DATA_KEYS` に移す（start2 と同じ手順）
 
-`api_max_slotplus` や `api_label_type` など実装が必要な未知キーは別途対応する。
+`api_max_slotplus` など実装が必要な未知キーは別途対応する。
 
 ## API レスポンス記録（開発者向け）
 
