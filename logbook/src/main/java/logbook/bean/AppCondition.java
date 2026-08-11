@@ -71,6 +71,12 @@ public class AppCondition implements Serializable {
     /** ルート(mapping.jsonを参照) */
     private List<String> route = new ArrayList<>();
 
+    /**
+     * 基地空襲（api_destruction_battle）の未確定分。
+     * start/next 受信時点では未確定。戦闘・次の進撃・行き止まり後の母港で確定し、退却・ログインやり直しでは破棄する。
+     */
+    private MapStartNext pendingDestructionBattle;
+
     /** 戦闘結果更新リスナー（シリアライズ対象外） */
     @JsonIgnore
     private transient final List<NamedListener<BattleResultUpdateListener>> battleResultUpdateListeners = new CopyOnWriteArrayList<>();

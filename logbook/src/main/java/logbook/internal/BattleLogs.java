@@ -28,11 +28,13 @@ import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -45,6 +47,7 @@ import java.util.zip.GZIPOutputStream;
 import logbook.bean.AppConfig;
 import logbook.bean.BattleLog;
 import logbook.internal.gui.BattleLogCollect;
+import logbook.internal.log.BattleEventLogFormat;
 import logbook.internal.log.BattleResultLogFormat;
 import logbook.internal.log.LogWriter;
 import lombok.Data;
@@ -177,13 +180,11 @@ public class BattleLogs {
             ds.forEach(fromPath -> {
                 try {
                     // yyyy-MM
-                    String dirName = fromPath.getFileName().toString().substring(0, 7);
+                    String fileName = fromPath.getFileName().toString();
+                    String dirName = fileName.substring(0, 7);
                     if (!isExpectedDirectoryName(dirName)) {
                         return;
                     }
-                    // yyyy-MM-dd HH-mm-ss.json
-                    String fileName = fromPath.getFileName().toString();
-
                     Path toPath = dir.resolve(Paths.get(dirName, fileName));
                     Path parent = toPath.getParent();
                     if (parent != null && !Files.exists(parent)) {
@@ -413,6 +414,160 @@ public class BattleLogs {
     }
 
     /**
+     * 戦闘ログ画面へ表示するイベントを期間別に取得します。
+     *
+     * @return 集計単位ごとのイベント
+     */
+    public static Map<IUnit, List<SimpleBattleLog>> readSimpleEventLog() {
+        try {
+            ZonedDateTime now = unitToday();
+            ZonedDateTime limit = now.minusMonths(2);
+            List<SimpleBattleLog> all = readSimpleEventLog(log -> log.getDate().compareTo(limit) > 0);
+            Map<IUnit, List<SimpleBattleLog>> map = new LinkedHashMap<>();
+            for (IUnit unit : Unit.values()) {
+                map.put(unit, all.stream()
+                        .filter(log -> unit.accept(log.getDate(), now))
+                        .collect(Collectors.toList()));
+            }
+            return map;
+        } catch (Exception e) {
+            LoggerHolder.get().warn("戦闘イベントログの読み込み中に例外", e);
+        }
+        return new LinkedHashMap<>();
+    }
+
+    /**
+     * 任意条件の戦闘イベントを取得します。
+     *
+     * @param predicate 条件
+     * @return イベント
+     */
+    public static List<SimpleBattleLog> readSimpleEventLog(Predicate<SimpleBattleLog> predicate) {
+        Path path = Paths.get(AppConfig.get().getReportPath()).resolve(new BattleEventLogFormat().fileName());
+        if (!Files.exists(path)) {
+            return new ArrayList<>();
+        }
+        Map<String, String> mapNames = Mapping.fullNameToShort();
+        try (Stream<String> lines = Files.lines(path, LogWriter.DEFAULT_CHARSET)) {
+            return lines.skip(1)
+                    .filter(line -> !line.isEmpty())
+                    .map(line -> {
+                        try {
+                            return SimpleBattleLog.fromEventLine(line);
+                        } catch (Exception e) {
+                            LoggerHolder.get().warn("戦闘イベントログの読み込み中に例外", e);
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .filter(predicate)
+                    .peek(log -> updateLog(mapNames, log))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            LoggerHolder.get().warn("戦闘イベントログの読み込み中に例外", e);
+        }
+        return new ArrayList<>();
+    }
+
+    /**
+     * 任意期間の戦闘イベントを取得します。
+     *
+     * @param unit 期間
+     * @return イベント
+     */
+    public static List<SimpleBattleLog> readSimpleEventLog(IUnit unit) {
+        return readSimpleEventLog(log -> unit.accept(log.getDate(), unitToday()));
+    }
+
+    /**
+     * 指定単位の海戦ログとイベントログを統合して返します。
+     *
+     * @param unit 期間
+     * @return ギミック統合済みのログ
+     */
+    public static List<SimpleBattleLog> readSimpleLogsForUnit(IUnit unit) {
+        return mergeLogsForUnit(readSimpleLog(unit), readSimpleEventLog(unit));
+    }
+
+    /**
+     * 海戦ログとイベントログを日付順に連結し、ギミックを統合します。
+     *
+     * @param battleLogs 海戦ログ
+     * @param eventLogs イベントログ
+     * @return 表示用ログ
+     */
+    public static List<SimpleBattleLog> mergeLogsForUnit(
+            List<SimpleBattleLog> battleLogs,
+            List<SimpleBattleLog> eventLogs) {
+        if (eventLogs.isEmpty()) {
+            return new ArrayList<>(battleLogs);
+        }
+        // イベントのみを分類して戦闘行へ統合する（イベントは少数の想定）
+        List<SimpleBattleLog> airRaids = new ArrayList<>();
+        for (SimpleBattleLog event : eventLogs) {
+            if (event.isMergeableEvent()) {
+                attachGimmick(battleLogs, event);
+            } else if ("空襲".equals(event.getEventType())) {
+                airRaids.add(event);
+            }
+        }
+        List<SimpleBattleLog> result = new ArrayList<>(battleLogs.size() + airRaids.size());
+        result.addAll(battleLogs);
+        result.addAll(airRaids);
+        return result;
+    }
+
+    private static void attachGimmick(List<SimpleBattleLog> battles, SimpleBattleLog event) {
+        String value = event.getGimmick().isEmpty() ? event.getContent() : event.getGimmick();
+        if ("帰還時通知".equals(event.getEventType())) {
+            findLatestBattle(battles, event, true)
+                    .ifPresent(battle -> battle.setReturnNotice(appendValue(battle.getReturnNotice(), value)));
+            return;
+        }
+        findLatestBattle(battles, event, false)
+                .ifPresent(battle -> battle.setGimmick(appendValue(battle.getGimmick(), value)));
+    }
+
+    private static Optional<SimpleBattleLog> findLatestBattle(
+            List<SimpleBattleLog> battles,
+            SimpleBattleLog event,
+            boolean preferSameCell) {
+        ZonedDateTime eventDate = event.getDate();
+        List<SimpleBattleLog> candidates = battles.stream()
+                .filter(battle -> !battle.getDate().isAfter(eventDate))
+                .filter(battle -> sameArea(battle, event))
+                .collect(Collectors.toList());
+        if (preferSameCell) {
+            Optional<SimpleBattleLog> sameCell = candidates.stream()
+                    .filter(battle -> Objects.equals(battle.getCell(), event.getCell()))
+                    .max(Comparator.comparing(SimpleBattleLog::getDate));
+            if (sameCell.isPresent()) {
+                return sameCell;
+            }
+        }
+        return candidates.stream().max(Comparator.comparing(SimpleBattleLog::getDate));
+    }
+
+    private static boolean sameArea(SimpleBattleLog battle, SimpleBattleLog event) {
+        return event.getAreaShortName() == null
+                || event.getAreaShortName().isEmpty()
+                || Objects.equals(battle.getAreaShortName(), event.getAreaShortName());
+    }
+
+    private static String appendValue(String current, String value) {
+        if (value == null || value.isEmpty()) {
+            return current;
+        }
+        if (current == null || current.isEmpty()) {
+            return value;
+        }
+        return Stream.of(current.split("、"))
+                .anyMatch(value::equals)
+                        ? current
+                        : current + "、" + value;
+    }
+
+    /**
      * 集計します
      *
      * @param logs 出撃統計のベースになるリスト
@@ -421,6 +576,7 @@ public class BattleLogs {
      * @return 出撃統計
      */
     public static BattleLogCollect collect(List<SimpleBattleLog> logs, String areaShortName, boolean bossOnly) {
+        logs = logs.stream().filter(SimpleBattleLog::isBattle).collect(Collectors.toList());
         Predicate<SimpleBattleLog> anyFilter = e -> true;
         // 海域フィルタ
         Predicate<SimpleBattleLog> areaFilter = areaShortName != null ? e -> areaShortName.equals(e.getAreaShortName()) : anyFilter;
@@ -469,6 +625,8 @@ public class BattleLogs {
                 .truncatedTo(ChronoUnit.DAYS);
     }
 
+    private static final Pattern AREA_SHORTNAME_PATTERN = Pattern.compile("^([0-9]+)-([0-9]+)$");
+
     private static void updateLog(Map<String, String> mapNames, SimpleBattleLog log) {
         String shortName = log.getAreaShortName() != null ? log.getAreaShortName() : mapNames.get(log.getArea());
         int sortOrder = Integer.MAX_VALUE;
@@ -478,15 +636,16 @@ public class BattleLogs {
             if (cell != null) {
                 log.setCell(cell);
             }
-            Pattern AREA_SHORTNAME_PATTERN = Pattern.compile("^([0-9]+)-([0-9]+)$");
-            Matcher m = AREA_SHORTNAME_PATTERN.matcher(shortName);
-            if (m.matches()) {
-                try {
-                    int area = Integer.parseInt(m.group(1));
-                    int no = Integer.parseInt(m.group(2));
-                    sortOrder = area * 1000000 + no * 1000 + Integer.parseInt(cell);
-                } catch (Throwable e) {
-                    // ignore parse error
+            if (log.isBattle()) {
+                Matcher m = AREA_SHORTNAME_PATTERN.matcher(shortName);
+                if (m.matches()) {
+                    try {
+                        int area = Integer.parseInt(m.group(1));
+                        int no = Integer.parseInt(m.group(2));
+                        sortOrder = area * 1000000 + no * 1000 + Integer.parseInt(cell);
+                    } catch (Throwable e) {
+                        // ignore parse error
+                    }
                 }
             }
         }
@@ -504,6 +663,8 @@ public class BattleLogs {
         private String dateString;
         /** 日付 */
         private ZonedDateTime date;
+        /** イベント種別 */
+        private String eventType = "戦闘";
         /** 海域 */
         private String area;
         /** 海域略称 */
@@ -540,9 +701,18 @@ public class BattleLogs {
         private String shipExp = "";
         /** 提督経験値 */
         private String exp = "";
+        /** ギミック */
+        private String gimmick = "";
+        /** イベント内容（空襲行など） */
+        private String content = "";
+        /** 帰還時通知 */
+        private String returnNotice = "";
 
         /** 海域名の海域略称付きパターン */
-        private static final Pattern AREA_PATTERN = Pattern.compile("^([0-9]+-[0-9]+) (.*)$");
+        static final Pattern AREA_PATTERN = Pattern.compile("^([0-9]+-[0-9]+) (.*)$");
+
+        private SimpleBattleLog() {
+        }
 
         /**
          * 海戦・ドロップ報告書.csvから出撃統計のベースを作成します
@@ -550,8 +720,54 @@ public class BattleLogs {
          * @param line 海戦・ドロップ報告書.csvの行
          */
         public SimpleBattleLog(String line) {
-            String[] columns = parseLine(line);
+            initFromBattleLine(line);
+        }
 
+        /**
+         * 海戦・ドロップ報告書.csvの行から作成します。
+         *
+         * @param line CSV行
+         * @return ログ
+         */
+        public static SimpleBattleLog fromBattleLine(String line) {
+            SimpleBattleLog log = new SimpleBattleLog();
+            log.initFromBattleLine(line);
+            return log;
+        }
+
+        /**
+         * 戦闘イベントログ.csvの行から作成します。
+         *
+         * @param line CSV行
+         * @return ログ
+         */
+        public static SimpleBattleLog fromEventLine(String line) {
+            SimpleBattleLog log = new SimpleBattleLog();
+            log.initFromEventLine(line);
+            return log;
+        }
+
+        /**
+         * 戦闘行かどうかを判定します。
+         *
+         * @return 戦闘行の場合true
+         */
+        public boolean isBattle() {
+            return eventType == null || eventType.isEmpty() || "戦闘".equals(eventType);
+        }
+
+        /**
+         * 戦闘行へ統合するイベントかどうかを判定します。
+         *
+         * @return 統合対象の場合true
+         */
+        public boolean isMergeableEvent() {
+            return "ギミック".equals(eventType) || "帰還時通知".equals(eventType);
+        }
+
+        private void initFromBattleLine(String line) {
+            String[] columns = parseLine(line);
+            this.eventType = "戦闘";
             this.setDateString(columns[0]);
             // 任務の更新時間が午前5時のため
             // 日付文字列を日本時間として解釈した後、GMT+04:00のタイムゾーンに変更します
@@ -559,7 +775,7 @@ public class BattleLogs {
             ZonedDateTime date = ZonedDateTime.of(LocalDateTime.from(ta), ZoneId.of("Asia/Tokyo"))
                     .withZoneSameInstant(ZoneId.of("GMT+04:00"));
             this.setDate(date);
-            // 旧フォーマットは"海域名"のみ(例:"鎮守府正面海域")、新フォーマットは"略称 海域名"(例:"1-1 鎮守府正面海域") 
+            // 旧フォーマットは"海域名"のみ(例:"鎮守府正面海域")、新フォーマットは"略称 海域名"(例:"1-1 鎮守府正面海域")
             Matcher m = AREA_PATTERN.matcher(columns[1]);
             if (m.matches()) {
                 this.setArea(m.group(2));
@@ -592,8 +808,40 @@ public class BattleLogs {
             if (columns.length > 64) {
                 this.setExp(columns[64]);
             }
+            if (columns.length > 65) {
+                this.setGimmick(columns[65]);
+            }
         }
-        
+
+        private void initFromEventLine(String line) {
+            String[] columns = parseLine(line);
+            if (columns.length < 40) {
+                throw new IllegalArgumentException("戦闘イベントログの列数が不足しています: " + columns.length);
+            }
+            this.dateString = columns[0];
+            TemporalAccessor ta = Logs.DATE_FORMAT.parse(columns[0]);
+            this.date = ZonedDateTime.of(LocalDateTime.from(ta), ZoneId.of("Asia/Tokyo"))
+                    .withZoneSameInstant(ZoneId.of("GMT+04:00"));
+            this.eventType = columns[1];
+            Matcher matcher = AREA_PATTERN.matcher(columns[2]);
+            if (matcher.matches()) {
+                this.areaShortName = matcher.group(1);
+                this.area = matcher.group(2);
+            } else {
+                this.area = columns[2];
+            }
+            this.cell = columns[3];
+            this.content = columns[4];
+            this.intercept = columns[5];
+            this.fformation = columns[6];
+            this.eformation = columns[7];
+            this.dispseiku = columns[8];
+            this.ftouch = columns[9];
+            this.etouch = columns[10];
+            this.efleet = columns[11];
+            this.gimmick = columns[39];
+        }
+
         private static final String [] parseLine(String line) {
             List<String> tmp = new ArrayList<String>(line.length());
             for (int i = 0; i < line.length(); i++) {

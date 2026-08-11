@@ -1,0 +1,70 @@
+{
+  "api_result": 1,
+  "api_result_msg": "成功",
+  "api_data": {
+    "api_rashin_flg": 1,
+    "api_rashin_id": 4,
+    "api_maparea_id": 6,
+    "api_mapinfo_no": 5,
+    "api_no": 6,
+    "api_color_no": 4,
+    "api_event_id": 4,
+    "api_event_kind": 1,
+    "api_next": 1,
+    "api_bosscell_no": 13,
+    "api_bosscomp": 0,
+    "api_comment_kind": 0,
+    "api_production_kind": 0,
+    "api_airsearch": {
+      "api_plane_type": 0,
+      "api_result": 0
+    },
+    "api_e_deck_info": [
+      {
+        "api_kind": 2,
+        "api_ship_ids": [1527, 1559, 1559]
+      }
+    ],
+    "api_limit_state": 0,
+    "api_destruction_battle": {
+      "api_formation": [1, 3, 1],
+      "api_ship_ke": [1586, 1615, 1592, 1577, 1577, 1577],
+      "api_ship_lv": [1, 1, 1, 1, 1, 1],
+      "api_e_nowhps": [350, 96, 66, 38, 38, 38],
+      "api_e_maxhps": [350, 96, 66, 38, 38, 38],
+      "api_eSlot": [
+        [1547, 1548, 1549, 1532, -1],
+        [1556, 1557, 1558, 1558, -1],
+        [1550, 1550, 1545, 1525, -1],
+        [1502, 1515, 1542, -1, -1],
+        [1502, 1515, 1542, -1, -1],
+        [1502, 1515, 1542, -1, -1]
+      ],
+      "api_f_nowhps": [200, 200, 200],
+      "api_f_maxhps": [200, 200, 200],
+      "api_air_base_attack": {
+        "api_stage_flag": [1, 0, 0],
+        "api_plane_from": [[3], [1, 2, 3]],
+        "api_map_squadron_plane": {
+          "3": [
+            { "api_mst_id": 334, "api_count": 10 },
+            { "api_mst_id": 352, "api_count": 9 },
+            { "api_mst_id": 350, "api_count": 8 },
+            { "api_mst_id": 350, "api_count": 9 }
+          ]
+        },
+        "api_stage1": {
+          "api_f_count": 36,
+          "api_f_lostcount": 2,
+          "api_e_count": 267,
+          "api_e_lostcount": 267,
+          "api_disp_seiku": 2,
+          "api_touch_plane": [-1, -1]
+        },
+        "api_stage2": null,
+        "api_stage3": null
+      },
+      "api_lost_kind": 4
+    }
+  }
+}

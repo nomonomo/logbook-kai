@@ -13,6 +13,7 @@ import logbook.bean.BattleLog;
 import logbook.bean.CombinedBattleSpMidnight;
 import logbook.bean.Ship;
 import logbook.bean.ShipCollection;
+import logbook.internal.DestructionBattleSupport;
 import logbook.internal.PhaseState;
 import logbook.proxy.RequestMetaData;
 import logbook.proxy.ResponseMetaData;
@@ -34,6 +35,7 @@ public class ApiReqCombinedBattleSpMidnight implements APIListenerSpi {
             if (log != null) {
                 condition.setBattleCount(condition.getBattleCount() + 1);
                 log.setBattleCount(condition.getBattleCount());
+                DestructionBattleSupport.confirmPending();
                 log.setRoute(condition.getRoute());
 
                 log.setBattle(CombinedBattleSpMidnight.toBattle(data));

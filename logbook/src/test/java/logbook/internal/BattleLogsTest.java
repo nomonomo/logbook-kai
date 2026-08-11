@@ -23,7 +23,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
+import logbook.bean.BattleEventLog;
 import logbook.internal.BattleLogs.SimpleBattleLog;
+import logbook.internal.log.BattleEventLogFormat;
 
 public class BattleLogsTest {
     @Test
@@ -31,6 +33,9 @@ public class BattleLogsTest {
         String line = "2020-09-18 13:32:40,7-1 ブルネイ泊地沖,4,出撃,S,Ｔ字戦不利,単横陣,単横陣,制空権確保,,,深海潜水艦隊 II群,,,Fletcher Mk.II(Lv148),40/43,夕張改二特(Lv149),47/47,Janus改(Lv99),31/31,Johnston改(Lv99),34/34,朝潮改二丁(Lv99),29/34,,,,,,,,,,,,,,,潜水ソ級(elite),45/45,潜水カ級,19/19,潜水カ級,19/19,潜水カ級,19/19,,,,,,,,,,,,,,,,,,1170,140";
         SimpleBattleLog log = new SimpleBattleLog(line);
         assertEquals(1170, Integer.parseInt(log.getShipExp()));
+        assertEquals("", log.getGimmick());
+        log = new SimpleBattleLog(line + ",ルート追加等");
+        assertEquals("ルート追加等", log.getGimmick());
         line = "2020-09-18 12:16:27,7-3 ペナン島沖,4,,S,同航戦,複縦陣,単縦陣,制空権確保,,,深海5,500t級軽巡洋艦,,,羽黒改二(Lv99),57/57,阿武隈改二(Lv172),51/51,日進甲(Lv98),49/49,神風改(Lv97),23/23,,,,,,,,,,,,,,,,,軽巡ホ級(flagship),53/53,駆逐イ級,20/20,駆逐イ級,20/20,,,,,,,,,,,,,,,,,,,,660,160";
         log = new SimpleBattleLog(line);
         assertEquals(660, Integer.parseInt(log.getShipExp()));
@@ -53,6 +58,26 @@ public class BattleLogsTest {
         log = new SimpleBattleLog(line);
         assertEquals(660, Integer.parseInt(log.getShipExp()));
         assertEquals("深海5,500t級軽巡洋\"\",\"艦", log.getEfleet());
+    }
+
+    @Test
+    public void testBattleEventCsvLine() {
+        BattleEventLog event = new BattleEventLog();
+        event.setTime("2026-08-08 02:05:10");
+        event.setType("空襲");
+        event.setArea("6-5 KW環礁沖海域");
+        event.setCell("6");
+        event.setContent("資源・基地航空隊に損害");
+        event.setEfleet("敵艦隊,\"空襲\"");
+        event.setBaseHp(List.of("180/200", "200/200", "200/200"));
+
+        String line = new BattleEventLogFormat().format(event);
+        SimpleBattleLog parsed = SimpleBattleLog.fromEventLine(line);
+        assertEquals("空襲", parsed.getEventType());
+        assertEquals("6-5", parsed.getAreaShortName());
+        assertEquals("KW環礁沖海域", parsed.getArea());
+        assertEquals("敵艦隊,\"空襲\"", parsed.getEfleet());
+        assertEquals("資源・基地航空隊に損害", parsed.getContent());
     }
 
     @EnabledIfSystemProperty(named = "test.profile", matches = "dev")
