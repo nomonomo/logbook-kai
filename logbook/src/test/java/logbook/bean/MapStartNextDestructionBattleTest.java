@@ -19,7 +19,6 @@ import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
 import logbook.bean.MapStartNext.DestructionBattle;
 import logbook.internal.BattleEventLogs;
-import logbook.internal.Config;
 import logbook.internal.log.BattleEventLogFormat;
 
 /**
@@ -29,7 +28,7 @@ public class MapStartNextDestructionBattleTest {
 
     @Test
     public void testToMapStartNextWithDestructionBattle() throws Exception {
-        loadShipMstFromTestConfig();
+        putShipMst(1586, "テスト敵艦");
 
         Path p = Paths.get("./src/test/resources/logbook/bean/req_map_next_destruction_battle.json");
         try (Reader reader = Files.newBufferedReader(p);
@@ -63,14 +62,13 @@ public class MapStartNextDestructionBattleTest {
             assertEquals(BattleTypes.DispSeiku.航空優勢,
                     BattleTypes.DispSeiku.toDispSeiku(destruction.getAirBaseAttack().getStage1().getDispSeiku()));
 
-            assertNotNull(ShipMstCollection.get().getShipMap().get(1586));
-
             BattleEventLog event = BattleEventLogs.createAirRaid(next);
             assertNotNull(event);
             assertEquals("", event.getEfleet(), "損害結果は内容欄へ表示し、敵艦隊欄には重複させない");
             BattleEventLogFormat format = new BattleEventLogFormat();
             String csv = format.format(event);
-            assertFalse(csv.contains("\"1586\""), "艦種マスタ読み込み後は ID ではなく艦名になる想定");
+            assertTrue(csv.contains("\"テスト敵艦\""), "最小マスタ登録後は ID ではなく艦名になる");
+            assertFalse(csv.contains("\"1586\""));
             assertTrue(csv.contains("350/350"));
             assertEquals(List.of("200/200", "200/200", "200/200"), event.getBaseHp());
             assertTrue(format.header().contains("基地1HP,基地2HP,基地3HP"));
@@ -79,16 +77,10 @@ public class MapStartNextDestructionBattleTest {
         }
     }
 
-    /**
-     * テストリソース {@code logbook/config} を {@link Config} 経由で読み、
-     * {@link ShipMstCollection#get()} に反映する。
-     */
-    private static void loadShipMstFromTestConfig() {
-        Path configDir = Paths.get("./src/test/resources/logbook/config");
-        assertTrue(Files.isDirectory(configDir), "テスト用 config ディレクトリが見つかりません: " + configDir.toAbsolutePath());
-        ShipMstCollection loaded = new Config(configDir)
-                .get(ShipMstCollection.class, ShipMstCollection::new);
-        assertFalse(loaded.getShipMap().isEmpty(), "ShipMstCollection が空です");
-        ShipMstCollection.get().setShipMap(loaded.getShipMap());
+    private static void putShipMst(int id, String name) {
+        ShipMst mst = new ShipMst();
+        mst.setId(id);
+        mst.setName(name);
+        ShipMstCollection.get().getShipMap().put(id, mst);
     }
 }
