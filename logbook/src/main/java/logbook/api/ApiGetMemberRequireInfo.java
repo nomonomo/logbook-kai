@@ -12,6 +12,7 @@ import logbook.bean.SlotItem;
 import logbook.bean.SlotItemCollection;
 import logbook.bean.Useitem;
 import logbook.bean.UseitemCollection;
+import logbook.internal.DestructionBattleSupport;
 import logbook.internal.JsonHelper;
 import logbook.proxy.RequestMetaData;
 import logbook.proxy.ResponseMetaData;
@@ -46,6 +47,8 @@ public class ApiGetMemberRequireInfo implements APIListenerSpi {
 
     @Override
     public void accept(JsonObject json, RequestMetaData req, ResponseMetaData res) {
+        // ログインやり直し・画面リロード時。出撃継続が不明なため基地空襲 pending を破棄
+        DestructionBattleSupport.discardPending();
         JsonObject data = json.getJsonObject("api_data");
         if (data != null) {
             JsonHelper.reportUnknownKeys(data, "api_data", KNOWN_API_DATA_KEYS);

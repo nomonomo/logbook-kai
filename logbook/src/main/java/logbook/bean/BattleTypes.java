@@ -2,6 +2,7 @@ package logbook.bean;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.json.JsonObject;
 
@@ -1435,6 +1436,9 @@ public class BattleTypes {
 
         /** api_squadron_plane または api_air_base_data */
         private List<SquadronPlane> squadronPlane;
+
+        /** api_map_squadron_plane（基地空襲） */
+        private Map<Integer, List<SquadronPlane>> mapSquadronPlane;
 
         /** api_stage1 */
         private Stage1 stage1;

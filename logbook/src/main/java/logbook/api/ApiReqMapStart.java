@@ -26,6 +26,7 @@ import logbook.bean.ShipMst;
 import logbook.internal.Audios;
 import logbook.internal.BouyomiChanUtils;
 import logbook.internal.BouyomiChanUtils.Type;
+import logbook.internal.DestructionBattleSupport;
 import logbook.internal.LoggerHolder;
 import logbook.internal.Ships;
 import logbook.internal.Tuple;
@@ -53,6 +54,7 @@ public class ApiReqMapStart implements APIListenerSpi {
             condition.setBattleResult(log);
             condition.setMapStart(Boolean.TRUE);
             condition.setDeckId(Integer.parseInt(req.getParameter("api_deck_id")));
+            DestructionBattleSupport.onMapStart(log.getNext().get(0));
             // ルート情報
             condition.getRoute().add(new StringJoiner("-")
                     .add(data.getJsonNumber("api_maparea_id").toString())
