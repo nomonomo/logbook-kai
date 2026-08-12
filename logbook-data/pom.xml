@@ -14,10 +14,6 @@
     <name>logbook-data</name>
     <description>data/ の quest 結合・JSON 検証・manifest sha / version 更新</description>
 
-    <properties>
-        <gamedata.dir>${project.basedir}/../data</gamedata.dir>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>tools.jackson.core</groupId>

@@ -62,7 +62,7 @@
                     <!-- logbook の package で展開された Zstandard と brotli4j JNIライブラリを、jlink イメージの lib へ追加（ZIP 化の直前） -->
                     <additionalResources>
                         <resource>
-                            <directory>${project.basedir}/../logbook/target/native-libs/n</directory>
+                            <directory>${root.basedir}/logbook/target/native-libs/n</directory>
                             <targetPath>${targetJniPath}</targetPath>
                             <filtering>false</filtering>
                         </resource>

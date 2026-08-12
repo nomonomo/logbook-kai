@@ -28,7 +28,7 @@
             </resource>
             <!-- data/ を正本とし、ビルド時にクラスパスへ同梱する -->
             <resource>
-                <directory>${project.basedir}/../data</directory>
+                <directory>${gamedata.dir}</directory>
                 <targetPath>logbook</targetPath>
                 <includes>
                     <include>manifest.json</include>
@@ -89,7 +89,7 @@
                     <useModulePath>true</useModulePath>
                     <systemPropertyVariables>
                         <test.profile>${test.profile}</test.profile>
-                        <logbook.data.dir>${project.basedir}/../data</logbook.data.dir>
+                        <logbook.data.dir>${gamedata.dir}</logbook.data.dir>
                     </systemPropertyVariables>
                     <!-- data 更新時は -Pgamedata-update -->
                 </configuration>
@@ -308,7 +308,7 @@
                                     <overwrite>true</overwrite>
                                     <resources>
                                         <resource>
-                                            <directory>${project.basedir}/../dev</directory>
+                                            <directory>${root.basedir}/dev</directory>
                                             <includes>
                                                 <include>api-capture-rules.properties</include>
                                             </includes>
@@ -327,7 +327,7 @@
                                     <overwrite>true</overwrite>
                                     <resources>
                                         <resource>
-                                            <directory>${project.basedir}/../dev</directory>
+                                            <directory>${root.basedir}/dev</directory>
                                             <includes>
                                                 <include>image-listener.properties</include>
                                             </includes>
@@ -367,7 +367,7 @@
                                     <excludeDefaultDirectories>true</excludeDefaultDirectories>
                                     <filesets>
                                         <fileset>
-                                            <directory>${project.basedir}/../lib-sources</directory>
+                                            <directory>${root.basedir}/lib-sources</directory>
                                             <includes>
                                                 <include>**/*</include>
                                             </includes>
@@ -390,7 +390,7 @@
                                     <goal>unpack-dependencies</goal>
                                 </goals>
                                 <configuration>
-                                    <outputDirectory>${project.basedir}/../lib-sources</outputDirectory>
+                                    <outputDirectory>${root.basedir}/lib-sources</outputDirectory>
                                     <classifier>sources</classifier>
                                     <!-- compileスコープを指定してprovided依存関係も含める -->
                                     <!-- <includeScope>compile</includeScope> -->

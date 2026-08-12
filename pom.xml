@@ -15,6 +15,12 @@
         <!-- MANIFEST.MF の Build-Timestamp 用（UTC、ISO 8601） -->
         <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss'Z'</maven.build.timestamp.format>
         <!--
+            リポジトリルート（.mvn を起点に解決）。子では project.parent.basedir ではなくこちらを使う。
+            resources の directory では parent.basedir が展開されないため。
+        -->
+        <root.basedir>${maven.multiModuleProjectDirectory}</root.basedir>
+        <gamedata.dir>${maven.multiModuleProjectDirectory}/data</gamedata.dir>
+        <!--
             ネイティブJNI向けプロパティ（brotli4j.classifier / zstandard.os.* / targetJniPath / logbook.platform.name）は
             下記 OS プロファイルでのみ設定する。未設定時は validate フェーズで enforcer により失敗する。
         -->
@@ -122,6 +128,11 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
                     <version>3.6.3</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>3.5.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
