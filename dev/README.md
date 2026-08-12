@@ -67,6 +67,11 @@ logbook_build{buildtimestamp="2026-07-04T06:10:36Z",version="26.6.3"} 1.0
 logbook_listen_port 8888.0
 logbook_plugin_count 1.0
 logbook_server_running 1.0
+logbook_startup_jvm_to_launcher_millis 2500.0
+logbook_startup_jvm_to_ui_ready_millis 18000.0
+logbook_startup_jvm_to_window_shown_millis 9000.0
+logbook_startup_to_ui_ready_millis 15500.0
+logbook_startup_to_window_shown_millis 6500.0
 logbook_uptime_seconds 3218.0
 ```
 
@@ -88,7 +93,45 @@ JMX Exporter 1.6.x では OpenMetrics 命名規則により、設定ファイル
 | `logbook_listen_port` | リッスンポート（AppConfig） |
 | `logbook_server_running` | プロキシサーバー稼働状態（1/0） |
 | `logbook_plugin_count` | 読み込み済みプラグイン数 |
+| `logbook_startup_jvm_to_launcher_millis` | JVM 起動〜 `Launcher.main`（javaagent 込み） |
+| `logbook_startup_to_window_shown_millis` | Launcher 先頭〜メインウィンドウ表示 |
+| `logbook_startup_to_ui_ready_millis` | Launcher 先頭〜初回 UI 更新完了 |
+| `logbook_startup_jvm_to_window_shown_millis` | JVM 起動〜メインウィンドウ表示 |
+| `logbook_startup_jvm_to_ui_ready_millis` | JVM 起動〜初回 UI 更新完了 |
 | `jvm_*` | エージェント組み込みの JVM メトリクス |
+
+未到達の起動マイルストーンは `0`。javaagent が無い配布 ZIP ではこれらの系列は見えません。
+
+### 起動フェーズログ（開発者・問題調査用）
+
+配布同梱の `logback.xml` では **出力しません**。再現しない起動遅延など、調査時だけ点きます。
+
+[dev/logback/logback.xml](logback/logback.xml) では次を設定済みです。
+
+- `ROLLING`（`logs/app.log`）の ThresholdFilter を DEBUG
+- `<logger name="logbook.internal.metrics.StartupTiming" level="DEBUG" />`
+
+調査用に手元や観測ホストの logback へ足す断片:
+
+```xml
+<appender name="ROLLING" ...>
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+        <level>DEBUG</level>
+    </filter>
+</appender>
+<logger name="logbook.internal.metrics.StartupTiming" level="DEBUG" />
+<!-- 任意: ゲームデータ JSON の読込所要時間 -->
+<logger name="logbook.internal.gamedata.GameDataLoader" level="DEBUG" />
+```
+
+`logbook` 全体は INFO のままにしてください。ROLLING のフィルタだけ下げても、他の DEBUG は出ません。
+
+ログ例:
+
+```
+起動フェーズ完了: phase=httpClient elapsedMs=2192 totalMs=6689
+起動マイルストーン: milestone=windowShown jvmMs=8870 launcherMs=4372
+```
 
 ---
 

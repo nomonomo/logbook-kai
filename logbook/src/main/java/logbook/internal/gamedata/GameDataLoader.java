@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
@@ -89,7 +90,7 @@ public final class GameDataLoader {
         if (preferLocal.getAsBoolean() && Files.isRegularFile(local)) {
             try (InputStream is = Files.newInputStream(local)) {
                 log.debug("ゲームデータを外部ファイルから読み込みます: {}", local);
-                return reader.read(is);
+                return readWithElapsed(is, local.toString(), reader);
             } catch (Exception e) {
                 log.warn("外部ゲームデータの読み込みに失敗したため同梱データを使用します: {}", local, e);
             }
@@ -100,11 +101,19 @@ public final class GameDataLoader {
                 return empty;
             }
             log.debug("ゲームデータを同梱リソースから読み込みます: {}", classpathResource);
-            return reader.read(is);
+            return readWithElapsed(is, classpathResource, reader);
         } catch (Exception e) {
             log.error("同梱ゲームデータの読み込みに失敗しました: {}", classpathResource, e);
             return empty;
         }
+    }
+
+    private static <T> T readWithElapsed(InputStream is, String source, StreamReader<T> reader) throws Exception {
+        long startNanos = System.nanoTime();
+        T result = reader.read(is);
+        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+        log.debug("ゲームデータを読み込みました: {} elapsedMs={}", source, elapsedMs);
+        return result;
     }
 
     /**

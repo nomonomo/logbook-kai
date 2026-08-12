@@ -21,6 +21,7 @@ import logbook.bean.AppConfig;
 import logbook.bean.WindowLocation;
 import logbook.internal.CheckUpdate;
 import logbook.internal.capture.ApiCaptureTitles;
+import logbook.internal.metrics.StartupTiming;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -44,9 +45,11 @@ public class Main extends Application implements SystemSleepListener {
     
     @Override
     public void start(Stage stage) throws Exception {
+        StartupTiming.mark("fxToolkit");
         // CheckUpdateのシングルトンインスタンスを取得し、HTTPクライアントを明示的に初期化
         CheckUpdate.getInstance().initializeHttpClient();
-        
+        StartupTiming.mark("httpClient");
+
         String fxmlName = "main";
         if (AppConfig.get().getWindowStyle() != null) {
             fxmlName = AppConfig.get().getWindowStyle();
@@ -56,6 +59,7 @@ public class Main extends Application implements SystemSleepListener {
         }
         FXMLLoader loader = InternalFXMLLoader.load("logbook/gui/" + fxmlName + ".fxml"); //$NON-NLS-1$
         Parent root = InternalFXMLLoader.setGlobal(loader.load());
+        StartupTiming.mark("fxml");
         stage.setScene(new Scene(root));
 
         WindowController controller = loader.getController();
@@ -119,6 +123,7 @@ public class Main extends Application implements SystemSleepListener {
         });
         
         stage.show();
+        StartupTiming.completeWindowShown();
     }
     
     @Override
