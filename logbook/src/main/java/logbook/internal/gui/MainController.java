@@ -57,6 +57,7 @@ import logbook.internal.LoggerHolder;
 import logbook.internal.Ships;
 import logbook.internal.SlotItemType;
 import logbook.internal.Tuple;
+import logbook.internal.metrics.StartupTiming;
 import logbook.internal.proxy.ProxyHolder;
 import logbook.plugin.PluginServices;
 import logbook.plugin.lifecycle.StartUp;
@@ -145,6 +146,9 @@ public class MainController extends WindowController {
 
     private AudioClip clip;
 
+    /** 起動計測用。初回 {@link #update(ActionEvent)} 完了後に true */
+    private boolean startupUpdateCompleted;
+
     @FXML
     void initialize() {
         try {
@@ -171,7 +175,13 @@ public class MainController extends WindowController {
 
             // 開始処理（JavaFX Application Thread で実行し、primaryStage が確実に設定された後に実行される）
             PluginServices.instances(StartUp.class)
-                    .forEach(startup -> Platform.runLater(startup));
+                    .forEach(startup -> Platform.runLater(() -> {
+                        try {
+                            startup.run();
+                        } finally {
+                            StartupTiming.mark("startup." + startup.getClass().getName());
+                        }
+                    }));
         } catch (Exception e) {
             LoggerHolder.get().error("FXMLの初期化に失敗しました", e);
         }
@@ -223,19 +233,33 @@ public class MainController extends WindowController {
      * @param e
      */
     void update(ActionEvent e) {
+        boolean first = !this.startupUpdateCompleted;
+        long firstStartNanos = first ? System.nanoTime() : 0L;
         try {
             // 所有装備/所有艦娘
             this.button();
+            if (first) {
+                StartupTiming.mark("update.button");
+            }
             // 戦果
             this.achievement();
             // 艦隊タブ・遠征
             this.checkPort();
+            if (first) {
+                StartupTiming.mark("update.port");
+            }
             // 泊地修理・母港給糧タイマー
             this.akashiTimer();
             // 入渠ドック
             this.ndock();
+            if (first) {
+                StartupTiming.mark("update.ndock");
+            }
             // 任務
             this.quest();
+            if (first) {
+                StartupTiming.mark("update.quest");
+            }
 
             // 遠征・入渠完了時に通知をする
             if (AppConfig.get().isUseNotification()) {
@@ -246,6 +270,12 @@ public class MainController extends WindowController {
             }
         } catch (Exception ex) {
             LoggerHolder.get().error("設定の初期化に失敗しました", ex);
+        } finally {
+            if (first) {
+                StartupTiming.markFrom("update.total", firstStartNanos);
+                StartupTiming.completeUiReady();
+                this.startupUpdateCompleted = true;
+            }
         }
     }
 

@@ -32,4 +32,39 @@ public interface LogbookMetricsMXBean {
      * @return プラグイン数
      */
     int getPluginCount();
+
+    /**
+     * JVM 起動から {@code Launcher.main} 先頭までのミリ秒。未計測は 0。
+     *
+     * @return ミリ秒
+     */
+    long getStartupJvmToLauncherMillis();
+
+    /**
+     * Launcher 先頭からメインウィンドウ表示までのミリ秒。未確定は 0。
+     *
+     * @return ミリ秒
+     */
+    long getStartupToWindowShownMillis();
+
+    /**
+     * Launcher 先頭から初回 UI 更新完了までのミリ秒。未確定は 0。
+     *
+     * @return ミリ秒
+     */
+    long getStartupToUiReadyMillis();
+
+    /**
+     * JVM 起動からメインウィンドウ表示までのミリ秒。未確定は 0。
+     *
+     * @return ミリ秒
+     */
+    long getStartupJvmToWindowShownMillis();
+
+    /**
+     * JVM 起動から初回 UI 更新完了までのミリ秒。未確定は 0。
+     *
+     * @return ミリ秒
+     */
+    long getStartupJvmToUiReadyMillis();
 }
