@@ -126,7 +126,9 @@ public class QuestList implements Serializable {
                 .setInteger("api_disp_page", bean::setDispPage)
                 .set("api_list", bean::setList, JsonHelper.toList(Quest::toQuest))
                 .setInteger("api_exec_count", bean::setExecCount)
-                .ignore("api_exec_type") // 実行タイプ
+                .ignore(
+                        "api_exec_type", // 実行タイプ
+                        "api_c_list") // 特殊条件判定
                 .reportUnknown();
         return bean;
     }
