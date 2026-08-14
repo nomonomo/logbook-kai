@@ -29,6 +29,7 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TitledPane;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.media.AudioClip;
 import logbook.Messages;
@@ -57,10 +58,7 @@ import logbook.internal.LoggerHolder;
 import logbook.internal.Ships;
 import logbook.internal.SlotItemType;
 import logbook.internal.Tuple;
-import logbook.internal.metrics.StartupTiming;
 import logbook.internal.proxy.ProxyHolder;
-import logbook.plugin.PluginServices;
-import logbook.plugin.lifecycle.StartUp;
 
 /**
  * UIコントローラー
@@ -146,8 +144,11 @@ public class MainController extends WindowController {
 
     private AudioClip clip;
 
-    /** 起動計測用。初回 {@link #update(ActionEvent)} 完了後に true */
-    private boolean startupUpdateCompleted;
+    /** 未構築の艦隊タブを 1 パルスで埋める処理が予約済みなら true */
+    private boolean fleetTabFillScheduled;
+
+    /** 定期更新用。{@code stage.show()} のあと {@link #startPeriodicUpdates()} で play する */
+    private Timeline updateTimeline;
 
     @FXML
     void initialize() {
@@ -161,27 +162,15 @@ public class MainController extends WindowController {
             // メニューにメイン画面のコントローラを渡す
             this.mainMenuController.setParentController(this);
 
-            Timeline timeline = new Timeline(1);
-            timeline.setCycleCount(Animation.INDEFINITE);
-            timeline.getKeyFrames().add(new KeyFrame(
+            this.updateTimeline = new Timeline(1);
+            this.updateTimeline.setCycleCount(Animation.INDEFINITE);
+            this.updateTimeline.getKeyFrames().add(new KeyFrame(
                     javafx.util.Duration.seconds(1),
-                    this::update));
+                    this::updatePeriodic));
 
             // 古い任務を除く
             AppQuestCollection.get()
                     .update();
-
-            timeline.play();
-
-            // 開始処理（JavaFX Application Thread で実行し、primaryStage が確実に設定された後に実行される）
-            PluginServices.instances(StartUp.class)
-                    .forEach(startup -> Platform.runLater(() -> {
-                        try {
-                            startup.run();
-                        } finally {
-                            StartupTiming.mark("startup." + startup.getClass().getName());
-                        }
-                    }));
         } catch (Exception e) {
             LoggerHolder.get().error("FXMLの初期化に失敗しました", e);
         }
@@ -228,38 +217,58 @@ public class MainController extends WindowController {
     }
 
     /**
-     * 画面の更新
-     *
-     * @param e
+     * ウィンドウ表示前の初回 UI 構築（第一艦隊・装備数・入渠・任務）。定期 Timeline とは別経路。
+     * {@link logbook.internal.gui.Main#start} から {@code stage.show()} 直前に呼ばれる。
      */
-    void update(ActionEvent e) {
-        boolean first = !this.startupUpdateCompleted;
-        long firstStartNanos = first ? System.nanoTime() : 0L;
+    public void buildInitialUi() {
         try {
             // 所有装備/所有艦娘
             this.button();
-            if (first) {
-                StartupTiming.mark("update.button");
-            }
             // 戦果
             this.achievement();
             // 艦隊タブ・遠征
             this.checkPort();
-            if (first) {
-                StartupTiming.mark("update.port");
-            }
             // 泊地修理・母港給糧タイマー
             this.akashiTimer();
             // 入渠ドック
             this.ndock();
-            if (first) {
-                StartupTiming.mark("update.ndock");
-            }
             // 任務
             this.quest();
-            if (first) {
-                StartupTiming.mark("update.quest");
-            }
+            // 通知は事前構築では行わない
+        } catch (Exception ex) {
+            LoggerHolder.get().error("設定の初期化に失敗しました", ex);
+        }
+    }
+
+    /**
+     * 定期更新 Timeline を開始します。
+     * {@link logbook.internal.gui.Main#start} から {@code stage.show()} のあとで呼ばれます。
+     */
+    public void startPeriodicUpdates() {
+        if (this.updateTimeline != null) {
+            this.updateTimeline.play();
+        }
+    }
+
+    /**
+     * 定期更新（1 秒 Timeline）。
+     *
+     * @param e ActionEvent
+     */
+    void updatePeriodic(ActionEvent e) {
+        try {
+            // 所有装備/所有艦娘
+            this.button();
+            // 戦果
+            this.achievement();
+            // 艦隊タブ・遠征
+            this.checkPort();
+            // 泊地修理・母港給糧タイマー
+            this.akashiTimer();
+            // 入渠ドック
+            this.ndock();
+            // 任務
+            this.quest();
 
             // 遠征・入渠完了時に通知をする
             if (AppConfig.get().isUseNotification()) {
@@ -270,12 +279,6 @@ public class MainController extends WindowController {
             }
         } catch (Exception ex) {
             LoggerHolder.get().error("設定の初期化に失敗しました", ex);
-        } finally {
-            if (first) {
-                StartupTiming.markFrom("update.total", firstStartNanos);
-                StartupTiming.completeUiReady();
-                this.startupUpdateCompleted = true;
-            }
         }
     }
 
@@ -391,14 +394,29 @@ public class MainController extends WindowController {
                     .count();
             if (ports.size() != tabsize) {
                 tabs.removeIf(e -> e.getContent() instanceof FleetTabPane);
+                boolean first = true;
+                boolean deferred = false;
                 for (DeckPort port : ports.values()) {
-                    FleetTabPane pane = new FleetTabPane(port);
-                    Tab tab = new Tab(port.getName(), pane);
-                    tab.setClosable(false);
-                    tab.getStyleClass().removeIf(s -> !s.equals("tab"));
-                    Optional.ofNullable(pane.tabStyle())
-                            .ifPresent(tab::setStyle);
+                    Tab tab;
+                    if (first) {
+                        first = false;
+                        FleetTabPane pane = new FleetTabPane(port);
+                        tab = new Tab(port.getName(), pane);
+                        tab.setClosable(false);
+                        tab.getStyleClass().removeIf(s -> !s.equals("tab"));
+                        Optional.ofNullable(pane.tabStyle())
+                                .ifPresent(tab::setStyle);
+                    } else {
+                        deferred = true;
+                        tab = new Tab(port.getName(), new Pane());
+                        tab.setClosable(false);
+                        tab.setUserData(port);
+                        tab.getStyleClass().removeIf(s -> !s.equals("tab"));
+                    }
                     tabs.add(tab);
+                }
+                if (deferred) {
+                    this.scheduleFillNextFleetTab();
                 }
             } else {
                 Iterator<DeckPort> portIte = ports.values().iterator();
@@ -433,6 +451,50 @@ public class MainController extends WindowController {
                 }
             }
         }
+    }
+
+    /**
+     * 未構築の艦隊タブを次の FX パルスで 1 件構築する。
+     */
+    private void scheduleFillNextFleetTab() {
+        if (this.fleetTabFillScheduled) {
+            return;
+        }
+        this.fleetTabFillScheduled = true;
+        Platform.runLater(this::fillNextPendingFleetTab);
+    }
+
+    /**
+     * プレースホルダの艦隊タブを 1 件 {@link FleetTabPane} に差し替える。
+     */
+    private void fillNextPendingFleetTab() {
+        this.fleetTabFillScheduled = false;
+        for (Tab tab : this.fleetTab.getTabs()) {
+            if (!(tab.getUserData() instanceof DeckPort)) {
+                continue;
+            }
+            DeckPort port = (DeckPort) tab.getUserData();
+            FleetTabPane pane = new FleetTabPane(port);
+            tab.setUserData(null);
+            tab.setContent(pane);
+            tab.getStyleClass().removeIf(s -> !s.equals("tab"));
+            Optional.ofNullable(pane.tabStyle())
+                    .ifPresent(tab::setStyle);
+            if (this.hasPendingFleetTab()) {
+                this.scheduleFillNextFleetTab();
+            }
+            return;
+        }
+    }
+
+    /**
+     * 未構築の艦隊タブが残っているか。
+     *
+     * @return 残っていれば true
+     */
+    private boolean hasPendingFleetTab() {
+        return this.fleetTab.getTabs().stream()
+                .anyMatch(tab -> tab.getUserData() instanceof DeckPort);
     }
 
     /**

@@ -13,7 +13,7 @@
 #
 # logbook MXBean:
 #   - logbook:type=BuildInfo … 起動時確定のビルド識別（1.6.x では logbook_build として出力）
-#   - logbook:type=ApplicationMetrics … 実行中状態（uptime / port / server / plugins / startup_*）
+#   - logbook:type=ApplicationMetrics … 実行中状態（uptime / port / server / plugins）
 
 lowercaseOutputName: true
 lowercaseOutputLabelNames: true

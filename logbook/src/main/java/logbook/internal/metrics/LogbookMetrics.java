@@ -74,29 +74,4 @@ public final class LogbookMetrics implements LogbookMetricsMXBean {
             return 0;
         }
     }
-
-    @Override
-    public long getStartupJvmToLauncherMillis() {
-        return StartupTiming.jvmToLauncherMillis();
-    }
-
-    @Override
-    public long getStartupToWindowShownMillis() {
-        return StartupTiming.toWindowShownMillis();
-    }
-
-    @Override
-    public long getStartupToUiReadyMillis() {
-        return StartupTiming.toUiReadyMillis();
-    }
-
-    @Override
-    public long getStartupJvmToWindowShownMillis() {
-        return StartupTiming.jvmToWindowShownMillis();
-    }
-
-    @Override
-    public long getStartupJvmToUiReadyMillis() {
-        return StartupTiming.jvmToUiReadyMillis();
-    }
 }

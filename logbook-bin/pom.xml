@@ -10,12 +10,23 @@
     <properties>
         <!-- デバッグ時にアセンブリ処理をスキップする場合は -DskipAssembly=true を指定 -->
         <skipAssembly>false</skipAssembly>
+        <!-- jlink イメージに base CDS (lib/server/classes.jsa) を生成。無効化は -DskipGenerateCdsArchive=true -->
+        <!-- maven-jlink-plugin 3.3.0 は generate-cds-archive 未対応のため、jlink 後に -Xshare:dump で同等処理する -->
+        <skipGenerateCdsArchive>false</skipGenerateCdsArchive>
         <!-- jlink 配布物は GitHub Packages へ公開しない -->
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
     <packaging>jlink</packaging>
     <build>
         <plugins>
+            <!-- -Xshare:dump が生成する base CDS (classes.jsa) は読み取り専用のため、force で削除する -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <configuration>
+                    <force>true</force>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -56,6 +67,7 @@
                         <addOption>-XX:+UseStringDeduplication</addOption>
                         <addOption>--add-exports=javafx.base/com.sun.javafx.event=org.controlsfx.controls</addOption>
                     </addOptions>
+                    <compress>zip-6</compress>
                     <launcher>logbook=logbook/logbook.internal.Launcher</launcher>
                     <noHeaderFiles>true</noHeaderFiles>
                     <noManPages>true</noManPages>
@@ -68,6 +80,27 @@
                         </resource>
                     </additionalResources>
                 </configuration>
+            </plugin>
+            <!-- base CDS: jlink generate-cds-archive 相当（公式プラグイン未対応の間の代替） -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-base-cds</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skipGenerateCdsArchive}</skip>
+                            <executable>${project.build.directory}/maven-jlink/default/bin/java</executable>
+                            <arguments>
+                                <argument>-Xshare:dump</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
