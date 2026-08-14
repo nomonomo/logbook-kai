@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
  * ゲームデータの読み込み。
  * <p>
  * 外部（{@code config/gamedata}）と同梱のマニフェスト版を比較し、
- * 新しい方のソースから読みます（同版なら外部を優先）。
+ * 新しい方のソースから読みます（同版なら同梱を優先）。
  * 外部のオープン／パースに失敗した場合は同梱へフォールバックします。
  * </p>
  */
@@ -137,6 +137,7 @@ public final class GameDataLoader {
     /**
      * 版比較による外部優先判定（テスト用にも利用）。
      * 版は 1 以上が有効。0 は「無し」扱い。
+     * 同版のときは同梱を優先する（外部はより新しいときのみ）。
      *
      * @param local 外部版（無しは 0）
      * @param bundled 同梱版（無しは 0）
@@ -149,7 +150,7 @@ public final class GameDataLoader {
         if (bundled <= 0L) {
             return true;
         }
-        return local >= bundled;
+        return local > bundled;
     }
 
     private static long effectiveVersion(Optional<GameDataManifest> manifest) {

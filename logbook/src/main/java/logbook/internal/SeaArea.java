@@ -13,7 +13,7 @@ import logbook.internal.gamedata.SeaAreaFile;
 
 /**
  * イベント海域の識別札。
- * {@code seaarea/seaarea.json}（マニフェスト版の新しい方。同版なら外部）から読み込む。件数・内容は JSON が正本。
+ * {@code seaarea/seaarea.json}（マニフェスト版の新しい方。同版なら同梱）から読み込む。件数・内容は JSON が正本。
  */
 public final class SeaArea {
 
