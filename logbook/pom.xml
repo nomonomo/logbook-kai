@@ -305,7 +305,7 @@
                                 </goals>
                                 <configuration>
                                     <outputDirectory>${project.build.outputDirectory}/logbook/capture</outputDirectory>
-                                    <overwrite>true</overwrite>
+                                    <changeDetection>always</changeDetection>
                                     <resources>
                                         <resource>
                                             <directory>${root.basedir}/dev</directory>
@@ -324,7 +324,7 @@
                                 </goals>
                                 <configuration>
                                     <outputDirectory>${project.build.outputDirectory}/logbook/image</outputDirectory>
-                                    <overwrite>true</overwrite>
+                                    <changeDetection>always</changeDetection>
                                     <resources>
                                         <resource>
                                             <directory>${root.basedir}/dev</directory>
