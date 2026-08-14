@@ -21,7 +21,8 @@ import logbook.bean.AppConfig;
 import logbook.bean.WindowLocation;
 import logbook.internal.CheckUpdate;
 import logbook.internal.capture.ApiCaptureTitles;
-import logbook.internal.metrics.StartupTiming;
+import logbook.plugin.PluginServices;
+import logbook.plugin.lifecycle.StartUp;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -45,11 +46,9 @@ public class Main extends Application implements SystemSleepListener {
     
     @Override
     public void start(Stage stage) throws Exception {
-        StartupTiming.mark("fxToolkit");
         // CheckUpdateのシングルトンインスタンスを取得し、HTTPクライアントを明示的に初期化
         CheckUpdate.getInstance().initializeHttpClient();
-        StartupTiming.mark("httpClient");
-
+        
         String fxmlName = "main";
         if (AppConfig.get().getWindowStyle() != null) {
             fxmlName = AppConfig.get().getWindowStyle();
@@ -59,10 +58,9 @@ public class Main extends Application implements SystemSleepListener {
         }
         FXMLLoader loader = InternalFXMLLoader.load("logbook/gui/" + fxmlName + ".fxml"); //$NON-NLS-1$
         Parent root = InternalFXMLLoader.setGlobal(loader.load());
-        StartupTiming.mark("fxml");
         stage.setScene(new Scene(root));
 
-        WindowController controller = loader.getController();
+        MainController controller = loader.getController();
         controller.initWindow(stage);
         setMainController(controller);
         // アイコンの設定
@@ -121,9 +119,19 @@ public class Main extends Application implements SystemSleepListener {
                 updateLastValidLocationIfNeeded();
             }
         });
-        
+
+        // 初回描画前に中身を揃える（空ウィンドウの表示を避ける）
+        controller.buildInitialUi();
+
+        // ウィンドウを表示する
         stage.show();
-        StartupTiming.completeWindowShown();
+
+        // プラグイン処理を開始する
+        PluginServices.instances(StartUp.class)
+                .forEach(startup -> Platform.runLater(startup::run));
+
+        // 定期更新を開始する
+        controller.startPeriodicUpdates();
     }
     
     @Override

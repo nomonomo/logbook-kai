@@ -15,7 +15,7 @@
             <pattern>%date{ISO8601} %-5level [%thread] %logger{30} [%file:%line]%msg%n</pattern>
         </encoder>
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>DEBUG</level>
+            <level>INFO</level>
         </filter>
     </appender>
 
@@ -122,9 +122,6 @@
     </appender>
 
     <logger name="logbook" level="INFO" />
-
-    <!-- 起動フェーズ計測（配布既定では出さない。app.log に出すため ROLLING のフィルタは DEBUG） -->
-    <logger name="logbook.internal.metrics.StartupTiming" level="DEBUG" />
 
     <!-- アクセスログ専用ロガー。JSON 出力時は appender-ref を AccessLogJson に差し替え -->
     <logger name="logbook.internal.proxy.AccessLog" level="DEBUG" additivity="false">

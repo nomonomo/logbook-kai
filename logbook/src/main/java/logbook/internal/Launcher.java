@@ -16,7 +16,6 @@ import logbook.internal.capture.ApiCaptureWriter;
 import logbook.internal.gui.Main;
 import logbook.internal.metrics.LogbookBuildInfo;
 import logbook.internal.metrics.LogbookMetrics;
-import logbook.internal.metrics.StartupTiming;
 import logbook.internal.proxy.ProxyHolder;
 import logbook.plugin.JarBasedPlugin;
 import logbook.plugin.PluginContainer;
@@ -34,14 +33,11 @@ public final class Launcher {
      */
     public static void main(String[] args) {
         DevMode.configure(args);
-        StartupTiming.beginLauncher();
         Launcher launcher = new Launcher();
         try {
             try {
                 launcher.initPlugin(args);
-                StartupTiming.mark("plugin");
                 registerJmxMetrics();
-                StartupTiming.mark("jmx");
                 launcher.initLocal(args);
                 Runtime.getRuntime().addShutdownHook(new Thread(launcher::exitLocalProxy));
                 Runtime.getRuntime().addShutdownHook(new Thread(launcher::exitLocalThreadPool));
@@ -77,6 +73,9 @@ public final class Launcher {
      * @param args アプリケーション引数
      */
     void initLocal(String[] args) {
+        // JavaFX / fxml と重ねて Config を先読み（完了待ちなし）
+        StartupDataWarmup.start();
+
         Main.main(args);
     }
 
