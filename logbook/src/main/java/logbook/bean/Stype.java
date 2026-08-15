@@ -33,6 +33,9 @@ public class Stype implements Serializable {
     /** api_kcnt */
     private Integer kcnt;
 
+    /** api_max_slotplus */
+    private Integer maxSlotplus;
+
     /** api_equip_type */
     private Map<Integer, Integer> equipType;
 
@@ -60,6 +63,7 @@ public class Stype implements Serializable {
                 .setString("api_name", bean::setName)
                 .setInteger("api_scnt", bean::setScnt)
                 .setInteger("api_kcnt", bean::setKcnt)
+                .setInteger("api_max_slotplus", bean::setMaxSlotplus)
                 .set("api_equip_type", bean::setEquipType, equipTypeFunc)
                 .reportUnknown();
         return bean;
