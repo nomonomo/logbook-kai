@@ -460,6 +460,21 @@ public class Ships {
     }
 
     /**
+     * 各スロットの最大搭載機数を返します。
+     * 格納庫増設済みなら {@code api_onslot_max}、未増設ならマスタの {@code api_maxeq}。
+     *
+     * @param ship 艦娘
+     * @return 各スロットの最大搭載機数
+     */
+    public static List<Integer> onslotMax(Ship ship) {
+        List<Integer> expanded = ship.getOnslotMax();
+        if (expanded != null) {
+            return expanded;
+        }
+        return shipMst(ship).map(ShipMst::getMaxeq).orElse(List.of());
+    }
+
+    /**
      * キャラクターに対応する艦種を取得します
      *
      * @param chara キャラクター
