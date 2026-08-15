@@ -54,6 +54,9 @@ public class Ship implements Chara, Serializable {
     /** 機数 */
     private List<Integer> onslot;
 
+    /** 格納庫増設後の各スロット最大搭載機数 */
+    private List<Integer> onslotMax;
+
     /** 補強増設 */
     private Integer slotEx;
 
@@ -203,6 +206,7 @@ public class Ship implements Chara, Serializable {
                 .setInteger("api_leng", bean::setLeng)
                 .setIntegerList("api_slot", bean::setSlot)
                 .setIntegerList("api_onslot", bean::setOnslot)
+                .setIntegerList("api_onslot_max", bean::setOnslotMax)
                 .setInteger("api_slot_ex", bean::setSlotEx)
                 .setIntegerList("api_kyouka", bean::setKyouka)
                 .setInteger("api_backs", bean::setBacks)
