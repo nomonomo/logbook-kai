@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -81,42 +82,49 @@ public class Tools {
      */
     public static class Windows {
 
+        /** アプリケーションアイコン（大きい順）。初回読み込み後に再利用する */
+        private static List<Image> applicationIcons;
+
+        private static synchronized List<Image> applicationIcons() throws IOException {
+            if (applicationIcons == null) {
+                String[] uris = {
+                        "logbook/gui/icon_256x256.png",
+                        "logbook/gui/icon_128x128.png",
+                        "logbook/gui/icon_64x64.png",
+                        "logbook/gui/icon_48x48.png",
+                        "logbook/gui/icon_32x32.png",
+                        "logbook/gui/icon_16x16.png" };
+                List<Image> loaded = new ArrayList<>(uris.length);
+                for (String uri : uris) {
+                    try (InputStream is = PluginServices.getResourceAsStream(uri)) {
+                        loaded.add(new Image(is));
+                    }
+                }
+                applicationIcons = List.copyOf(loaded);
+            }
+            return applicationIcons;
+        }
+
         /**
-         * ウインドウの設定
+         * ウインドウのアイコンを設定します
          * @param stage Stage
          * @throws IOException 入出力例外が発生した場合
          */
         public static void setIcon(Stage stage) throws IOException {
-            // アイコン
-            String[] uris = {
-                    "logbook/gui/icon_256x256.png",
-                    "logbook/gui/icon_128x128.png",
-                    "logbook/gui/icon_64x64.png",
-                    "logbook/gui/icon_48x48.png",
-                    "logbook/gui/icon_32x32.png",
-                    "logbook/gui/icon_16x16.png" };
-
-            Image taskbarIcon = null;
-            for (String uri : uris) {
-                try (InputStream is = PluginServices.getResourceAsStream(uri)) {
-                    Image icon = new Image(is);
-                    stage.getIcons().add(icon);
-                    // タスクバー/Dock用に最大サイズのアイコンを保存
-                    if (taskbarIcon == null || icon.getWidth() > taskbarIcon.getWidth()) {
-                        taskbarIcon = icon;
-                    }
-                }
-            }
-            
-            // タスクバー/Dockにアイコンを設定
-            setTaskbarIcon(taskbarIcon);
+            stage.getIcons().setAll(applicationIcons());
         }
-        
+
         /**
-         * タスクバー/Dockにアイコンを設定します
-         * @param icon JavaFXのImage
+         * タスクバー/Dockにアイコンを設定します。
+         * アプリケーション全体の設定のため、起動時に一度だけ呼び出します。
+         * @throws IOException 入出力例外が発生した場合
          */
-        private static void setTaskbarIcon(Image icon) {
+        public static void setTaskbarIcon() throws IOException {
+            List<Image> icons = applicationIcons();
+            if (icons.isEmpty()) {
+                return;
+            }
+            Image icon = icons.get(0);
             // java.awt.TaskbarはJava 9以降で利用可能
             if (Taskbar.isTaskbarSupported()) {
                 Taskbar taskbar = Taskbar.getTaskbar();

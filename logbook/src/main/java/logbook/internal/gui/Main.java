@@ -63,8 +63,9 @@ public class Main extends Application implements SystemSleepListener {
         MainController controller = loader.getController();
         controller.initWindow(stage);
         setMainController(controller);
-        // アイコンの設定
+        // アイコンの設定（タスクバー/Dockは起動時に一度だけ）
         Tools.Windows.setIcon(stage);
+        Tools.Windows.setTaskbarIcon();
         // 最前面に表示する
         stage.setAlwaysOnTop(AppConfig.get().isOnTop());
 
