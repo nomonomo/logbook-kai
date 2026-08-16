@@ -105,7 +105,9 @@ public class BattleLogsTest {
                 BattleLogs.toJson(BattleLogs.fromJson(in), out);
                 String roundTripJson = out.toString(StandardCharsets.UTF_8);
                 String normalizedOriginalJson = normalizeJson(path);
-                assertThatJson(roundTripJson).isEqualTo(normalizedOriginalJson);
+                assertThatJson(roundTripJson)
+                        .as(path.getFileName().toString())
+                        .isEqualTo(normalizedOriginalJson);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
