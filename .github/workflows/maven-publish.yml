@@ -35,7 +35,7 @@ jobs:
       with:
         persist-credentials: 'false'
     - name: Set up JDK
-      uses: actions/setup-java@v5
+      uses: actions/setup-java@v6
       with:
         java-version: '21'
         distribution: 'microsoft'
@@ -78,7 +78,7 @@ jobs:
       with:
         persist-credentials: 'false'
     - name: Set up JDK
-      uses: actions/setup-java@v5
+      uses: actions/setup-java@v6
       with:
         java-version: '21'
         distribution: 'microsoft'
@@ -120,7 +120,7 @@ jobs:
       with:
         persist-credentials: 'false'
     - name: Set up JDK
-      uses: actions/setup-java@v5
+      uses: actions/setup-java@v6
       with:
         java-version: '21'
         distribution: 'microsoft'
