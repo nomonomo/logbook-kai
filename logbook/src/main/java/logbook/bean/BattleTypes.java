@@ -1760,6 +1760,7 @@ public class BattleTypes {
         潜水艦隊攻撃("潜水艦隊攻撃"),
         大和改二特殊砲撃_3隻("大和改二特殊砲撃(3隻)"),
         大和改二特殊砲撃_2隻("大和改二特殊砲撃(2隻)"),
+        特四式内火艇雷撃("特四式内火艇雷撃"),
         未対応攻撃("未対応攻撃");
 
         private String name;
@@ -1795,6 +1796,7 @@ public class BattleTypes {
                 case 300 -> 潜水艦隊攻撃;
                 case 400 -> 大和改二特殊砲撃_3隻;
                 case 401 -> 大和改二特殊砲撃_2隻;
+                case 1000 -> 特四式内火艇雷撃;
                 default -> {
                     log.warn("未対応のSortieAtTypeが検出されました: {}", i);
                     yield 未対応攻撃;
@@ -1846,6 +1848,7 @@ public class BattleTypes {
         潜水艦隊攻撃("潜水艦隊攻撃"),
         大和改二特殊砲撃_3隻("大和改二特殊砲撃(3隻)"),
         大和改二特殊砲撃_2隻("大和改二特殊砲撃(2隻)"),
+        特四式内火艇雷撃("特四式内火艇雷撃"),
         未対応攻撃("未対応攻撃");
 
         private String name;
@@ -1889,6 +1892,7 @@ public class BattleTypes {
                 case 300 -> 潜水艦隊攻撃;
                 case 400 -> 大和改二特殊砲撃_3隻;
                 case 401 -> 大和改二特殊砲撃_2隻;
+                case 1000 -> 特四式内火艇雷撃;
                 default -> {
                     log.warn("未対応のMidnightSpListが検出されました: {}", i);
                     yield 未対応攻撃;
