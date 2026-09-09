@@ -15,7 +15,7 @@ import logbook.bean.MapStartNext.DestructionBattle;
  * <ul>
  * <li>戦闘 API（{@code battle} 等）を受信した</li>
  * <li>次の {@code next} を受信した（直前の pending を確定）</li>
- * <li>pending の {@code api_next == 0}（行き止まり＝出撃完了）の状態で母港へ帰還した</li>
+ * <li>pending が行き止まり（{@code api_next == 0}）またはギミック達成で母港へ帰還した</li>
  * </ul>
  * 強制リロード後のログイン（{@code require_info}）や新規 {@code start} では pending を破棄する。
  */
@@ -69,7 +69,7 @@ public final class DestructionBattleSupport {
     }
 
     /**
-     * 母港帰還時。行き止まり（api_next == 0）なら確定、それ以外（退却）は破棄。
+     * 母港帰還時。行き止まりまたはギミック達成なら確定、それ以外（退却）は破棄。
      * ルート削除より前に呼ぶ。
      */
     public static void onPort() {
@@ -79,7 +79,7 @@ public final class DestructionBattleSupport {
             return;
         }
         condition.setPendingDestructionBattle(null);
-        if (isSortieComplete(pending)) {
+        if (shouldConfirmOnPort(pending)) {
             applyConfirmed(pending, condition.getRoute());
         }
     }
@@ -89,6 +89,22 @@ public final class DestructionBattleSupport {
      */
     public static void discardPending() {
         AppCondition.get().setPendingDestructionBattle(null);
+    }
+
+    /**
+     * 母港帰還時に pending 空襲を確定するか。
+     * 行き止まり（{@code api_next == 0}）に加え、ギミック達成（{@code api_m1}/{@code api_m2}）も母港へ戻る。
+     *
+     * @param next pending の MapStartNext
+     * @return 確定するなら true
+     */
+    public static boolean shouldConfirmOnPort(MapStartNext next) {
+        if (next == null) {
+            return false;
+        }
+        return isSortieComplete(next)
+                || next.achievementGimmick1()
+                || next.achievementGimmick2();
     }
 
     /**
