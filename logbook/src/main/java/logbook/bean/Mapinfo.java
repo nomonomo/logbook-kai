@@ -70,6 +70,7 @@ public class Mapinfo implements Serializable {
                     .ignore(
                             "api_gauge_num", // ゲージ番号
                             "api_gauge_type", // ゲージ種別
+                            "api_gauge_type_e", // イベントゲージ種別（api_gauge_type と同系）
                             "api_required_defeat_count", // 必要撃破数
                             "api_eventmap", // イベントマップ状態
                             "api_sally_flag", // 出撃フラグ

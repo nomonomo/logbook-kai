@@ -123,6 +123,12 @@ public class FleetTabShipPopup extends VBox {
                     this.getChildren().add(new FleetTabShipPopupItem(this.chara, this.itemMap, i));
                 }
             }
+            if (this.chara.isFriend()) {
+                Integer slotEx = this.chara.asFriend().getSlotEx();
+                if (slotEx != null && slotEx > 0) {
+                    this.getChildren().add(new FleetTabShipPopupItem(this.chara, this.itemMap));
+                }
+            }
         }
     }
 
@@ -225,9 +231,12 @@ public class FleetTabShipPopup extends VBox {
                     this.name.setText("-");
                 }
             } else {
+                Integer itemId = this.slotIndex == SLOT_EX && this.chara.isFriend()
+                        ? this.chara.asFriend().getSlotEx()
+                        : this.chara.getSlot().get(this.slotIndex);
                 SlotitemMst item = SlotitemMstCollection.get()
                         .getSlotitemMap()
-                        .get(this.chara.getSlot().get(this.slotIndex));
+                        .get(itemId);
                 this.image.setImage(Items.itemImage(item));
                 this.name.setText(item.getName());
             }

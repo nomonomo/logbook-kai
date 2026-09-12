@@ -167,7 +167,10 @@ public class SortieBattle
                 .set("api_raigeki", bean::setRaigeki, BattleTypes.Raigeki::toRaigeki)
                 .set("api_hougeki2", bean::setHougeki2, BattleTypes.Hougeki::toHougeki)
                 .set("api_hougeki3", bean::setHougeki3, BattleTypes.Hougeki::toHougeki)
-                .ignore("api_flavor_info") // ボス台詞・ボイス演出
+                .ignore(
+                        "api_flavor_info", // ボス台詞・ボイス演出
+                        "api_escape_idx", // 既退避艦。AppCondition.escape で保持
+                        "api_xal01") // イベント演出（倉庫では常に 1）
                 .reportUnknown();
         return bean;
     }

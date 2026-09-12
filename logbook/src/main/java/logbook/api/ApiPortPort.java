@@ -66,7 +66,9 @@ public class ApiPortPort implements APIListenerSpi {
             "api_p_bgm_id",
             "api_furniture_affect_items",
             "api_parallel_quest_count",
-            "api_dest_ship_slot");
+            "api_dest_ship_slot",
+            "api_friendly_setting",
+            "api_plane_info");
 
     /** 未知キー報告の対象外（対応済み + 意図的未対応） */
     private static final Set<String> KNOWN_API_DATA_KEYS = Stream

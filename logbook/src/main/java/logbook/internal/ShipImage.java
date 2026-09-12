@@ -347,11 +347,22 @@ class ShipImage {
                 } else {
                     Map<Integer, SlotitemMst> map = SlotitemMstCollection.get()
                             .getSlotitemMap();
-                    for (Integer itemId : chara.getSlot()) {
-                        Image icon = Items.borderedItemImage(map.get(itemId));
-                        // 装備アイコン
-                        layers.add(new Layer(x, y, ITEM_ICON_SIZE, ITEM_ICON_SIZE, icon));
+                    List<Integer> slot = chara.getSlot();
+                    for (int i = 0; i < 5; i++) {
+                        if (i < slot.size()) {
+                            Integer itemId = slot.get(i);
+                            Image icon = Items.borderedItemImage(map.get(itemId));
+                            // 装備アイコン
+                            layers.add(new Layer(x, y, ITEM_ICON_SIZE, ITEM_ICON_SIZE, icon));
+                        }
                         x += ITEM_ICON_SIZE + 2;
+                    }
+                    if (chara.isFriend()) {
+                        Integer slotEx = chara.asFriend().getSlotEx();
+                        if (slotEx != null && slotEx != 0) {
+                            Image icon = Items.borderedItemImage(map.get(slotEx));
+                            layers.add(new Layer(x, y, ITEM_ICON_SIZE, ITEM_ICON_SIZE, icon));
+                        }
                     }
                 }
             }

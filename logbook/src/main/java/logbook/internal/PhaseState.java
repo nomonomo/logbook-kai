@@ -338,6 +338,10 @@ public class PhaseState {
                     f.setShipId(friendlyInfo.getShipId().get(i));
                     f.setLv(friendlyInfo.getShipLv().get(i));
                     f.setSlot(friendlyInfo.getSlot().get(i));
+                    List<Integer> slotEx = friendlyInfo.getSlotEx();
+                    if (slotEx != null && i < slotEx.size()) {
+                        f.setSlotEx(slotEx.get(i));
+                    }
                     f.setMaxhp(friendlyInfo.getMaxhps().get(i));
                     f.setNowhp(friendlyInfo.getNowhps().get(i));
 

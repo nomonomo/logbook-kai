@@ -119,6 +119,7 @@ public class SortieLdAirbattle
                 .setIntegerList("api_stage_flag", bean::setStageFlag)
                 .set("api_injection_kouku", bean::setInjectionKouku, BattleTypes.Kouku::toKouku)
                 .set("api_kouku", bean::setKouku, BattleTypes.Kouku::toKouku)
+                .ignore("api_escape_idx") // 既退避艦。AppCondition.escape で保持
                 .reportUnknown();
         return bean;
     }

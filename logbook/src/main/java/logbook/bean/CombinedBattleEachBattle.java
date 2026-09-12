@@ -201,6 +201,12 @@ public class CombinedBattleEachBattle implements ICombinedBattle, ICombinedEcBat
                 .set("api_raigeki", bean::setRaigeki, BattleTypes.Raigeki::toRaigeki)
                 .set("api_hougeki2", bean::setHougeki2, BattleTypes.Hougeki::toHougeki)
                 .set("api_hougeki3", bean::setHougeki3, BattleTypes.Hougeki::toHougeki)
+                .ignore(
+                        "api_flavor_info", // ボス台詞・ボイス演出
+                        "api_xal01", // イベント演出（倉庫では常に 1）
+                        "api_air_base_rescue_type", // 基地航空隊救援
+                        "api_escape_idx", // 既退避艦。AppCondition.escape で保持
+                        "api_escape_idx_combined") // 既退避艦。AppCondition.escape で保持
                 .reportUnknown();
         return bean;
     }
