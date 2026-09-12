@@ -176,6 +176,9 @@ public class CombinedBattleBattle implements ICombinedBattle, ISortieHougeki, IF
                 .set("api_raigeki", bean::setRaigeki, BattleTypes.Raigeki::toRaigeki)
                 .set("api_hougeki2", bean::setHougeki2, BattleTypes.Hougeki::toHougeki)
                 .set("api_hougeki3", bean::setHougeki3, BattleTypes.Hougeki::toHougeki)
+                .ignore(
+                        "api_escape_idx", // 既退避艦。AppCondition.escape で保持
+                        "api_escape_idx_combined") // 既退避艦。AppCondition.escape で保持
                 .reportUnknown();
         return bean;
     }

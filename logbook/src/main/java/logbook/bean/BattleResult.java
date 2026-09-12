@@ -222,6 +222,9 @@ public class BattleResult implements Serializable {
         /** api_value */
         private Integer value;
 
+        /** api_slot_level */
+        private Integer slotLevel;
+
         /**
          * JsonObjectから{@link GetEventitem}を構築します
          *
@@ -235,6 +238,7 @@ public class BattleResult implements Serializable {
                     .setInteger("api_type", bean::setType)
                     .setInteger("api_id", bean::setId)
                     .setInteger("api_value", bean::setValue)
+                    .setInteger("api_slot_level", bean::setSlotLevel)
                     .reportUnknown();
             return bean;
         }
@@ -266,6 +270,7 @@ public class BattleResult implements Serializable {
                     .at("api_data.api_escape")
                     .setIntegerList("api_escape_idx", bean::setEscapeIdx)
                     .setIntegerList("api_tow_idx", bean::setTowIdx)
+                    .ignore("api_escape_type") // 単艦/護衛の区別。tow_idx 有無で足りる
                     .reportUnknown();
             return bean;
         }
@@ -379,7 +384,10 @@ public class BattleResult implements Serializable {
                 .setInteger("api_m1", bean::setM1)
                 .ignore(
                         "api_ship_id", // 敵艦マスタ ID 一覧（昼戦 api_ship_ke と同系）
-                        "api_next_map_ids") // マップ開放演出
+                        "api_next_map_ids", // マップ開放演出
+                        "api_select_reward_dict", // 選択報酬 UI
+                        "api_m_suffix", // クリア演出アセット
+                        "api_ope_suffix") // 作戦名演出
                 .reportUnknown();
         return bean;
     }

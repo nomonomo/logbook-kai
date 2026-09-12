@@ -1538,6 +1538,9 @@ public class BattleTypes {
         /** api_Slot */
         private List<List<Integer>> slot;
 
+        /** api_slot_ex */
+        private List<Integer> slotEx;
+
         /** api_Param */
         private List<List<Integer>> param;
 
@@ -1557,7 +1560,11 @@ public class BattleTypes {
                     .setIntegerList("api_nowhps", bean::setNowhps)
                     .setIntegerList("api_maxhps", bean::setMaxhps)
                     .set("api_Slot", bean::setSlot, JsonHelper.toList(JsonHelper::toIntegerList))
+                    .setIntegerList("api_slot_ex", bean::setSlotEx)
                     .set("api_Param", bean::setParam, JsonHelper.toList(JsonHelper::toIntegerList))
+                    .ignore(
+                            "api_voice_id", // 友軍ボイス
+                            "api_voice_p_no") // 友軍ボイス番号
                     .reportUnknown();
             return bean;
         }

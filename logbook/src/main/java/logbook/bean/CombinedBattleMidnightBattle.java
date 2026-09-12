@@ -69,6 +69,15 @@ public class CombinedBattleMidnightBattle implements ICombinedBattle, IMidnightB
     /** api_flare_pos */
     private List<Integer> flarePos;
 
+    /** api_smoke_type */
+    private Integer smokeType;
+
+    /** api_balloon_cell */
+    private Integer balloonCell;
+
+    /** api_atoll_cell */
+    private Integer atollCell;
+
     /** api_hougeki */
     private BattleTypes.MidnightHougeki hougeki;
 
@@ -100,7 +109,14 @@ public class CombinedBattleMidnightBattle implements ICombinedBattle, IMidnightB
                 .set("api_friendly_battle", bean::setFriendlyBattle, BattleTypes.FriendlyBattle::toFriendlyBattle)
                 .setIntegerList("api_touch_plane", bean::setTouchPlane)
                 .setIntegerList("api_flare_pos", bean::setFlarePos)
+                .setInteger("api_smoke_type", bean::setSmokeType)
+                .setInteger("api_balloon_cell", bean::setBalloonCell)
+                .setInteger("api_atoll_cell", bean::setAtollCell)
                 .set("api_hougeki", bean::setHougeki, BattleTypes.MidnightHougeki::toMidnightHougeki)
+                .ignore(
+                        "api_formation", // 昼戦と同内容の再送。IMidnightBattle では未使用
+                        "api_escape_idx", // 既退避艦。AppCondition.escape で保持
+                        "api_escape_idx_combined") // 既退避艦。AppCondition.escape で保持
                 .reportUnknown();
         return bean;
     }
