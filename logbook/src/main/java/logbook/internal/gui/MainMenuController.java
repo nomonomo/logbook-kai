@@ -370,7 +370,7 @@ public class MainMenuController extends WindowController {
     @FXML
     void updateCheck(ActionEvent e) {
         try {
-            CheckUpdate.getInstance().run(this.parentController.getWindow());
+            new CheckUpdate().runFromMenu(this.parentController.getWindow());
         } catch (Exception ex) {
             log.error("更新情報の取得に失敗しました", ex);
         }

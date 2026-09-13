@@ -2,22 +2,18 @@ package logbook.internal;
 
 import java.awt.Desktop;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URI;
 import java.net.HttpURLConnection;
-import java.nio.ByteBuffer;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.Request;
-import org.eclipse.jetty.client.Response;
-import org.eclipse.jetty.client.RetainingResponseListener;
-import org.eclipse.jetty.client.PathResponseListener;
-import org.eclipse.jetty.util.StringUtil;
-import java.util.concurrent.CompletableFuture;
-import org.eclipse.jetty.http.HttpMethod;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -25,19 +21,20 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import tools.jackson.databind.JsonNode;
-import logbook.internal.JsonMappers;
-import tools.jackson.databind.node.ObjectNode;
+import org.eclipse.jetty.util.StringUtil;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
@@ -45,15 +42,15 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.web.WebView;
-import javafx.beans.value.ChangeListener;
-import javafx.concurrent.Worker;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import logbook.internal.gui.InternalFXMLLoader;
 import logbook.internal.gui.Tools;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * アップデートチェック
@@ -61,9 +58,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class CheckUpdate {
-
-    /** シングルトンインスタンス */
-    private static CheckUpdate INSTANCE;
 
     /** GitHub リポジトリのパス */
     public static final String REPOSITORY_PATH = "nomonomo/logbook-kai";
@@ -84,181 +78,60 @@ public class CheckUpdate {
     /** Prerelease を使う System Property */
     private static final String USE_PRERELEASE = "logbook.use.prerelease";
 
-    /** HTTPクライアント */
-    private HttpClient httpClient;
+    /** HTTP User-Agent */
+    private static final String USER_AGENT = "logbook-kai";
+
+    /** 接続タイムアウト */
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(60);
+
+    /** API リクエストタイムアウト */
+    private static final Duration API_TIMEOUT = Duration.ofSeconds(60);
+
+    /** ダウンロードリクエストタイムアウト */
+    private static final Duration DOWNLOAD_TIMEOUT = Duration.ofMinutes(10);
+
+    /** ダウンロード用バッファサイズ */
+    private static final int BUFFER_SIZE = 8192;
+
+    /** 進捗更新の間隔（ミリ秒） */
+    private static final long PROGRESS_UPDATE_INTERVAL_MS = 100;
+
+    /** ダウンロード最大試行回数 */
+    private static final int DOWNLOAD_MAX_RETRIES = 3;
+
+    /** HTTPクライアント（クラス内で使い回し） */
+    private static final HttpClient HTTP = HttpClient.newBuilder()
+            .connectTimeout(CONNECT_TIMEOUT)
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
 
     /** 現在のバージョンを取得するSupplier（テスト時にモック化可能） */
     private Supplier<Version> versionSupplier = Version::getCurrent;
 
     /**
-     * プライベートコンストラクタ（シングルトンパターン）
+     * GitHub tags API の要素
      */
-    private CheckUpdate() {
-        // コンストラクタでは初期化しない（遅延初期化）
-    }
-    
-    /**
-     * バージョン取得用のSupplierを設定（テスト用）
-     * 
-     * @param versionSupplier バージョンを取得するSupplier
-     */
-    void setVersionSupplier(Supplier<Version> versionSupplier) {
-        this.versionSupplier = versionSupplier;
+    record GitHubTag(String name) {
     }
 
     /**
-     * CheckUpdateのシングルトンインスタンスを取得
-     * 
-     * @return CheckUpdateインスタンス
+     * GitHub releases API のアセット
      */
-    public static CheckUpdate getInstance() {
-        if (INSTANCE == null) {
-            synchronized (CheckUpdate.class) {
-                if (INSTANCE == null) {
-                    INSTANCE = new CheckUpdate();
-                }
-            }
-        }
-        return INSTANCE;
+    record GitHubAsset(
+            String name,
+            long size,
+            @JsonProperty("browser_download_url") String browserDownloadUrl) {
     }
 
     /**
-     * HTTPクライアントを明示的に初期化（オプション）
-     * 通常はgetHttpClient()で遅延初期化されるが、意図的に初期化処理を先に実行したい場合に使用する
-     * Main.javaのstart()メソッドから呼び出され、アプリケーション起動時に一度だけ実行されることを想定
-     * デフォルト設定を使用（connectTimeout: 5秒、followRedirects: true）
-     * 
-     * @throws RuntimeException HTTPクライアントの初期化に失敗した場合
+     * GitHub releases API のレスポンス（利用フィールドのみ）
      */
-    public void initializeHttpClient() {
-        synchronized (this) {
-            if (httpClient != null) {
-                // 既に初期化されている場合は何もしない
-                log.debug("HTTPクライアントは既に初期化されています");
-                return;
-            }
-            httpClient = new HttpClient();
-            try {
-                httpClient.start();
-                log.debug("HTTPクライアントを明示的に初期化しました");
-            } catch (Exception e) {
-                log.error("HTTPクライアントの初期化に失敗しました", e);
-                httpClient = null; // 初期化失敗時はnullに戻す
-                throw new RuntimeException("HTTPクライアントの初期化に失敗しました", e);
-            }
-        }
-    }
-
-    /**
-     * HTTPクライアントを取得（遅延初期化）
-     * 初回呼び出し時に一度だけ初期化され、以降は同じインスタンスを返す
-     * 明示的に初期化したい場合は、事前にinitializeHttpClient()を呼び出すことを推奨
-     * デフォルト設定を使用（connectTimeout: 5秒、followRedirects: true）
-     * 
-     * @return HTTPクライアントインスタンス
-     * @throws RuntimeException HTTPクライアントの初期化に失敗した場合
-     */
-    private HttpClient getHttpClient() {
-        // ダブルチェックロッキングパターンでパフォーマンスを最適化
-        if (httpClient == null) {
-            synchronized (this) {
-                if (httpClient == null) {
-                    httpClient = new HttpClient();
-                    try {
-                        httpClient.start();
-                        log.debug("HTTPクライアントを遅延初期化しました");
-                    } catch (Exception e) {
-                        log.error("HTTPクライアントの初期化に失敗しました", e);
-                        httpClient = null; // 初期化失敗時はnullに戻す
-                        throw new RuntimeException("HTTPクライアントの初期化に失敗しました", e);
-                    }
-                }
-            }
-        }
-        return httpClient;
-    }
-
-    /**
-     * HTTPクライアントを停止（アプリケーション終了時のクリーンアップ用）
-     * Main.javaのstop()メソッドから呼び出され、アプリケーション終了時に実行される
-     * HttpClient.stop()が呼ばれると、実行中のリクエストも自動的にキャンセルされる
-     * 既に停止済みの場合は何もしない
-     */
-    public void shutdown() {
-        synchronized (this) {
-            // HTTPクライアントを停止（実行中のリクエストもキャンセルされる）
-            if (httpClient != null) {
-                try {
-                    // stop()は実行中のリクエストをキャンセルし、完了を待つ
-                    httpClient.stop();
-                    log.debug("HTTPクライアントを停止しました");
-                } catch (Exception e) {
-                    log.warn("HTTPクライアントの停止中にエラーが発生しました", e);
-                } finally {
-                    httpClient = null;
-                }
-            }
-        }
-    }
-
-    public void run(Stage stage) {
-        run(false, stage);
-    }
-
-    public void run(boolean isStartUp) {
-        run(isStartUp, null);
-    }
-
-    public void run(boolean isStartUp, Stage stage) {
-        // 非同期でバージョン情報を取得（UIスレッドをブロックしない）
-        // TAGS APIのレスポンスは約12KB程度のため、RetainingResponseListenerを使用
-        HttpClient client = getHttpClient();
-        Request request = client.newRequest(URI.create(TAGS))
-                .method(HttpMethod.GET);
-
-        // RetainingResponseListenerを使用（レスポンスが少量のため）
-        RetainingResponseListener listener = new RetainingResponseListener() {
-            @Override
-            public void onSuccess(Response response) {
-                super.onSuccess(response); // 必須: チャンクの解放を保証
-
-                if (response.getStatus() != HttpURLConnection.HTTP_OK) {
-                    showUpdateCheckError(isStartUp);
-                    return;
-                }
-
-                try {
-                    // レスポンスボディを直接JSONとして取得
-                    String content = getContentAsString(StandardCharsets.UTF_8);
-                    JsonNode tags = JsonMappers.MAPPER.readTree(content);
-                    List<VersionInfo> candidateVersions = processTags(tags);
-                    if (candidateVersions.isEmpty()) {
-                        // 最新バージョンが見つからなかった場合
-                        if (!isStartUp) {
-                            Platform.runLater(() -> {
-            Tools.Controls.alert(AlertType.INFORMATION, "更新の確認", "最新のバージョンです。", stage);
-                            });
-                        }
-                    } else {
-                        // 候補バージョンを順番にチェック（新しい順）
-                        CheckUpdate.this.checkVersionsSequentially(candidateVersions, 0, isStartUp, stage);
-                    }
-                } catch (Exception e) {
-                    log.warn("tagsの処理に失敗しました", e);
-                    CheckUpdate.this.showUpdateCheckError(isStartUp);
-                }
-            }
-
-            @Override
-            public void onFailure(Response response, Throwable failure) {
-                super.onFailure(response, failure); // 必須: チャンクの解放を保証
-                log.warn("更新チェック中にエラーが発生しました", failure);
-                CheckUpdate.this.showUpdateCheckError(isStartUp);
-            }
-        };
-
-        // リクエストを非同期で送信
-        request.send(listener);
+    record GitHubRelease(
+            String message,
+            boolean draft,
+            boolean prerelease,
+            String body,
+            List<GitHubAsset> assets) {
     }
 
     /**
@@ -268,57 +141,150 @@ public class CheckUpdate {
     record VersionInfo(String tagname, Version version, String downloadUrl, long fileSize, String body, String name) {
         /**
          * アセット情報が設定されているかどうか
-         * 
+         *
          * <p>アセット情報が完全に設定されている場合のみtrueを返します。
          * downloadUrl、fileSize、nameのすべてが有効な値である必要があります。</p>
          */
         boolean hasAsset() {
-            return downloadUrl != null && !downloadUrl.isEmpty() 
-                    && fileSize > 0 
+            return downloadUrl != null && !downloadUrl.isEmpty()
+                    && fileSize > 0
                     && name != null && !name.isEmpty();
         }
     }
 
     /**
-     * 更新チェックエラー時のアラートを表示
-     * 
-     * @param isStartUp 起動時チェックかどうか
+     * 更新チェック結果（UI 方針を含まない）
      */
-    private void showUpdateCheckError(boolean isStartUp) {
-        if (!isStartUp) {
-            Platform.runLater(() -> {
-                Tools.Controls.alert(AlertType.WARNING, "更新の確認",
-                        "更新情報の取得に失敗しました。", null);
-            });
+    sealed interface UpdateCheckResult {
+        /** 更新可能なバージョンが見つかった */
+        record Available(VersionInfo versionInfo) implements UpdateCheckResult {
+        }
+
+        /** 利用可能な更新はない（最新、または対応アセットなし） */
+        record UpToDate() implements UpdateCheckResult {
+        }
+
+        /** 通信・パース等でチェック自体に失敗した */
+        record Failed(Exception cause) implements UpdateCheckResult {
+        }
+    }
+
+    /**
+     * バージョン取得用のSupplierを設定（テスト用）
+     *
+     * @param versionSupplier バージョンを取得するSupplier
+     */
+    void setVersionSupplier(Supplier<Version> versionSupplier) {
+        this.versionSupplier = versionSupplier;
+    }
+
+    /**
+     * 起動時の更新チェック。更新がある場合のみダイアログを表示する。
+     *
+     * @param stage 親ウィンドウ
+     */
+    public void runOnStartup(Stage stage) {
+        ThreadManager.getExecutorService().execute(() -> {
+            UpdateCheckResult result = findAvailableUpdate();
+            if (result instanceof UpdateCheckResult.Available available) {
+                Platform.runLater(() -> openInfo(available.versionInfo(), stage, true));
+            } else if (result instanceof UpdateCheckResult.Failed failed) {
+                if (failed.cause() != null) {
+                    log.warn("起動時の更新チェックに失敗しました", failed.cause());
+                } else {
+                    log.warn("起動時の更新チェックに失敗しました");
+                }
+            }
+        });
+    }
+
+    /**
+     * メニューからの更新チェック。結果に応じて Alert または更新ダイアログを表示する。
+     *
+     * @param stage 親ウィンドウ
+     */
+    public void runFromMenu(Stage stage) {
+        ThreadManager.getExecutorService().execute(() -> {
+            UpdateCheckResult result = findAvailableUpdate();
+            switch (result) {
+            case UpdateCheckResult.Available available ->
+                Platform.runLater(() -> openInfo(available.versionInfo(), stage, false));
+            case UpdateCheckResult.UpToDate ignored ->
+                Platform.runLater(() -> Tools.Controls.alert(
+                        AlertType.INFORMATION, "更新の確認", "最新のバージョンです。", stage));
+            case UpdateCheckResult.Failed failed -> {
+                if (failed.cause() != null) {
+                    log.warn("更新チェック中にエラーが発生しました", failed.cause());
+                } else {
+                    log.warn("更新チェック中にエラーが発生しました");
+                }
+                Platform.runLater(() -> Tools.Controls.alert(
+                        AlertType.WARNING, "更新の確認", "更新情報の取得に失敗しました。", null));
+            }
+            }
+        });
+    }
+
+    /**
+     * 更新の有無を調べる（UI なし・同期）。
+     *
+     * @return チェック結果
+     */
+    UpdateCheckResult findAvailableUpdate() {
+        try {
+            HttpRequest request = newApiGet(TAGS);
+            HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+                return new UpdateCheckResult.Failed(null);
+            }
+
+            List<GitHubTag> tags = JsonMappers.LENIENT_READER
+                    .forType(new TypeReference<List<GitHubTag>>() {
+                    })
+                    .readValue(response.body());
+            List<VersionInfo> candidateVersions = processTags(tags);
+            if (candidateVersions.isEmpty()) {
+                return new UpdateCheckResult.UpToDate();
+            }
+
+            for (VersionInfo candidate : candidateVersions) {
+                Optional<VersionInfo> found = findLatestVersion(candidate);
+                if (found.isPresent()) {
+                    return new UpdateCheckResult.Available(found.get());
+                }
+            }
+            return new UpdateCheckResult.UpToDate();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new UpdateCheckResult.Failed(e);
+        } catch (Exception e) {
+            return new UpdateCheckResult.Failed(e);
         }
     }
 
     /**
      * tagsのJSONを処理し、新しいバージョンを抽出してソート
-     * 
-     * @param tags tagsのJsonNode（配列形式）
+     *
+     * @param tags tagsのリスト
      * @return 新しいバージョンのリスト（新しい順にソート済み、見つからなかった場合は空リスト）
      */
-    List<VersionInfo> processTags(JsonNode tags) {
-        if (tags == null || !tags.isArray()) {
+    List<VersionInfo> processTags(List<GitHubTag> tags) {
+        if (tags == null || tags.isEmpty()) {
             return Collections.emptyList();
         }
 
         List<VersionInfo> candidates = new ArrayList<>();
 
         // Githubのtagsから新しいバージョンを抽出
-        for (int index = 0; index < tags.size(); index++) {
-            JsonNode tagNode = tags.get(index);
-            if (tagNode == null || !tagNode.has("name")) {
+        for (GitHubTag tag : tags) {
+            if (tag == null) {
                 continue;
             }
-
-            String tagname = tagNode.get("name").asText();
+            String tagname = tag.name();
             if (tagname == null || tagname.isEmpty()) {
                 continue;
             }
 
-            // tagの名前にバージョンを含む?実行中のバージョンより新しい?
             Matcher m = TAG_REGIX.matcher(tagname);
             if (!m.find()) {
                 continue;
@@ -329,13 +295,11 @@ public class CheckUpdate {
                 if (Version.UNKNOWN.equals(remote) || versionSupplier.get().compareTo(remote) >= 0) {
                     continue;
                 }
-
                 // 候補に追加（bodyとnameは後で取得）
                 candidates.add(new VersionInfo(tagname, remote, null, 0, null, null));
             } catch (IllegalArgumentException e) {
                 // バージョン形式が不正な場合はスキップ
                 log.debug("不正なバージョン形式: {}", tagname, e);
-                continue;
             }
         }
 
@@ -346,141 +310,93 @@ public class CheckUpdate {
     }
 
     /**
-     * 候補バージョンを順番にチェックし、最初に有効なバージョンを見つける
-     * 
-     * @param candidates 候補バージョンのリスト（新しい順）
-     * @param index 現在チェック中のインデックス
-     * @param isStartUp 起動時チェックかどうか
-     * @param stage 親ウィンドウ
-     */
-    private void checkVersionsSequentially(List<VersionInfo> candidates, int index,
-            boolean isStartUp, Stage stage) {
-        if (index >= candidates.size()) {
-            // 全ての候補をチェックしたが、有効なバージョンが見つからなかった
-            if (!isStartUp) {
-                Platform.runLater(() -> {
-                    Tools.Controls.alert(AlertType.INFORMATION, "更新の確認", "最新のバージョンです。", stage);
-                });
-            }
-            return;
-        }
-
-        VersionInfo candidate = candidates.get(index);
-        CheckUpdate.this.findLatestVersion(candidate, isStartUp, stage,
-                (versionInfo) -> {
-                    // 有効なバージョンが見つかった場合、UIを表示
-                    Platform.runLater(() -> {
-                        CheckUpdate.this.openInfo(versionInfo, isStartUp, stage);
-                    });
-                },
-                () -> {
-                    // このバージョンが無効な場合、次の候補をチェック
-                    CheckUpdate.this.checkVersionsSequentially(candidates, index + 1, isStartUp, stage);
-                });
-    }
-
-    /**
      * 指定されたtagのリリース情報を取得し、有効性を確認
      * アセット情報も同時に取得して、重複したAPI呼び出しを避ける
      * プラットフォームに応じたアセットが見つからない場合は、更新対象外として扱う
-     * 
+     *
      * @param versionInfo バージョン情報（tag名とバージョン、アセット情報は未設定）
-     * @param isStartUp 起動時チェックかどうか
-     * @param stage 親ウィンドウ
-     * @param onValid 有効なバージョンが見つかった場合のコールバック（アセット情報を含むVersionInfoを渡す）
-     * @param onInvalid 無効なバージョンまたはプラットフォーム対応アセットが見つからない場合のコールバック
+     * @return 有効なバージョン情報。無効な場合は空
      */
-    private void findLatestVersion(VersionInfo versionInfo, boolean isStartUp, Stage stage,
-            Consumer<VersionInfo> onValid,
-            Runnable onInvalid) {
-        // リリース情報のレスポンスは約3-4KB程度のため、RetainingResponseListenerを使用
-        HttpClient client = getHttpClient();
-        Request releaseRequest = client.newRequest(URI.create(RELEASES + versionInfo.tagname()))
-                .method(HttpMethod.GET);
+    private Optional<VersionInfo> findLatestVersion(VersionInfo versionInfo) {
+        try {
+            HttpRequest request = newApiGet(RELEASES + versionInfo.tagname());
+            HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+                return Optional.empty();
+            }
 
-        // RetainingResponseListenerを使用（レスポンスが少量のため）
-        RetainingResponseListener listener = new RetainingResponseListener() {
-            @Override
-            public void onSuccess(Response response) {
-                super.onSuccess(response); // 必須: チャンクの解放を保証
-
-                if (response.getStatus() != HttpURLConnection.HTTP_OK) {
-                    // リリース情報が取得できない場合は無効として扱う
-                    onInvalid.run();
-                    return;
-                }
-
-                try {
-                    // レスポンスボディを直接JSONとして取得
-                    String content = getContentAsString(StandardCharsets.UTF_8);
-                    JsonNode releases = JsonMappers.MAPPER.readTree(content);
-
+            GitHubRelease release = JsonMappers.LENIENT_READER
+                    .forType(GitHubRelease.class)
+                    .readValue(response.body());
                     // リリース情報の有効性をチェック（無効な場合は早期リターン）
-                    if (releases == null || releases.isNull() ||
-                            releases.has("message") ||
-                            releases.get("draft").asBoolean(false) ||
-                            (!Boolean.getBoolean(USE_PRERELEASE) && releases.get("prerelease").asBoolean(false))) {
-                        onInvalid.run();
-                        return;
-                    }
-
-                    // assetsが1つ以上あることを確認
-                    JsonNode assets = releases.get("assets");
-                    if (assets == null || !assets.isArray() || assets.size() == 0) {
-                        onInvalid.run();
-                        return;
-                    }
-
-                    // プラットフォームに応じたアセットを取得
-                    String buildPlatform = SystemPlatform.getBuildPlatform();
-                    Optional<JsonNode> foundAssetOpt = findAssetForPlatform(assets, buildPlatform);
-
-                    // プラットフォームに応じたアセットが見つからない場合は更新対象外
-                    if (foundAssetOpt.isEmpty()) {
-                        log.debug("プラットフォーム {} に対応するアセットが見つかりません: {}", buildPlatform, versionInfo.tagname());
-                        onInvalid.run();
-                        return;
-                    }
-
-                    JsonNode foundAsset = foundAssetOpt.get();
-                    String downloadUrl = foundAsset.get("browser_download_url").asText();
-                    long fileSize = foundAsset.get("size").asLong();
-                    String assetName = foundAsset.get("name").asText();
-
-                    // リリースノートのbody（Markdownテキスト）を取得
-                    String body = releases.has("body") && !releases.get("body").isNull() 
-                            ? releases.get("body").asText("") 
-                            : "";
-                    log.debug("リリースノートbody取得: サイズ={} bytes", body.length());
-
-                    // アセット情報とbodyを含むVersionInfoを作成
-                    VersionInfo versionInfoWithAsset = new VersionInfo(
-                            versionInfo.tagname(),
-                            versionInfo.version(),
-                            downloadUrl,
-                            fileSize,
-                            body,
-                            assetName);
-
-                    log.info("更新可能バージョンを検出：{},{}({} bytes)", versionInfo.version(), assetName, fileSize);
-                            // 有効なバージョンとアセット情報が見つかった
-                    onValid.accept(versionInfoWithAsset);
-                } catch (Exception e) {
-                    log.debug("リリース情報のパースに失敗: {}", versionInfo.tagname(), e);
-                    onInvalid.run();
-                }
+                    if (release == null
+                    || release.message() != null
+                    || release.draft()
+                    || (!Boolean.getBoolean(USE_PRERELEASE) && release.prerelease())) {
+                return Optional.empty();
             }
 
-            @Override
-            public void onFailure(Response response, Throwable failure) {
-                super.onFailure(response, failure); // 必須: チャンクの解放を保証
-                log.debug("リリース情報の取得に失敗: {}", versionInfo.tagname(), failure);
-                onInvalid.run();
+            List<GitHubAsset> assets = release.assets();
+            if (assets == null || assets.isEmpty()) {
+                return Optional.empty();
             }
-        };
 
-        // リクエストを非同期で送信
-        releaseRequest.send(listener);
+            // プラットフォームに応じたアセットを取得
+            String buildPlatform = SystemPlatform.getBuildPlatform();
+            Optional<GitHubAsset> foundAssetOpt = findAssetForPlatform(assets, buildPlatform);
+
+            // プラットフォームに応じたアセットが見つからない場合は更新対象外
+            if (foundAssetOpt.isEmpty()) {
+                log.debug("プラットフォーム {} に対応するアセットが見つかりません: {}", buildPlatform, versionInfo.tagname());
+                return Optional.empty();
+            }
+
+            GitHubAsset foundAsset = foundAssetOpt.get();
+            String downloadUrl = foundAsset.browserDownloadUrl();
+            long fileSize = foundAsset.size();
+            String assetName = foundAsset.name();
+            if (downloadUrl == null || downloadUrl.isEmpty()
+                    || assetName == null || assetName.isEmpty()
+                    || fileSize <= 0) {
+                return Optional.empty();
+            }
+
+            String body = release.body() != null ? release.body() : "";
+            log.debug("リリースノートbody取得: サイズ={} bytes", body.length());
+
+            // アセット情報とbodyを含むVersionInfoを作成
+            VersionInfo versionInfoWithAsset = new VersionInfo(
+                    versionInfo.tagname(),
+                    versionInfo.version(),
+                    downloadUrl,
+                    fileSize,
+                    body,
+                    assetName);
+
+            log.info("更新可能バージョンを検出：{},{}({} bytes)", versionInfo.version(), assetName, fileSize);
+            return Optional.of(versionInfoWithAsset);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.debug("リリース情報の取得が中断されました: {}", versionInfo.tagname(), e);
+            return Optional.empty();
+        } catch (Exception e) {
+            log.debug("リリース情報の取得に失敗: {}", versionInfo.tagname(), e);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * GitHub API 向け GET リクエストを作成する
+     *
+     * @param url リクエストURL
+     * @return HttpRequest
+     */
+    private static HttpRequest newApiGet(String url) {
+        return HttpRequest.newBuilder(URI.create(url))
+                .timeout(API_TIMEOUT)
+                .header("User-Agent", USER_AGENT)
+                .GET()
+                .build();
     }
 
     /**
@@ -651,12 +567,12 @@ public class CheckUpdate {
 
     /**
      * 新しいバージョン情報ダイアログを表示
-     * 
-     * @param versionInfo バージョン情報（tag名、バージョン、アセット情報を含む）
-     * @param isStartUp 起動時チェックかどうか
+     *
+     * @param versionInfo バージョン情報
      * @param stage 親ウィンドウ
+     * @param showSettingsHint 設定から自動チェックを無効化できる旨を表示するか
      */
-    private void openInfo(VersionInfo versionInfo, boolean isStartUp, Stage stage) {
+    private void openInfo(VersionInfo versionInfo, Stage stage, boolean showSettingsHint) {
         Version o = versionSupplier.get();
         Version n = versionInfo.version();
         ButtonType update = new ButtonType("自動更新");
@@ -742,7 +658,7 @@ public class CheckUpdate {
         }
 
         // 自動更新の説明
-        String autoUpdateInfo = isStartUp
+        String autoUpdateInfo = showSettingsHint
             ? """
                 自動更新を利用すると、次回起動時に自動的に更新されます。
                 ※自動アップデートチェックは[その他]-[設定]から無効に出来ます
@@ -795,8 +711,7 @@ public class CheckUpdate {
 
     /**
      * 自動更新を実行
-     * Jettyの非同期処理を直接使用し、完了時にJavaFXスレッドでUIを更新
-     * 
+     *
      * @param newVersion 新しいバージョン
      * @param versionInfo バージョン情報（アセット情報を含む）
      * @param stage 親ウィンドウ
@@ -846,76 +761,59 @@ public class CheckUpdate {
         // 進捗バーとステータスラベルの参照を取得（lookupのタイミング問題を回避）
         ProgressBar progressBar = (ProgressBar) progressDialog.getDialogPane().lookup("#progressBar");
         Label statusLabel = (Label) progressDialog.getDialogPane().lookup("#statusLabel");
+        ProgressCallback progressCallback = createProgressCallback(progressBar, statusLabel);
 
-        // ダウンロード（リトライ機能付き、非同期処理）
-        CompletableFuture<Path> downloadFuture = downloadWithProgressAndRetry(
-                versionInfo.downloadUrl(), zipFile, versionInfo.fileSize(),
-                createProgressCallback(progressBar, statusLabel));
+        ThreadManager.getExecutorService().execute(() -> {
+            try {
+                downloadWithProgressAndRetry(
+                        versionInfo.downloadUrl(), zipFile, versionInfo.fileSize(), progressCallback);
 
-        downloadFuture
-                .thenCompose((Path downloadedPath) -> {
-                    // 解凍（非同期で実行）
-                    Platform.runLater(() -> {
-                        if (progressBar != null) {
-                            progressBar.setProgress(0.8);
-                        }
-                        if (statusLabel != null) {
-                            statusLabel.setText("解凍中...");
-                        }
-                    });
-                    Path tempDir = updateDir.resolve("temp");
-                    log.info("解凍中...");
-                    try {
-                        unzip(zipFile, tempDir);
-
-                        // ファイルを配置
-                        Platform.runLater(() -> {
-                            if (progressBar != null) {
-                                progressBar.setProgress(0.9);
-                            }
-                            if (statusLabel != null) {
-                                statusLabel.setText("ファイルを配置中...");
-                            }
-                        });
-                        Path extractedLogbook = findLogbookDirectory(tempDir);
-                        Path targetLogbook = updateDir.resolve("logbook");
-
-                        if (Files.exists(targetLogbook)) {
-                            deleteDirectory(targetLogbook);
-                        }
-                        Files.move(extractedLogbook, targetLogbook);
-                        log.info("新バージョンを配置: {}", targetLogbook);
-
-                        // 一時ファイルを削除
-                        deleteDirectory(tempDir);
-                        Files.delete(zipFile);
-
-                        // 更新情報を保存
-                        saveUpdateInfo(updateDir.resolve("update.json"), newVersion);
-
-                        log.info("更新準備完了");
-
-                        // 完了時にダイアログを閉じて、確認ダイアログを表示
-                        Platform.runLater(() -> {
-                            progressDialog.close();
-                            showUpdateReadyDialog(newVersion, rootDir, stage);
-                        });
-
-                        return CompletableFuture.<Void> completedFuture(null);
-                    } catch (IOException e) {
-                        return CompletableFuture.<Void> failedFuture(e);
+                Platform.runLater(() -> {
+                    if (progressBar != null) {
+                        progressBar.setProgress(0.8);
                     }
-                })
-                .exceptionally((Throwable throwable) -> {
-                    Exception e = throwable instanceof Exception ? (Exception) throwable
-                            : new Exception("自動更新の準備に失敗しました", throwable);
-                    log.warn("自動更新の準備に失敗しました", e);
-                    Platform.runLater(() -> {
-                        progressDialog.close();
-                        showUpdateErrorDialog(e, stage);
-                    });
-                    return null;
+                    if (statusLabel != null) {
+                        statusLabel.setText("解凍中...");
+                    }
                 });
+                Path tempDir = updateDir.resolve("temp");
+                log.info("解凍中...");
+                unzip(zipFile, tempDir);
+
+                Platform.runLater(() -> {
+                    if (progressBar != null) {
+                        progressBar.setProgress(0.9);
+                    }
+                    if (statusLabel != null) {
+                        statusLabel.setText("ファイルを配置中...");
+                    }
+                });
+                Path extractedLogbook = findLogbookDirectory(tempDir);
+                Path targetLogbook = updateDir.resolve("logbook");
+
+                if (Files.exists(targetLogbook)) {
+                    deleteDirectory(targetLogbook);
+                }
+                Files.move(extractedLogbook, targetLogbook);
+                log.info("新バージョンを配置: {}", targetLogbook);
+
+                deleteDirectory(tempDir);
+                Files.delete(zipFile);
+                saveUpdateInfo(updateDir.resolve("update.json"), newVersion);
+
+                log.info("更新準備完了");
+                Platform.runLater(() -> {
+                    progressDialog.close();
+                    showUpdateReadyDialog(newVersion, rootDir, stage);
+                });
+            } catch (Exception e) {
+                log.warn("自動更新の準備に失敗しました", e);
+                Platform.runLater(() -> {
+                    progressDialog.close();
+                    showUpdateErrorDialog(e, stage);
+                });
+            }
+        });
     }
 
     /**
@@ -945,198 +843,106 @@ public class CheckUpdate {
     }
 
     /**
-     * 進捗表示付きダウンロード（リトライ機能付き、非同期処理）
-     * 
+     * 進捗表示付きダウンロード（リトライ機能付き）
+     *
      * @param url ダウンロードURL
      * @param destination 保存先
      * @param expectedSize 期待されるファイルサイズ
      * @param progressCallback 進捗更新コールバック
-     * @return CompletableFuture<Path> ダウンロード完了時の保存先パス
+     * @return ダウンロード完了時の保存先パス
      */
-    private CompletableFuture<Path> downloadWithProgressAndRetry(String url, Path destination,
+    private Path downloadWithProgressAndRetry(String url, Path destination,
             long expectedSize,
-            ProgressCallback progressCallback) {
-        return downloadWithProgressAndRetryInternal(url, destination, expectedSize, progressCallback, 1, 3);
-    }
-
-    /**
-     * 進捗表示付きダウンロード（リトライ機能付き、内部実装）
-     * 再帰的にリトライを実装
-     */
-    private CompletableFuture<Path> downloadWithProgressAndRetryInternal(String url, Path destination,
-            long expectedSize,
-            ProgressCallback progressCallback,
-            int attempt, int maxRetries) {
-        // 最大試行回数を超えている場合は即座に失敗を返す
-        if (attempt > maxRetries) {
-            return CompletableFuture.<Path> failedFuture(
-                    new IOException("ダウンロードに失敗しました（最大試行回数: " + maxRetries + "）"));
-        }
-
-        log.info("ダウンロード試行 {} / {}", attempt, maxRetries);
-
-        // リトライ前の処理（2回目以降）
-        CompletableFuture<Void> preRetryFuture;
-        if (attempt > 1) {
-            // リトライ前に少し待機してから再試行（非同期で待機）
-            // 既存ファイルの削除は不要（downloadWithProgressAsyncでoverwrite=trueを指定しているため、
-            // PathResponseListenerのコンストラクタで自動的に上書きされる）
-            preRetryFuture = CompletableFuture
-                    .<Void> supplyAsync(() -> {
-                        try {
-                            Thread.sleep(1000);
-                            return null;
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            throw new RuntimeException(e);
-                        }
-                    }, ThreadManager.getExecutorService());
-        } else {
-            // 初回は待機不要（即座に完了するCompletableFuture）
-            preRetryFuture = CompletableFuture.completedFuture(null);
-        }
-
-        // ダウンロードを非同期で実行（リトライ前の待機後に実行）
-        return preRetryFuture
-                .thenCompose((Void v) -> downloadWithProgressAsync(url, destination, expectedSize, progressCallback))
-                .thenCompose((Path path) -> {
-                    try {
-                        // ファイルサイズをチェック
-                        long actualSize = Files.size(path);
-                        if (actualSize == expectedSize) {
-                            log.info("ダウンロード完了: {} bytes (サイズ検証OK)", actualSize);
-                            return CompletableFuture.<Path> completedFuture(path);
-                        } else {
-                            log.warn("ファイルサイズ不一致: 期待値={}, 実際={}", expectedSize, actualSize);
-                            // 再帰呼び出しでリトライ（待機処理は再帰呼び出し先の先頭で実施される）
-                            return downloadWithProgressAndRetryInternal(
-                                    url, destination, expectedSize, progressCallback, attempt + 1, maxRetries);
-                        }
-                    } catch (IOException e) {
-                        return CompletableFuture.<Path> failedFuture(e);
-                    }
-                })
-                .exceptionallyCompose((Throwable throwable) -> {
-                    log.warn("ダウンロード失敗（試行 {} / {}）: {}", attempt, maxRetries, throwable.getMessage());
-                    // 再帰呼び出しでリトライ（待機処理は再帰呼び出し先の先頭で実施される）
-                    return downloadWithProgressAndRetryInternal(
-                            url, destination, expectedSize, progressCallback, attempt + 1, maxRetries);
-                });
-    }
-
-    /**
-     * 進捗表示付きダウンロード（1回の試行、非同期処理）
-     * PathResponseListenerを使用してファイルへの書き込みを自動化
-     * 進捗管理はPathResponseListenerを継承したクラスで実装
-     * 
-     * @param url ダウンロードURL
-     * @param destination 保存先
-     * @param expectedSize 期待されるファイルサイズ
-     * @param progressCallback 進捗更新コールバック
-     * @return CompletableFuture<Path> ダウンロード完了時の保存先パス
-     */
-    private CompletableFuture<Path> downloadWithProgressAsync(String url, Path destination,
-            long expectedSize,
-            ProgressCallback progressCallback) {
-        URI uri = URI.create(url);
-        HttpClient client = getHttpClient();
-        Request request = client.newRequest(uri)
-                .method(HttpMethod.GET);
-
-        // PathResponseListenerを継承して進捗管理を追加
-        // PathResponseListenerがファイルへの書き込みを自動的に処理するため、コードが簡潔になる
-        // PathResponseListenerのコンストラクタでFileChannel.open()が呼ばれ、
-        // HTTPリクエストを送信する前にファイルが作成されるため、その時点でIOExceptionが発生する可能性がある
-        // （例：ディスクフル、権限不足、ファイルがロックされているなど）
-        ProgressTrackingPathResponseListener listener;
-        try {
-            listener = new ProgressTrackingPathResponseListener(
-                    destination, true, expectedSize, progressCallback);
-        } catch (IOException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-
-        // リクエストを非同期で送信
-        request.send(listener);
-
-        // CompletableFutureを返す（非同期で完了を待機）
-        return listener
-                .thenApply((PathResponseListener.PathResponse pathResponse) -> {
-                    // ログ出力（ファイルサイズ取得に失敗しても処理は続行）
-                    try {
-                        final long mbDivisor = 1024 * 1024;
-                        long downloadedSize = Files.size(pathResponse.path());
-                        log.info("ダウンロード完了: {} MB", downloadedSize / mbDivisor);
-                    } catch (IOException e) {
-                        log.debug("ファイルサイズの取得に失敗しました（ログ出力のみ）", e);
-                    }
-                    return pathResponse.path();
-                })
-                .exceptionallyCompose((Throwable throwable) -> {
-                    Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
-                    if (cause instanceof IOException) {
-                        return CompletableFuture.<Path> failedFuture(cause);
-                    }
-                    return CompletableFuture.<Path> failedFuture(
-                            new IOException("ダウンロードに失敗しました", cause));
-                });
-    }
-
-    /**
-     * PathResponseListenerを継承して進捗管理を追加
-     * PathResponseListenerがファイルへの書き込みを自動的に処理するため、コードが簡潔になる
-     */
-    private class ProgressTrackingPathResponseListener extends PathResponseListener {
-        private final long expectedSize;
-        private final ProgressCallback progressCallback;
-        private long downloaded = 0;
-        private long lastUpdateTime = 0;
-        private static final long UPDATE_INTERVAL_MS = 100; // 進捗更新の間隔（100ミリ秒）
-
-        public ProgressTrackingPathResponseListener(Path path, boolean overwrite,
-                long expectedSize, ProgressCallback progressCallback)
-                throws IOException {
-            super(path, overwrite);
-            this.expectedSize = expectedSize > 0 ? expectedSize : 0;
-            this.progressCallback = progressCallback;
-        }
-
-        @Override
-        public void onHeaders(Response response) {
-            super.onHeaders(response);
-
-            // Content-Lengthヘッダーからファイルサイズを取得（expectedSizeが0の場合）
-            if (expectedSize == 0 && progressCallback != null) {
-                long contentLength = response.getHeaders().getLongField("content-length");
-                if (contentLength > 0) {
-                    // ファイルサイズが確定した時点で進捗を更新
-                    progressCallback.update(0, contentLength);
+            ProgressCallback progressCallback) throws IOException, InterruptedException {
+        IOException lastError = null;
+        for (int attempt = 1; attempt <= DOWNLOAD_MAX_RETRIES; attempt++) {
+            if (attempt > 1) {
+                Thread.sleep(1000);
+            }
+            log.info("ダウンロード試行 {} / {}", attempt, DOWNLOAD_MAX_RETRIES);
+            try {
+                Path path = downloadWithProgress(url, destination, expectedSize, progressCallback);
+                long actualSize = Files.size(path);
+                if (actualSize == expectedSize) {
+                    log.info("ダウンロード完了: {} bytes (サイズ検証OK)", actualSize);
+                    return path;
                 }
+                log.warn("ファイルサイズ不一致: 期待値={}, 実際={}", expectedSize, actualSize);
+                lastError = new IOException("ファイルサイズ不一致: 期待値=" + expectedSize + ", 実際=" + actualSize);
+            } catch (IOException e) {
+                lastError = e;
+                log.warn("ダウンロード失敗（試行 {} / {}）: {}", attempt, DOWNLOAD_MAX_RETRIES, e.getMessage());
             }
         }
+        throw lastError != null
+                ? lastError
+                : new IOException("ダウンロードに失敗しました（最大試行回数: " + DOWNLOAD_MAX_RETRIES + "）");
+    }
 
-        @Override
-        public void onContent(Response response, ByteBuffer content) {
-            // super.onContent()を呼ぶ前に、バッファのサイズを取得
-            // super.onContent()が呼ばれた後は、バッファが消費されている可能性がある
-            int chunkSize = content.remaining();
-            
-            super.onContent(response, content);
+    /**
+     * 進捗表示付きダウンロード（1回の試行）
+     *
+     * @param url ダウンロードURL
+     * @param destination 保存先
+     * @param expectedSize 期待されるファイルサイズ
+     * @param progressCallback 進捗更新コールバック
+     * @return ダウンロード完了時の保存先パス
+     */
+    private Path downloadWithProgress(String url, Path destination,
+            long expectedSize,
+            ProgressCallback progressCallback) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .timeout(DOWNLOAD_TIMEOUT)
+                .header("User-Agent", USER_AGENT)
+                .GET()
+                .build();
+        HttpResponse<InputStream> response = HTTP.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        if (response.statusCode() != HttpURLConnection.HTTP_OK) {
+            throw new IOException("HTTP " + response.statusCode() + ": " + url);
+        }
 
-            // 進捗を更新（更新頻度を制限してUIスレッドへの負荷を軽減）
-            if (progressCallback != null && chunkSize > 0) {
-                downloaded += chunkSize;
-                long fileSize = expectedSize > 0 ? expectedSize : response.getHeaders().getLongField("content-length");
-                if (fileSize > 0) {
-                    // 一定間隔（100ms）ごとに進捗を更新
+        long fileSize = expectedSize > 0
+                ? expectedSize
+                : response.headers().firstValueAsLong("Content-Length").orElse(0L);
+        if (progressCallback != null && fileSize > 0) {
+            progressCallback.update(0, fileSize);
+        }
+
+        Path parent = destination.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+
+        long downloaded = 0;
+        long lastUpdateTime = 0;
+        try (InputStream in = response.body();
+                OutputStream out = Files.newOutputStream(destination)) {
+            byte[] buf = new byte[BUFFER_SIZE];
+            int n;
+            while ((n = in.read(buf)) >= 0) {
+                out.write(buf, 0, n);
+                downloaded += n;
+                if (progressCallback != null && fileSize > 0 && n > 0) {
                     long currentTime = System.currentTimeMillis();
-                    if (currentTime - lastUpdateTime >= UPDATE_INTERVAL_MS || downloaded >= fileSize) {
+                    if (currentTime - lastUpdateTime >= PROGRESS_UPDATE_INTERVAL_MS || downloaded >= fileSize) {
                         progressCallback.update(downloaded, fileSize);
                         lastUpdateTime = currentTime;
                     }
                 }
             }
+        } catch (IOException e) {
+            Files.deleteIfExists(destination);
+            throw e;
         }
+
+        try {
+            final long mbDivisor = 1024 * 1024;
+            long downloadedSize = Files.size(destination);
+            log.info("ダウンロード完了: {} MB", downloadedSize / mbDivisor);
+        } catch (IOException e) {
+            log.debug("ファイルサイズの取得に失敗しました（ログ出力のみ）", e);
+        }
+        return destination;
     }
 
     /**
@@ -1350,27 +1156,22 @@ public class CheckUpdate {
 
     /**
      * プラットフォームに応じたアセットを検索します。
-     * 
-     * <p>プラットフォーム固有のアセットのみを検索します。
-     * 見つからない場合は空のOptionalを返します。</p>
-     * 
-     * @param assets アセットのJSONノード配列
+     *
+     * @param assets アセットのリスト
      * @param buildPlatform ビルドプラットフォーム（win, mac, mac-aarch64 など）
      * @return 見つかったアセットのOptional、見つからない場合は空のOptional
      */
-    Optional<JsonNode> findAssetForPlatform(JsonNode assets, String buildPlatform) {
-        if (assets == null || !assets.isArray() || assets.size() == 0) {
+    Optional<GitHubAsset> findAssetForPlatform(List<GitHubAsset> assets, String buildPlatform) {
+        if (assets == null || assets.isEmpty()) {
             return Optional.empty();
         }
-        
+
         List<String> prefixes = getAssetPrefixes(buildPlatform);
 
-        // Stream APIを使用してアセットを検索（優先順位順）
-        // プラットフォーム固有のアセットのみを検索し、見つからない場合は空のOptionalを返す
         return prefixes.stream()
-                .flatMap(prefix -> StreamSupport.stream(assets.spliterator(), false)
-                        .filter(assetNode -> {
-                            String name = assetNode.get("name").asText("");
+                .flatMap(prefix -> assets.stream()
+                        .filter(asset -> {
+                            String name = asset.name() != null ? asset.name() : "";
                             return name.startsWith(prefix) && name.endsWith(".zip");
                         })
                         .findFirst()

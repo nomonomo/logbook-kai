@@ -19,7 +19,6 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import logbook.bean.AppConfig;
 import logbook.bean.WindowLocation;
-import logbook.internal.CheckUpdate;
 import logbook.internal.capture.ApiCaptureTitles;
 import logbook.plugin.PluginServices;
 import logbook.plugin.lifecycle.StartUp;
@@ -46,9 +45,6 @@ public class Main extends Application implements SystemSleepListener {
     
     @Override
     public void start(Stage stage) throws Exception {
-        // CheckUpdateのシングルトンインスタンスを取得し、HTTPクライアントを明示的に初期化
-        CheckUpdate.getInstance().initializeHttpClient();
-        
         String fxmlName = "main";
         if (AppConfig.get().getWindowStyle() != null) {
             fxmlName = AppConfig.get().getWindowStyle();
@@ -135,13 +131,6 @@ public class Main extends Application implements SystemSleepListener {
         controller.startPeriodicUpdates();
     }
     
-    @Override
-    public void stop() throws Exception {
-        // JavaFXアプリケーション終了時にHTTPクライアントを明示的に停止
-        // Platform.exit()が呼ばれると、このメソッドが自動的に呼ばれる
-        CheckUpdate.getInstance().shutdown();
-    }
-
     /**
      * JavaFx アプリケーションの起動を行う
      *
