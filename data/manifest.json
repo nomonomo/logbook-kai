@@ -1,14 +1,14 @@
 {
-  "version" : 3,
+  "version" : 4,
   "files" : {
     "map/mapping.json" : {
       "sha256" : "0122c4663824b6043a6841249f1d9df6a0ee2dbc4846042ad921a40cb28c3cd9"
     },
     "seaarea/seaarea.json" : {
-      "sha256" : "f91171f9f0edd4090c96a1b3d443a3c80a8493c82cf80466f0f5423deb41f133"
+      "sha256" : "c83010c804c905e0babb577ad592e2b4692943084a1ed3fab60aa9b4bc77ee42"
     },
     "quest/quests.json" : {
-      "sha256" : "bfa9955ec8f05d7316cfaa139c93122dd6307828015c3b808cd76ff29911a213"
+      "sha256" : "0f05032766cd0912a8807f475f89399bbdf824d47a79fc5164ddf06f112f445c"
     }
   },
   "formatVersion" : 1
