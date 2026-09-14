@@ -14,6 +14,7 @@ import logbook.bean.BattleTypes.CombinedType;
 import logbook.bean.CombinedBattleEcNightToDay;
 import logbook.bean.Ship;
 import logbook.bean.ShipCollection;
+import logbook.internal.DestructionBattleSupport;
 import logbook.internal.PhaseState;
 import logbook.proxy.RequestMetaData;
 import logbook.proxy.ResponseMetaData;
@@ -35,6 +36,7 @@ public class ApiReqCombinedBattleEcNightToDay implements APIListenerSpi {
             if (log != null) {
                 condition.setBattleCount(condition.getBattleCount() + 1);
                 log.setBattleCount(condition.getBattleCount());
+                DestructionBattleSupport.confirmPending();
                 log.setRoute(condition.getRoute());
 
                 log.setBattle(CombinedBattleEcNightToDay.toBattle(data));

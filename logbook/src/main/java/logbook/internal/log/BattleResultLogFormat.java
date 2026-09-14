@@ -75,6 +75,7 @@ public class BattleResultLogFormat extends LogFormatBase<BattleLog> {
                 .add("ドロップアイテム")
                 .add("艦娘経験値")
                 .add("提督経験値")
+                .add("ギミック")
                 .toString();
     }
 
@@ -240,6 +241,8 @@ public class BattleResultLogFormat extends LogFormatBase<BattleLog> {
                                 .sum())
                         .orElse(0));
         format.提督経験値 = String.valueOf(result.getGetExp());
+        // ギミック
+        format.ギミック = result.achievementGimmick1() ? "ルート追加等" : "";
         return format.toString();
     }
 
@@ -265,6 +268,7 @@ public class BattleResultLogFormat extends LogFormatBase<BattleLog> {
         String ドロップアイテム = "";
         String 艦娘経験値 = "";
         String 提督経験値 = "";
+        String ギミック = "";
 
         public Format() {
             Arrays.fill(this.味方艦, "");
@@ -301,6 +305,7 @@ public class BattleResultLogFormat extends LogFormatBase<BattleLog> {
             joiner.add(wrap(this.ドロップアイテム));
             joiner.add(this.艦娘経験値);
             joiner.add(this.提督経験値);
+            joiner.add(wrap(this.ギミック));
             return joiner.toString();
         }
     }

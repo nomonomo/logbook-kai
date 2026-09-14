@@ -84,6 +84,7 @@ public class Mission implements Serializable {
     public static Mission toMission(JsonObject json) {
         Mission bean = new Mission();
         JsonHelper.bind(json)
+                .at("api_data.api_mst_mission[]")
                 .setInteger("api_damage_type", bean::setDamageType)
                 .setInteger("api_deck_num", bean::setDeckNum)
                 .setString("api_details", bean::setDetails)
@@ -100,7 +101,8 @@ public class Mission implements Serializable {
                 .setInteger("api_time", bean::setTime)
                 .setIntegerList("api_win_item1", bean::setWinItem1)
                 .setIntegerList("api_win_item2", bean::setWinItem2)
-                .setIntegerList("api_win_mat_level", bean::setWinMatLevel);
+                .setIntegerList("api_win_mat_level", bean::setWinMatLevel)
+                .reportUnknown();
         return bean;
     }
 }

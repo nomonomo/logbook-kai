@@ -16,6 +16,6 @@ public class CheckUpdateStartUp implements StartUp {
             return;
         }
 
-        CheckUpdate.getInstance().run(true, Main.getPrimaryStage());
+        new CheckUpdate().runOnStartup(Main.getPrimaryStage());
     }
 }

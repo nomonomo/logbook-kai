@@ -13,6 +13,7 @@ import logbook.bean.BattleLog;
 import logbook.bean.CombinedBattleEachBattle;
 import logbook.bean.Ship;
 import logbook.bean.ShipCollection;
+import logbook.internal.DestructionBattleSupport;
 import logbook.internal.PhaseState;
 import logbook.proxy.RequestMetaData;
 import logbook.proxy.ResponseMetaData;
@@ -36,6 +37,7 @@ public class ApiReqCombinedBattleEachBattle implements APIListenerSpi {
             if (log != null) {
                 condition.setBattleCount(condition.getBattleCount() + 1);
                 log.setBattleCount(condition.getBattleCount());
+                DestructionBattleSupport.confirmPending();
                 log.setRoute(condition.getRoute());
 
                 log.setBattle(CombinedBattleEachBattle.toBattle(data));

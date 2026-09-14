@@ -54,6 +54,9 @@ public class Ship implements Chara, Serializable {
     /** 機数 */
     private List<Integer> onslot;
 
+    /** 格納庫増設後の各スロット最大搭載機数 */
+    private List<Integer> onslotMax;
+
     /** 補強増設 */
     private Integer slotEx;
 
@@ -191,6 +194,7 @@ public class Ship implements Chara, Serializable {
     public static Ship toShip(JsonObject json) {
         Ship bean = new Ship();
         JsonHelper.bind(json)
+                .at("api_data.api_ship[]")
                 .setInteger("api_id", bean::setId)
                 .setInteger("api_sortno", bean::setSortno)
                 .setInteger("api_ship_id", bean::setShipId)
@@ -202,6 +206,7 @@ public class Ship implements Chara, Serializable {
                 .setInteger("api_leng", bean::setLeng)
                 .setIntegerList("api_slot", bean::setSlot)
                 .setIntegerList("api_onslot", bean::setOnslot)
+                .setIntegerList("api_onslot_max", bean::setOnslotMax)
                 .setInteger("api_slot_ex", bean::setSlotEx)
                 .setIntegerList("api_kyouka", bean::setKyouka)
                 .setInteger("api_backs", bean::setBacks)
@@ -223,7 +228,8 @@ public class Ship implements Chara, Serializable {
                 .setBoolean("api_locked", bean::setLocked)
                 .setBoolean("api_locked_equip", bean::setLockedEquip)
                 .set("api_sp_effect_items", bean::setSpEffectItems, JsonHelper.toList(SpEffectItem::toSpEffectItem))
-                .setInteger("api_sally_area", bean::setSallyArea);
+                .setInteger("api_sally_area", bean::setSallyArea)
+                .reportUnknown();
         return bean;
     }
 
@@ -257,11 +263,13 @@ public class Ship implements Chara, Serializable {
         public static SpEffectItem toSpEffectItem(JsonObject json) {
             SpEffectItem bean = new SpEffectItem();
             JsonHelper.bind(json)
-            .setInteger("api_kind", bean::setKind)
-            .setInteger("api_houg", bean::setHoug)
-            .setInteger("api_raig", bean::setRaig)
-            .setInteger("api_souk", bean::setSouk)
-            .setInteger("api_kaih", bean::setKaih);
+                    .at("api_data.api_ship[].api_sp_effect_items[]")
+                    .setInteger("api_kind", bean::setKind)
+                    .setInteger("api_houg", bean::setHoug)
+                    .setInteger("api_raig", bean::setRaig)
+                    .setInteger("api_souk", bean::setSouk)
+                    .setInteger("api_kaih", bean::setKaih)
+                    .reportUnknown();
             return bean;
         }
     }

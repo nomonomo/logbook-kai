@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -202,6 +203,14 @@ public class BattleLogController extends WindowController {
     @FXML
     private TableColumn<BattleLogDetail, Integer> exp;
 
+    /** ギミック */
+    @FXML
+    private TableColumn<BattleLogDetail, String> gimmick;
+
+    /** 帰還時通知 */
+    @FXML
+    private TableColumn<BattleLogDetail, String> returnNotice;
+
     /** 種類 */
     @FXML
     private ChoiceBox<String> aggregateType;
@@ -277,7 +286,8 @@ public class BattleLogController extends WindowController {
             this.detail.setRowFactory(tv -> {
                 TableRow<BattleLogDetail> r = new TableRow<>();
                 r.setOnMouseClicked(e -> {
-                    if (e.getClickCount() == 2 && (!r.isEmpty())) {
+                    if (e.getClickCount() == 2 && !r.isEmpty()
+                            && "戦闘".equals(r.getItem().getEventType())) {
                         BattleLogDetail d = r.getItem();
                         BattleLog log = BattleLogs.read(d.getDate());
                         if (log != null) {
@@ -319,6 +329,8 @@ public class BattleLogController extends WindowController {
             this.dropItem.setCellValueFactory(new PropertyValueFactory<>("dropItem"));
             this.shipExp.setCellValueFactory(new PropertyValueFactory<>("shipExp"));
             this.exp.setCellValueFactory(new PropertyValueFactory<>("exp"));
+            this.gimmick.setCellValueFactory(new PropertyValueFactory<>("gimmick"));
+            this.returnNotice.setCellValueFactory(new PropertyValueFactory<>("returnNotice"));
 
             // 統計
             // ルート要素(非表示)
@@ -405,12 +417,17 @@ public class BattleLogController extends WindowController {
      */
     private void setCollect() {
         // 集計単位がキーのマップ
-        this.logMap = BattleLogs.readSimpleLog();
+        Map<IUnit, List<SimpleBattleLog>> battleMap = BattleLogs.readSimpleLog();
+        Map<IUnit, List<SimpleBattleLog>> eventMap = BattleLogs.readSimpleEventLog();
+        this.logMap = new LinkedHashMap<>();
         for (IUnit unit : Unit.values()) {
+            this.logMap.put(unit, BattleLogs.mergeLogsForUnit(
+                    battleMap.getOrDefault(unit, List.of()),
+                    eventMap.getOrDefault(unit, List.of())));
             this.addTree(unit);
         }
         for (IUnit unit : this.userUnit) {
-            this.logMap.put(unit, BattleLogs.readSimpleLog(unit));
+            this.logMap.put(unit, BattleLogs.readSimpleLogsForUnit(unit));
             this.addTree(unit);
         }
     }
@@ -459,6 +476,7 @@ public class BattleLogController extends WindowController {
         // 海域の名前
         List<Triplet<String, String, Integer>> areaNames = list.stream()
                 .map(log -> Tuple.of(log.getArea(), log.getAreaShortName()))
+                .filter(tuple -> tuple.getKey() != null && !tuple.getKey().isEmpty())
                 .distinct()
                 .map(tuple -> Tuple.of(tuple.getKey(), tuple.getValue(), getSortOrder(tuple.getValue())))
                 .sorted(Comparator.comparing(Triplet::get3))
@@ -538,7 +556,7 @@ public class BattleLogController extends WindowController {
         Optional.ofNullable(AppViewConfig.get().getBattleLogConfig()).ifPresent(config -> {
             Optional.ofNullable(config.getCustomUnits()).ifPresent(units -> units.stream().forEach(u -> {
                 BattleLogs.CustomUnit unit = new BattleLogs.CustomUnit(LocalDate.ofEpochDay(u.getFrom()), LocalDate.ofEpochDay(u.getTo()));
-                this.logMap.put(unit, BattleLogs.readSimpleLog(unit));
+                this.logMap.put(unit, BattleLogs.readSimpleLogsForUnit(unit));
                 this.addTree(unit);
                 this.userUnit.add(unit);
             }));
@@ -561,7 +579,7 @@ public class BattleLogController extends WindowController {
         alert.showAndWait().filter(ButtonType.APPLY::equals).ifPresent(b -> {
             BattleLogs.CustomUnit unit = dialog.getUnit();
             if (unit != null) {
-                this.logMap.put(unit, BattleLogs.readSimpleLog(unit));
+                this.logMap.put(unit, BattleLogs.readSimpleLogsForUnit(unit));
                 this.addTree(unit);
                 this.userUnit.add(unit);
                 saveConfig();
@@ -653,7 +671,9 @@ public class BattleLogController extends WindowController {
         try {
             InternalFXMLLoader.showWindow("logbook/gui/battlelog_script.fxml", this.getWindow(),
                     "高度な集計", c -> {
-                        ((BattleLogScriptController) c).setData(this.filteredDetails);
+                        ((BattleLogScriptController) c).setData(this.filteredDetails.stream()
+                                .filter(detail -> "戦闘".equals(detail.getEventType()))
+                                .collect(Collectors.toList()));
                     }, null);
         } catch (Exception e) {
             LoggerHolder.get().error("FXMLの初期化に失敗しました", e);
@@ -681,8 +701,8 @@ public class BattleLogController extends WindowController {
             // ボスフィルタ
             Predicate<BattleLogDetail> bossFilter = boss ? e -> e.getBoss().indexOf("ボス") != -1 : anyFilter;
 
-            List<BattleLogDetail> values = this.logMap.get(collect.getCollectUnit())
-                    .stream()
+            IUnit unit = collect.getCollectUnit();
+            List<BattleLogDetail> values = this.logMap.getOrDefault(unit, List.of()).stream()
                     .map(BattleLogDetail::toBattleLogDetail)
                     .filter(areaFilter)
                     .filter(bossFilter)
@@ -730,6 +750,9 @@ public class BattleLogController extends WindowController {
         filterBase.add(this.addFilterColumn(this.detail, this.dropItem, listener, BattleLogDetail::getDropItem));
         filterBase.add(this.addFilterColumn(this.detail, this.shipExp, listener, BattleLogDetail::getShipExp));
         filterBase.add(this.addFilterColumn(this.detail, this.exp, listener, BattleLogDetail::getExp));
+        filterBase.add(this.addFilterColumn(this.detail, this.gimmick, listener, BattleLogDetail::getGimmick));
+        filterBase.add(this.addFilterColumn(
+                this.detail, this.returnNotice, listener, BattleLogDetail::getReturnNotice));
     }
 
     /**
@@ -815,6 +838,7 @@ public class BattleLogController extends WindowController {
         if (name != null) {
             Function<BattleLogDetail, ?> getter = this.aggregateTypeMap.get(name);
             Map<String, Long> result = this.filteredDetails.stream()
+                    .filter(detail -> "戦闘".equals(detail.getEventType()))
                     .map(getter)
                     .map(String::valueOf)
                     .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));

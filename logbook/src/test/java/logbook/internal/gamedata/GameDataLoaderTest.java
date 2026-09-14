@@ -62,9 +62,9 @@ class GameDataLoaderTest {
     }
 
     @Test
-    void preferLocalWhenLocalVersionIsNewerOrEqual() {
+    void preferLocalWhenLocalVersionIsNewer() {
         assertTrue(GameDataLoader.preferLocal(2L, 1L));
-        assertTrue(GameDataLoader.preferLocal(1L, 1L));
+        assertFalse(GameDataLoader.preferLocal(1L, 1L));
         assertFalse(GameDataLoader.preferLocal(1L, 2L));
         assertFalse(GameDataLoader.preferLocal(0L, 1L));
         assertTrue(GameDataLoader.preferLocal(1L, 0L));

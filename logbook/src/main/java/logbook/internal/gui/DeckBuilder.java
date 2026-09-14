@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import tools.jackson.core.JacksonException;
 import logbook.internal.JsonMappers;
-
+import logbook.internal.Ships;
 import javafx.scene.control.TableView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -22,6 +22,7 @@ import logbook.bean.Basic;
 import logbook.bean.DeckPortCollection;
 import logbook.bean.Ship;
 import logbook.bean.ShipCollection;
+import logbook.bean.ShipMst;
 import logbook.bean.SlotItem;
 import logbook.bean.SlotItemCollection;
 import logbook.bean.Mapinfo.AirBase;
@@ -140,17 +141,25 @@ public class DeckBuilder {
         private final int id;
         private final Integer rf;
         private final Integer mas;
-        
+        /** 搭載機数（格納庫増設後の値。未指定時は出力しない） */
+        private Integer ac;
+
         Item(SlotItem item) {
+            this(item, null);
+        }
+
+        Item(SlotItem item, Integer ac) {
             this.id = item.getSlotitemId();
             this.rf = item.getLevel();
             this.mas = item.getAlv();
+            this.ac = ac;
         }
-        
+
         Item(AirBaseItem item) {
             this.id = item.getId();
             this.rf = item.getLevel();
             this.mas = item.getAlv();
+            this.ac = null;
         }
     }
 
@@ -167,13 +176,23 @@ public class DeckBuilder {
             this.luck = ship.getLucky().get(0);
             this.items = new TreeMap<>();
             Map<Integer, SlotItem> slotitemMap = SlotItemCollection.get().getSlotitemMap();
+            // 格納庫増設でマスタより大きいスロットだけ ac を出す
+            List<Integer> onslotMax = ship.getOnslotMax();
+            List<Integer> maxeq = onslotMax != null
+                    ? Ships.shipMst(ship).map(ShipMst::getMaxeq).orElse(List.of())
+                    : List.of();
             Optional.ofNullable(ship.getSlot())
                 .ifPresent(slot -> {
                     for (int i = 0; i < slot.size(); i++) {
                         final int index = i+1;
+                        Integer slotMax = onslotMax != null && i < onslotMax.size()
+                                ? onslotMax.get(i) : null;
+                        Integer mstMax = i < maxeq.size() ? maxeq.get(i) : null;
+                        Integer ac = slotMax != null && mstMax != null && slotMax > mstMax
+                                ? slotMax : null;
                         Optional.ofNullable(slot.get(i))
                             .map(slotitemMap::get)
-                            .map(DeckBuilder.Item::new)
+                            .map(si -> new Item(si, ac))
                             .ifPresent(item -> this.items.put("i"+(index), item));
                     }
                 });

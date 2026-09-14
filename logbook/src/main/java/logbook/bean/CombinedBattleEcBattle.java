@@ -149,6 +149,7 @@ public class CombinedBattleEcBattle implements ICombinedEcBattle, ISortieHougeki
     public static CombinedBattleEcBattle toBattle(JsonObject json) {
         CombinedBattleEcBattle bean = new CombinedBattleEcBattle();
         JsonHelper.bind(json)
+                .at("api_data")
                 .set("api_air_base_injection", bean::setAirBaseInjection,
                         BattleTypes.AirBaseAttack::toAirBaseAttack)
                 .set("api_air_base_attack", bean::setAirBaseAttack,
@@ -190,7 +191,9 @@ public class CombinedBattleEcBattle implements ICombinedEcBattle, ISortieHougeki
                 .set("api_hougeki1", bean::setHougeki1, BattleTypes.Hougeki::toHougeki)
                 .set("api_hougeki2", bean::setHougeki2, BattleTypes.Hougeki::toHougeki)
                 .set("api_hougeki3", bean::setHougeki3, BattleTypes.Hougeki::toHougeki)
-                .set("api_raigeki", bean::setRaigeki, BattleTypes.Raigeki::toRaigeki);
+                .set("api_raigeki", bean::setRaigeki, BattleTypes.Raigeki::toRaigeki)
+                .ignore("api_flavor_info") // ボス台詞・ボイス演出
+                .reportUnknown();
         return bean;
     }
 }

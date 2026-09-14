@@ -19,8 +19,9 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import logbook.bean.AppConfig;
 import logbook.bean.WindowLocation;
-import logbook.internal.CheckUpdate;
 import logbook.internal.capture.ApiCaptureTitles;
+import logbook.plugin.PluginServices;
+import logbook.plugin.lifecycle.StartUp;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -44,9 +45,6 @@ public class Main extends Application implements SystemSleepListener {
     
     @Override
     public void start(Stage stage) throws Exception {
-        // CheckUpdateのシングルトンインスタンスを取得し、HTTPクライアントを明示的に初期化
-        CheckUpdate.getInstance().initializeHttpClient();
-        
         String fxmlName = "main";
         if (AppConfig.get().getWindowStyle() != null) {
             fxmlName = AppConfig.get().getWindowStyle();
@@ -58,11 +56,12 @@ public class Main extends Application implements SystemSleepListener {
         Parent root = InternalFXMLLoader.setGlobal(loader.load());
         stage.setScene(new Scene(root));
 
-        WindowController controller = loader.getController();
+        MainController controller = loader.getController();
         controller.initWindow(stage);
         setMainController(controller);
-        // アイコンの設定
+        // アイコンの設定（タスクバー/Dockは起動時に一度だけ）
         Tools.Windows.setIcon(stage);
+        Tools.Windows.setTaskbarIcon();
         // 最前面に表示する
         stage.setAlwaysOnTop(AppConfig.get().isOnTop());
 
@@ -117,17 +116,21 @@ public class Main extends Application implements SystemSleepListener {
                 updateLastValidLocationIfNeeded();
             }
         });
-        
+
+        // 初回描画前に中身を揃える（空ウィンドウの表示を避ける）
+        controller.buildInitialUi();
+
+        // ウィンドウを表示する
         stage.show();
+
+        // プラグイン処理を開始する
+        PluginServices.instances(StartUp.class)
+                .forEach(startup -> Platform.runLater(startup::run));
+
+        // 定期更新を開始する
+        controller.startPeriodicUpdates();
     }
     
-    @Override
-    public void stop() throws Exception {
-        // JavaFXアプリケーション終了時にHTTPクライアントを明示的に停止
-        // Platform.exit()が呼ばれると、このメソッドが自動的に呼ばれる
-        CheckUpdate.getInstance().shutdown();
-    }
-
     /**
      * JavaFx アプリケーションの起動を行う
      *

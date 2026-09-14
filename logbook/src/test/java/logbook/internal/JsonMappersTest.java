@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import tools.jackson.core.JacksonException;
+import tools.jackson.core.StreamReadFeature;
 import tools.jackson.databind.cfg.DateTimeFeature;
 
 /**
@@ -181,6 +182,16 @@ class JsonMappersTest {
                 JsonMappers.STRICT_CREATOR_READER_WITH_COMMENTS
                         .forType(NameValueBean.class)
                         .readValue(jsonMissingValue));
+    }
+
+    /**
+     * InputStream は呼び出し側で閉じる方針のため、AUTO_CLOSE_SOURCE は無効。
+     */
+    @Test
+    void mapperDoesNotAutoCloseSource() {
+        assertFalse(JsonMappers.MAPPER.isEnabled(StreamReadFeature.AUTO_CLOSE_SOURCE));
+        assertFalse(JsonMappers.LENIENT_READER.isEnabled(StreamReadFeature.AUTO_CLOSE_SOURCE));
+        assertFalse(JsonMappers.READER_WITH_COMMENTS.isEnabled(StreamReadFeature.AUTO_CLOSE_SOURCE));
     }
 
     /**

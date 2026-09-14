@@ -35,6 +35,12 @@ public class Enemy implements Chara, Serializable {
     /** 演習相手かどうか */
     private boolean practice;
 
+    /**
+     * 特殊効果アイテム種別（演習表示用）
+     * 1: 青リボン, 2: 白タスキ。なしは null
+     */
+    private Integer spEffectKind;
+
     @Override
     public boolean isEnemy() {
         return true;

@@ -7,16 +7,12 @@
     <parent>
         <groupId>logbook-kai</groupId>
         <artifactId>logbook-kai</artifactId>
-        <version>26.7.1</version>
+        <version>26.9.1</version>
     </parent>
 
     <artifactId>logbook-data</artifactId>
     <name>logbook-data</name>
     <description>data/ の quest 結合・JSON 検証・manifest sha / version 更新</description>
-
-    <properties>
-        <gamedata.dir>${project.basedir}/../data</gamedata.dir>
-    </properties>
 
     <dependencies>
         <dependency>

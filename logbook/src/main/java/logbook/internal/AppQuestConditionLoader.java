@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * 任務条件 JSON の読み込み。
- * {@code quest/quests.json}（マニフェスト版の新しい方。同版なら外部）から読み込みキャッシュする。
+ * {@code quest/quests.json}（マニフェスト版の新しい方。同版なら同梱）から読み込みキャッシュする。
  */
 @Slf4j
 public final class AppQuestConditionLoader {
@@ -77,6 +77,7 @@ public final class AppQuestConditionLoader {
 
     /**
      * 任務条件 JSON を AppQuestCondition にデシリアライズする。
+     * ストリームのクローズは呼び出し元の責務。
      */
     public static AppQuestCondition load(InputStream is) throws IOException {
         return JsonMappers.READER_WITH_COMMENTS

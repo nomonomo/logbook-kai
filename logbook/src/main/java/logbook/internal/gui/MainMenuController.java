@@ -272,7 +272,7 @@ public class MainMenuController extends WindowController {
     @FXML
     void missionCheck(ActionEvent e) {
         try {
-            InternalFXMLLoader.showWindow("logbook/gui/missioncheck.fxml", this.parentController.getWindow(), "遠征条件確認");
+            MissionCheck.open(this.parentController.getWindow());
         } catch (Exception ex) {
             log.error("遠征条件確認の初期化に失敗しました", ex);
         }
@@ -321,6 +321,20 @@ public class MainMenuController extends WindowController {
     }
 
     /**
+     * 制空権シミュレータ連携
+     *
+     * @param e ActionEvent
+     */
+    @FXML
+    void airSuperioritySimulator(ActionEvent e) {
+        try {
+            InternalFXMLLoader.showWindow("logbook/gui/air_superiority_simulator.fxml", this.parentController.getWindow(), "制空権シミュレータ連携");
+        } catch (Exception ex) {
+            log.error("制空権シミュレータ連携の初期化に失敗しました", ex);
+        }
+    }
+
+    /**
      * 自動プロキシ構成スクリプトファイル生成
      *
      * @param e ActionEvent
@@ -356,7 +370,7 @@ public class MainMenuController extends WindowController {
     @FXML
     void updateCheck(ActionEvent e) {
         try {
-            CheckUpdate.getInstance().run(this.parentController.getWindow());
+            new CheckUpdate().runFromMenu(this.parentController.getWindow());
         } catch (Exception ex) {
             log.error("更新情報の取得に失敗しました", ex);
         }

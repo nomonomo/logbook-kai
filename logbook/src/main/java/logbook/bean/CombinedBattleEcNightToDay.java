@@ -170,6 +170,7 @@ public class CombinedBattleEcNightToDay implements ICombinedBattle, ICombinedEcB
     public static CombinedBattleEcNightToDay toBattle(JsonObject json) {
         CombinedBattleEcNightToDay bean = new CombinedBattleEcNightToDay();
         JsonHelper.bind(json)
+                .at("api_data")
                 .setInteger("api_deck_id", bean::setDockId)
                 .setIntegerList("api_formation", bean::setFormation)
                 .setIntegerList("api_f_nowhps", bean::setFNowhps)
@@ -215,7 +216,8 @@ public class CombinedBattleEcNightToDay implements ICombinedBattle, ICombinedEcB
                 .set("api_hougeki1", bean::setHougeki1, BattleTypes.Hougeki::toHougeki)
                 .set("api_hougeki2", bean::setHougeki2, BattleTypes.Hougeki::toHougeki)
                 .set("api_hougeki3", bean::setHougeki3, BattleTypes.Hougeki::toHougeki)
-                .set("api_raigeki", bean::setRaigeki, BattleTypes.Raigeki::toRaigeki);
+                .set("api_raigeki", bean::setRaigeki, BattleTypes.Raigeki::toRaigeki)
+                .reportUnknown();
         return bean;
     }
 }

@@ -156,9 +156,12 @@ public class BattleResult implements Serializable {
         public static EnemyInfo toEnemyInfo(JsonObject json) {
             EnemyInfo bean = new EnemyInfo();
             JsonHelper.bind(json)
+                    .at("api_data.api_enemy_info")
                     .setString("api_level", bean::setLevel)
                     .setString("api_rank", bean::setRank)
-                    .setString("api_deck_name", bean::setDeckName);
+                    .setString("api_deck_name", bean::setDeckName)
+                    .ignore("api_user_name") // 演習のみ
+                    .reportUnknown();
             return bean;
         }
     }
@@ -192,10 +195,12 @@ public class BattleResult implements Serializable {
         public static GetShip toGetShip(JsonObject json) {
             GetShip bean = new GetShip();
             JsonHelper.bind(json)
+                    .at("api_data.api_get_ship")
                     .setInteger("api_ship_id", bean::setShipId)
                     .setString("api_ship_type", bean::setShipType)
                     .setString("api_ship_name", bean::setShipName)
-                    .setString("api_ship_getmes", bean::setShipGetmes);
+                    .setString("api_ship_getmes", bean::setShipGetmes)
+                    .reportUnknown();
             return bean;
         }
     }
@@ -217,6 +222,9 @@ public class BattleResult implements Serializable {
         /** api_value */
         private Integer value;
 
+        /** api_slot_level */
+        private Integer slotLevel;
+
         /**
          * JsonObjectから{@link GetEventitem}を構築します
          *
@@ -226,9 +234,12 @@ public class BattleResult implements Serializable {
         public static GetEventitem toGetEventitem(JsonObject json) {
             GetEventitem bean = new GetEventitem();
             JsonHelper.bind(json)
+                    .at("api_data.api_get_eventitem[]")
                     .setInteger("api_type", bean::setType)
                     .setInteger("api_id", bean::setId)
-                    .setInteger("api_value", bean::setValue);
+                    .setInteger("api_value", bean::setValue)
+                    .setInteger("api_slot_level", bean::setSlotLevel)
+                    .reportUnknown();
             return bean;
         }
     }
@@ -256,8 +267,11 @@ public class BattleResult implements Serializable {
         public static Escape toEscape(JsonObject json) {
             Escape bean = new Escape();
             JsonHelper.bind(json)
+                    .at("api_data.api_escape")
                     .setIntegerList("api_escape_idx", bean::setEscapeIdx)
-                    .setIntegerList("api_tow_idx", bean::setTowIdx);
+                    .setIntegerList("api_tow_idx", bean::setTowIdx)
+                    .ignore("api_escape_type") // 単艦/護衛の区別。tow_idx 有無で足りる
+                    .reportUnknown();
             return bean;
         }
     }
@@ -288,9 +302,11 @@ public class BattleResult implements Serializable {
         public static LandingHp toLandingHp(JsonObject json) {
             LandingHp bean = new LandingHp();
             JsonHelper.bind(json)
+                    .at("api_data.api_landing_hp")
                     .setInteger("api_now_hp", bean::setNowHp)
                     .setInteger("api_max_hp", bean::setMaxHp)
-                    .setInteger("api_sub_value", bean::setSubValue);
+                    .setInteger("api_sub_value", bean::setSubValue)
+                    .reportUnknown();
             return bean;
         }
     }
@@ -318,8 +334,10 @@ public class BattleResult implements Serializable {
         public static Useitem toUseitem(JsonObject json) {
             Useitem bean = new Useitem();
             JsonHelper.bind(json)
+                    .at("api_data.api_get_useitem")
                     .setInteger("api_useitem_id", bean::setUseitemId)
-                    .setString("api_useitem_name", bean::setUseitemName);
+                    .setString("api_useitem_name", bean::setUseitemName)
+                    .reportUnknown();
             return bean;
         }
     }
@@ -333,6 +351,7 @@ public class BattleResult implements Serializable {
     public static BattleResult toBattleResult(JsonObject json) {
         BattleResult bean = new BattleResult();
         JsonHelper.bind(json)
+                .at("api_data")
                 .setString("api_win_rank", bean::setWinRank)
                 .setInteger("api_get_exp", bean::setGetExp)
                 .setInteger("api_mvp", bean::setMvp)
@@ -362,7 +381,14 @@ public class BattleResult implements Serializable {
                 .setBoolean("api_escape_flag", bean::setEscapeFlag)
                 .set("api_escape", bean::setEscape, Escape::toEscape)
                 .set("api_landing_hp", bean::setLandingHp, LandingHp::toLandingHp)
-                .setInteger("api_m1", bean::setM1);
+                .setInteger("api_m1", bean::setM1)
+                .ignore(
+                        "api_ship_id", // 敵艦マスタ ID 一覧（昼戦 api_ship_ke と同系）
+                        "api_next_map_ids", // マップ開放演出
+                        "api_select_reward_dict", // 選択報酬 UI
+                        "api_m_suffix", // クリア演出アセット
+                        "api_ope_suffix") // 作戦名演出
+                .reportUnknown();
         return bean;
     }
 }

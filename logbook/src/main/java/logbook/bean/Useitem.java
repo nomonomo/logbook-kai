@@ -27,8 +27,10 @@ public class Useitem implements Serializable {
     public static Useitem toUseitem(JsonObject json) {
         Useitem bean = new Useitem();
         JsonHelper.bind(json)
+                .at("api_data.api_useitem[]")
                 .setInteger("api_id", bean::setId)
-                .setInteger("api_count", bean::setCount);
+                .setInteger("api_count", bean::setCount)
+                .reportUnknown();
         return bean;
     }
 }

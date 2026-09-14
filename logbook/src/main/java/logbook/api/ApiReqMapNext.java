@@ -24,8 +24,10 @@ import logbook.bean.MapStartNext;
 import logbook.bean.Ship;
 import logbook.bean.ShipMst;
 import logbook.internal.Audios;
+import logbook.internal.BattleEventLogs;
 import logbook.internal.BouyomiChanUtils;
 import logbook.internal.BouyomiChanUtils.Type;
+import logbook.internal.DestructionBattleSupport;
 import logbook.internal.LoggerHolder;
 import logbook.internal.Ships;
 import logbook.internal.Tuple;
@@ -55,6 +57,8 @@ public class ApiReqMapNext implements APIListenerSpi {
             }
             log.setCombinedType(CombinedType.toCombinedType(condition.getCombinedType()));
             log.getNext().add(next);
+            DestructionBattleSupport.onMapNext(next);
+            BattleEventLogs.writeNextGimmicks(next);
             // ルート情報
             condition.getRoute().add(new StringJoiner("-")
                     .add(data.getJsonNumber("api_maparea_id").toString())

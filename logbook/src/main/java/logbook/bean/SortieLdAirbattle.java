@@ -94,6 +94,7 @@ public class SortieLdAirbattle
     public static SortieLdAirbattle toBattle(JsonObject json) {
         SortieLdAirbattle bean = new SortieLdAirbattle();
         JsonHelper.bind(json)
+                .at("api_data")
                 .set("api_air_base_injection", bean::setAirBaseInjection,
                         BattleTypes.AirBaseAttack::toAirBaseAttack)
                 .set("api_air_base_attack", bean::setAirBaseAttack,
@@ -117,7 +118,9 @@ public class SortieLdAirbattle
                 .setIntegerList("api_formation", bean::setFormation)
                 .setIntegerList("api_stage_flag", bean::setStageFlag)
                 .set("api_injection_kouku", bean::setInjectionKouku, BattleTypes.Kouku::toKouku)
-                .set("api_kouku", bean::setKouku, BattleTypes.Kouku::toKouku);
+                .set("api_kouku", bean::setKouku, BattleTypes.Kouku::toKouku)
+                .ignore("api_escape_idx") // 既退避艦。AppCondition.escape で保持
+                .reportUnknown();
         return bean;
     }
 }

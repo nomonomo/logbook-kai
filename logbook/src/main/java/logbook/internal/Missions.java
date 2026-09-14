@@ -58,14 +58,14 @@ public class Missions {
             mission = Missions.getMission(34);
         }
 
-        // readValue(InputStream) に渡したストリームは Jackson が閉じるため close 不要（StreamReadFeature.AUTO_CLOSE_SOURCE デフォルト true）
-        InputStream is = PluginServices
-                .getResourceAsStream("logbook/mission/" + mission.getMapareaId() + "/" + mission.getDispNo() + ".json");
-        if (is == null) {
-            return Optional.empty();
+        try (InputStream is = PluginServices
+                .getResourceAsStream("logbook/mission/" + mission.getMapareaId() + "/" + mission.getDispNo() + ".json")) {
+            if (is == null) {
+                return Optional.empty();
+            }
+            MissionCondition condition = MissionConditionLoader.load(is);
+            return Optional.ofNullable(condition);
         }
-        MissionCondition condition = MissionConditionLoader.load(is);
-        return Optional.ofNullable(condition);
     }
 
     /**

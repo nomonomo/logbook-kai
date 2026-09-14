@@ -49,6 +49,7 @@ public class Ndock implements Serializable {
     public static Ndock toNdock(JsonObject json) {
         Ndock bean = new Ndock();
         JsonHelper.bind(json)
+                .at("api_data.api_ndock[]")
                 .setInteger("api_id", bean::setId)
                 .setLong("api_complete_time", bean::setCompleteTime)
                 .setInteger("api_item1", bean::setItem1)
@@ -56,7 +57,11 @@ public class Ndock implements Serializable {
                 .setInteger("api_item3", bean::setItem3)
                 .setInteger("api_item4", bean::setItem4)
                 .setInteger("api_ship_id", bean::setShipId)
-                .setInteger("api_state", bean::setState);
+                .setInteger("api_state", bean::setState)
+                .ignore(
+                        "api_member_id", // 提督 ID
+                        "api_complete_time_str") // 完了時刻の表示用文字列
+                .reportUnknown();
         return bean;
     }
 }

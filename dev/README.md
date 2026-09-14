@@ -5,7 +5,9 @@
 | パス | 内容 |
 |------|------|
 | [jmx_exporter/jmx-exporter-config.yaml](jmx_exporter/jmx-exporter-config.yaml) | Prometheus JMX Exporter 設定 |
-| [logback/logback.xml](logback/logback.xml) | アクセスログ出力用 logback 設定サンプル |
+| [logback/logback.xml](logback/logback.xml) | アクセスログ・コンテンツリスナー・API スキーマ検知用 logback 設定サンプル |
+| [api-capture-rules.properties](api-capture-rules.properties) | API キャプチャ対象（`mvn -Pdev` で同梱。配布は空） |
+| [image-listener.properties](image-listener.properties) | ImageListener の img category（`mvn -Pdev` で同梱） |
 
 ---
 
@@ -19,7 +21,7 @@ logbook\bin\java -Dlogback.configurationFile=D:\path\to\logbook-kai\dev\logback\
 
 ログファイルは作業ディレクトリ（通常はアプリのインストールフォルダ）配下の `logs/` に出力されます。
 
-本サンプルは本番 `logback.xml` をベースに、**プロキシアクセスログ**（テキスト／JSON）の appender のみを追加した最小構成です。Jetty や個別パッケージ向けのロガー設定は含みません。プロキシ本体の DEBUG ログが必要な場合は、例えば `<logger name="logbook.internal.proxy" level="DEBUG" />` を追記してください。
+本サンプルは本番 `logback.xml` をベースに、**プロキシアクセスログ**・**コンテンツリスナー処理ログ**・**API スキーマ検知ログ**（テキスト／JSON）の appender を追加した構成です。Jetty や個別パッケージ向けのロガー設定は含みません。プロキシ本体の DEBUG ログが必要な場合は、例えば `<logger name="logbook.internal.proxy" level="DEBUG" />` を追記してください。
 
 ### LogstashEncoder（JSON 出力）について
 
@@ -239,10 +241,87 @@ JSON 形式は `ContentListenerLogJson` appender を参照してください（`
 
 ---
 
+## API スキーマ検知ログ
+
+API レスポンス JSON のうち、bean / ハンドラが把握していないキーを記録します。実装は `ApiSchemaLog` が専用ロガー `logbook.internal.api.ApiSchemaLog` へ DEBUG 出力します。
+
+一般向け（同梱 `logback.xml`）ではこのロガーに appender を付けないため出力されません。開発ホストでは `dev/logback/logback.xml` の JSON appender を使います。
+
+### 対応範囲
+
+| 区分 | 状態 | 内容 |
+|------|------|------|
+| リクエスト文脈 | 対応済み | `APIListener.createTask` が全ハンドラで `ApiSchemaLog.openRequest`（uri / requestId / handlerClass） |
+| `api_start2/getData` | 対応済み | `ApiStart2` の `api_data` KNOWN + 各マスタ bean の `at` / `ignore` / `reportUnknown` |
+| 母港・メンバー・日常系 | 対応済み（第1波） | 下記 bean / ハンドラ。`api_data` を選択読取する主要ハンドラは KNOWN 付き |
+| 戦闘系 | 対応済み（第2波） | `BattleTypes` ネスト・各 `IBattle` 具象・`BattleResult` に `at` / `reportUnknown` |
+
+**第1波の bean（`at` + `reportUnknown`）**: `Basic`, `Ship`, `SlotItem`, `Useitem`, `DeckPort`, `Material`, `Ndock`, `Kdock`, `MapStartNext`, `MissionResult`, `QuestList`, `Createitem`, `Mapinfo`, `MapTypes`（および既存の start2 マスタ bean）
+
+**第1波のハンドラ `api_data` KNOWN**: `ApiStart2`, `ApiPortPort`, `ApiGetMemberRequireInfo`, `ApiGetMemberShipDeck`, `ApiGetMemberShip3`, `ApiGetMemberMapinfo`
+
+**第2波の bean（`at` + `reportUnknown`）**: `BattleTypes`（Kouku / Stage* / Hougeki 等ネスト）、`SortieBattle` / `SortieAirbattle` / `SortieLdAirbattle` / `SortieLdShooting`、`BattleMidnightBattle` / `BattleMidnightSpMidnight`、連合系 `CombinedBattle*`、`BattleResult`（およびネスト）
+
+戦闘レスポンスは bean の `toBattle` / `toBattleResult` に集約されているため、ハンドラ側の `KNOWN` セットは原則不要。
+
+### 有効化
+
+`dev/logback/logback.xml` では次のロガーで制御します。
+
+```xml
+<logger name="logbook.internal.api.ApiSchemaLog" level="DEBUG" additivity="false">
+    <appender-ref ref="ApiSchemaLogJson" />
+</logger>
+```
+
+- `level="DEBUG"` … 有効
+- `level="OFF"` … 無効
+
+出力先は `logs/api-schema-json.log`（`ApiSchemaLogJson` appender）です。
+
+### 仕組み
+
+1. `APIListener.createTask` が `ApiSchemaLog.openRequest(uriPath, requestId, handlerClass)` でリクエスト文脈を MDC に載せる（ハンドラ側で個別に open しない）
+2. `JsonHelper.bind(json).at("…").set…(...).ignore(…).reportUnknown()` で、バインドも ignore もしなかったキーを報告する
+3. ハンドラ直下など bind しない箇所は `JsonHelper.reportUnknownKeys(json, jsonPath, knownKeys)` を使う
+4. 同一 `(uriPath, jsonPath, field)` はプロセス内で 1 回だけ報告する（重複抑制）
+
+**既知キーの意味**: 「処理するキー」だけでなく、「未対応でよいと確認済みのキー」も含める。bind では `set` が前者、`ignore` が後者。ハンドラの `api_data` では `HANDLED_API_DATA_KEYS` と `IGNORED_API_DATA_KEYS` の和を `KNOWN_API_DATA_KEYS` として渡し、**新規追加キーだけ**がログに出る。
+
+### MDC キー一覧
+
+| MDC キー | 内容 |
+|----------|------|
+| `event` | 固定値 `api_unknown_field` |
+| `uriPath` | リクエスト URI パス |
+| `jsonPath` | JSON 上の位置（例: `api_data`、`api_data.api_mst_ship[]`） |
+| `field` | 未知のキー名 |
+| `handlerClass` | ハンドラ FQCN（例: `logbook.api.ApiStart2`） |
+| `requestId` | リクエスト相関 ID（アクセスログ・キャプチャと同一） |
+
+メッセージは固定文字列 `"api unknown field"` です。フィールドはすべて MDC 経由（JSON appender の `<mdc>` プロバイダ）で出力します。
+
+### 他 API への追加手順（概要）
+
+1. リクエスト文脈は `APIListener` 側で付与済み。ハンドラで `openRequest` を重ねない
+2. bean の `JsonHelper.bind` に `.at("…")` と、使うキーは `.set…`、意図的未対応は `.ignore(…)`、末尾に `.reportUnknown()` を付ける
+3. ハンドラ直下のオブジェクトは `reportUnknownKeys` と `KNOWN`（対応済み ∪ 意図的未対応）を用意する
+4. キャプチャ突合でノイズになった既存キーは `ignore` / `IGNORED_API_DATA_KEYS` に移す（start2 と同じ手順）
+
+`api_max_slotplus` など実装が必要な未知キーは別途対応する。
+
 ## API レスポンス記録（開発者向け）
 
 kcsapi のレスポンス JSON を `{captureDir}/segments/{日付}.jsonl.zst` に JSONL + zstd で保存します。
-`ReverseConnectHandler.invoke()` 入口の `ApiCaptureHook` が対象 URI のボディ原文を 1 回記録します（既定: すべての `/kcsapi/`）。
+`ReverseConnectHandler.invoke()` 入口の `ApiCaptureHook` が対象 URI のボディ原文を 1 回記録します。
+対象 URI はプロパティ `logbook/capture/api-capture-rules.properties` で定義します。
+
+| ビルド | ルール |
+|--------|--------|
+| 配布（通常の `mvn package`） | **空**（記録を ON にしてもキャプチャされない） |
+| 開発（`mvn -Pdev package`） | [`dev/api-capture-rules.properties`](api-capture-rules.properties) を同梱（現行: `/kcsapi/`・`/kcs2/js/`・`/kcs2/version.json`・`/kcs2/resources/map/`） |
+
+`--dev` / `-Dlogbook.dev=true` ではルールは切り替わりません（ビルド成果物の同梱内容が正）。
 POST リクエストは `request` フィールドにボディ原文、レスポンスは `response` フィールドに解凍後原文として同梱します。
 **別途インデックスファイルは持たず**、各レコードの `requestId` でアクセスログと紐づけます。
 
@@ -270,15 +349,27 @@ POST リクエストは `request` フィールドにボディ原文、レスポ�
 3. 保存先を指定して OK
 4. 記録中はメインウィンドウタイトルに `[API記録中]` が付きます
 
-### 対象 URI の拡張（開発者向け）
+### 対象 URI の変更（開発者向け）
 
-既定は `/kcsapi/` のみ。別パスを追加する場合:
+ルールは Java ではなくプロパティで管理します。
 
-```java
-ApiCapturePolicy.register(ApiCaptureTargetRule.prefix("/custom-api/"));
+1. [`dev/api-capture-rules.properties`](api-capture-rules.properties) を編集
+2. `mvn -Pdev package` で再ビルド
+
+形式:
+
+```properties
+prefix.1=/kcsapi/
+prefix.2=/kcs2/js/
+prefix.3=/kcs2/version.json
+prefix.4=/kcs2/resources/map/
 ```
 
-ボディは原文のまま保存されます。分析時に必要なパースは `read_segments.py` 等で行います。
+プロセス内の一時追加のみ `ApiCapturePolicy.register(...)` を使えます（上書きではなく末尾追加）。
+
+ボディはテキストを UTF-8 原文、バイナリを Base64 で可逆保存します（スキーマ v3。詳細は document の `docs/api-capture/format.md`）。
+**304 Not Modified は記録しません**（ボディなし。アクセスログで確認）。
+分析時に必要なパースは `read_segments.py` 等で行います。map 資産のファイル復元は document の `tools/client-assets/extract_map_assets.py`。
 
 ### ログとの突合
 

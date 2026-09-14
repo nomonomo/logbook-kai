@@ -29,6 +29,9 @@ public class Friend implements Chara, Serializable {
     /** 装備 */
     private List<Integer> slot;
 
+    /** 補強増設（装備マスタ ID） */
+    private Integer slotEx;
+
     @Override
     public boolean isFriend() {
         return true;

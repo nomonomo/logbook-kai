@@ -70,6 +70,9 @@ public class SortieBattle
     /** api_eParam */
     private List<List<Integer>> eParam;
 
+    /** api_e_effect_list（演習相手艦のリボン種別・表示用） */
+    private List<List<Integer>> eEffectList;
+
     /** api_search */
     private List<Integer> search;
 
@@ -127,6 +130,7 @@ public class SortieBattle
     public static SortieBattle toBattle(JsonObject json) {
         SortieBattle bean = new SortieBattle();
         JsonHelper.bind(json)
+                .at("api_data")
                 .set("api_air_base_injection", bean::setAirBaseInjection,
                         BattleTypes.AirBaseAttack::toAirBaseAttack)
                 .set("api_air_base_attack", bean::setAirBaseAttack,
@@ -146,6 +150,7 @@ public class SortieBattle
                 .set("api_eSlot", bean::setESlot, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_fParam", bean::setFParam, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_eParam", bean::setEParam, JsonHelper.toList(JsonHelper::toIntegerList))
+                .set("api_e_effect_list", bean::setEEffectList, JsonHelper.toList(JsonHelper::toIntegerList))
                 .setIntegerList("api_search", bean::setSearch)
                 .setIntegerList("api_formation", bean::setFormation)
                 .setIntegerList("api_stage_flag", bean::setStageFlag)
@@ -161,7 +166,12 @@ public class SortieBattle
                 .set("api_hougeki1", bean::setHougeki1, BattleTypes.Hougeki::toHougeki)
                 .set("api_raigeki", bean::setRaigeki, BattleTypes.Raigeki::toRaigeki)
                 .set("api_hougeki2", bean::setHougeki2, BattleTypes.Hougeki::toHougeki)
-                .set("api_hougeki3", bean::setHougeki3, BattleTypes.Hougeki::toHougeki);
+                .set("api_hougeki3", bean::setHougeki3, BattleTypes.Hougeki::toHougeki)
+                .ignore(
+                        "api_flavor_info", // ボス台詞・ボイス演出
+                        "api_escape_idx", // 既退避艦。AppCondition.escape で保持
+                        "api_xal01") // イベント演出（倉庫では常に 1）
+                .reportUnknown();
         return bean;
     }
 }

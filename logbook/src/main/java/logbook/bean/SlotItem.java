@@ -40,11 +40,13 @@ public class SlotItem implements Serializable {
     public static SlotItem toSlotItem(JsonObject json) {
         SlotItem bean = new SlotItem();
         JsonHelper.bind(json)
+                .at("api_data.api_slot_item[]")
                 .setInteger("api_id", bean::setId)
                 .setInteger("api_level", bean::setLevel)
                 .setInteger("api_alv", bean::setAlv)
                 .setBoolean("api_locked", bean::setLocked)
-                .setInteger("api_slotitem_id", bean::setSlotitemId);
+                .setInteger("api_slotitem_id", bean::setSlotitemId)
+                .reportUnknown();
         return bean;
     }
 }

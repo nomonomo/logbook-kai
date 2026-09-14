@@ -184,6 +184,7 @@ public class ShipMst implements Serializable {
     public static ShipMst toShip(JsonObject json) {
         ShipMst bean = new ShipMst();
         JsonHelper.bind(json)
+                .at("api_data.api_mst_ship[]")
                 .setInteger("api_id", bean::setId)
                 .setInteger("api_sortno", bean::setSortno)
                 .setInteger("api_sort_id", bean::setSortId)
@@ -207,7 +208,15 @@ public class ShipMst implements Serializable {
                 .setInteger("api_afterfuel", bean::setAfterfuel)
                 .setInteger("api_afterbull", bean::setAfterbull)
                 .setInteger("api_fuel_max", bean::setFuelMax)
-                .setInteger("api_bull_max", bean::setBullMax);
+                .setInteger("api_bull_max", bean::setBullMax)
+                .ignore(
+                        "api_buildtime", // 建造時間（分）
+                        "api_broken", // 解体時に得られる資材
+                        "api_powup", // 近代化改修の元になった際に上がるパラメータ
+                        "api_backs", // レアリティ（背景）
+                        "api_getmes", // 入手時メッセージ
+                        "api_voicef") // ボイスフラグ
+                .reportUnknown();
         return bean;
     }
 }

@@ -47,6 +47,9 @@ public class BattleMidnightBattle implements IMidnightBattle {
     /** api_eParam */
     private List<List<Integer>> eParam;
 
+    /** api_e_effect_list（演習相手艦のリボン種別・表示用） */
+    private List<List<Integer>> eEffectList;
+
     /** api_friendly_info */
     private BattleTypes.FriendlyInfo friendlyInfo;
 
@@ -80,6 +83,7 @@ public class BattleMidnightBattle implements IMidnightBattle {
     public static BattleMidnightBattle toBattle(JsonObject json) {
         BattleMidnightBattle bean = new BattleMidnightBattle();
         JsonHelper.bind(json)
+                .at("api_data")
                 .setInteger("api_dock_id", bean::setDockId)
                 .setInteger("api_deck_id", bean::setDockId)
                 .setIntegerList("api_ship_ke", bean::setShipKe)
@@ -91,6 +95,7 @@ public class BattleMidnightBattle implements IMidnightBattle {
                 .set("api_eSlot", bean::setESlot, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_fParam", bean::setFParam, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_eParam", bean::setEParam, JsonHelper.toList(JsonHelper::toIntegerList))
+                .set("api_e_effect_list", bean::setEEffectList, JsonHelper.toList(JsonHelper::toIntegerList))
                 .set("api_friendly_info", bean::setFriendlyInfo, BattleTypes.FriendlyInfo::toFriendlyInfo)
                 .set("api_friendly_battle", bean::setFriendlyBattle, BattleTypes.FriendlyBattle::toFriendlyBattle)
                 .setIntegerList("api_touch_plane", bean::setTouchPlane)
@@ -98,7 +103,11 @@ public class BattleMidnightBattle implements IMidnightBattle {
                 .setInteger("api_smoke_type", bean::setSmokeType)
                 .setInteger("api_balloon_cell", bean::setBalloonCell)
                 .setInteger("api_atoll_cell", bean::setAtollCell)
-                .set("api_hougeki", bean::setHougeki, BattleTypes.MidnightHougeki::toMidnightHougeki);
+                .set("api_hougeki", bean::setHougeki, BattleTypes.MidnightHougeki::toMidnightHougeki)
+                .ignore(
+                        "api_formation", // 昼戦レスポンスと同内容の再送。IMidnightBattle では未使用
+                        "api_escape_idx") // 既退避艦。AppCondition.escape で保持
+                .reportUnknown();
         return bean;
     }
 }

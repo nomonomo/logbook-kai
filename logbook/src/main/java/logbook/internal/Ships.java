@@ -1,5 +1,6 @@
 package logbook.internal;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -181,9 +182,16 @@ public class Ships {
         SLOTITEM_TYPE_TP_MAP.put(SlotItemType.特型内火艇, 2);
         SLOTITEM_TYPE_TP_MAP.put(SlotItemType.戦闘糧食, 1);
 
-        // 付加的な情報の読み込み
-        InputStream is = PluginServices.getResourceAsStream("logbook/supplemental/ships.json");
-        ships = is != null ? ShipSupplementalLoader.loadSupplementalMap(is) : Collections.emptyMap();
+        // 付加的な情報の読み込み（InputStream は呼び出し側で閉じる）
+        Map<Integer, ShipSupplementalInfo> loaded = Collections.emptyMap();
+        try (InputStream is = PluginServices.getResourceAsStream("logbook/supplemental/ships.json")) {
+            if (is != null) {
+                loaded = ShipSupplementalLoader.loadSupplementalMap(is);
+            }
+        } catch (IOException e) {
+            LoggerHolder.get().warn("艦娘付加情報ストリームのクローズに失敗しました", e);
+        }
+        ships = loaded;
     }
 
     private Ships() {
@@ -449,6 +457,21 @@ public class Ships {
                     .get(chara.getShipId());
         }
         return Optional.ofNullable(mst);
+    }
+
+    /**
+     * 各スロットの最大搭載機数を返します。
+     * 格納庫増設済みなら {@code api_onslot_max}、未増設ならマスタの {@code api_maxeq}。
+     *
+     * @param ship 艦娘
+     * @return 各スロットの最大搭載機数
+     */
+    public static List<Integer> onslotMax(Ship ship) {
+        List<Integer> expanded = ship.getOnslotMax();
+        if (expanded != null) {
+            return expanded;
+        }
+        return shipMst(ship).map(ShipMst::getMaxeq).orElse(List.of());
     }
 
     /**

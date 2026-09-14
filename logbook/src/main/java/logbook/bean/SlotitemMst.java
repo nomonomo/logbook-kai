@@ -157,6 +157,7 @@ public class SlotitemMst implements Serializable {
     public static SlotitemMst toSlotitem(JsonObject json) {
         SlotitemMst bean = new SlotitemMst();
         JsonHelper.bind(json)
+                .at("api_data.api_mst_slotitem[]")
                 .setInteger("api_id", bean::setId)
                 .setInteger("api_sortno", bean::setSortno)
                 .setString("api_name", bean::setName)
@@ -181,7 +182,12 @@ public class SlotitemMst implements Serializable {
                 .setInteger("api_leng", bean::setLeng)
                 .setInteger("api_rare", bean::setRare)
                 .setInteger("api_cost", bean::setCost)
-                .setInteger("api_distance", bean::setDistance);
+                .setInteger("api_distance", bean::setDistance)
+                .ignore(
+                        "api_broken", // 廃棄資材
+                        "api_usebull", // 不明
+                        "api_version") // リソースバージョン
+                .reportUnknown();
         return bean;
     }
 }

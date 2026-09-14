@@ -59,6 +59,7 @@ public class MapinfoMst implements Serializable {
     public static MapinfoMst toMapinfoMst(JsonObject json) {
         MapinfoMst bean = new MapinfoMst();
         JsonHelper.bind(json)
+                .at("api_data.api_mst_mapinfo[]")
                 .setInteger("api_id", bean::setId)
                 .setInteger("api_maparea_id", bean::setMapareaId)
                 .setInteger("api_no", bean::setNo)
@@ -69,7 +70,8 @@ public class MapinfoMst implements Serializable {
                 .setIntegerList("api_item", bean::setItem)
                 .setInteger("api_max_maphp", bean::setMaxMaphp)
                 .setInteger("api_required_defeat_count", bean::setRequiredDefeatCount)
-                .setIntegerList("api_sally_flag", bean::setSallyFlag);
+                .setIntegerList("api_sally_flag", bean::setSallyFlag)
+                .reportUnknown();
         return bean;
     }
 }

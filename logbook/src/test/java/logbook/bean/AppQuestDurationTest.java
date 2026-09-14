@@ -22,6 +22,8 @@ import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
 import logbook.bean.AppQuestDuration.Duration;
+import logbook.bean.QuestList.Quest;
+import logbook.internal.Logs;
 import logbook.plugin.PluginContainer;
 
 public class AppQuestDurationTest {
@@ -36,6 +38,16 @@ public class AppQuestDurationTest {
                         .getJsonObject("api_data");
                 QuestList list = QuestList.toQuestList(json);
                 assertNotNull(list);
+                assertEquals(3, list.getList().stream()
+                        .filter(q -> q.getNo() == 213)
+                        .findFirst()
+                        .orElseThrow()
+                        .getLabelType());
+                assertEquals(108, list.getList().stream()
+                        .filter(q -> q.getNo() == 438)
+                        .findFirst()
+                        .orElseThrow()
+                        .getLabelType());
                 list.getList().stream()
                     .map(AppQuest::toAppQuest)
                     .filter(Objects::nonNull)
@@ -94,5 +106,59 @@ public class AppQuestDurationTest {
                 assertNull(value.get(924).get(0).getTo());
             }
         }
+    }
+
+    @Test
+    public void toAppQuest_prefersLabelTypeOverConditionJson() {
+        PluginContainer.getInstance().init(Collections.emptyList());
+        // 861 の条件 JSON はクォータリー。labelType=108 ならイヤーリー8月
+        Quest quest = new Quest();
+        quest.setNo(861);
+        quest.setType(5);
+        quest.setLabelType(108);
+        quest.setState(1);
+
+        AppQuest appQuest = AppQuest.toAppQuest(quest);
+        assertEquals(yearlyExpire(8), appQuest.getExpire());
+    }
+
+    @Test
+    public void toAppQuest_fallsBackToConditionJsonWhenLabelTypeAbsent() {
+        PluginContainer.getInstance().init(Collections.emptyList());
+        // 438 の条件 JSON はイヤーリー8月
+        Quest quest = new Quest();
+        quest.setNo(438);
+        quest.setType(5);
+        quest.setLabelType(null);
+        quest.setState(1);
+
+        AppQuest appQuest = AppQuest.toAppQuest(quest);
+        assertEquals(yearlyExpire(8), appQuest.getExpire());
+    }
+
+    @Test
+    public void toAppQuest_fallsBackToApiTypeWhenLabelTypeAndJsonAbsent() {
+        PluginContainer.getInstance().init(Collections.emptyList());
+        Quest quest = new Quest();
+        quest.setNo(9_999_999);
+        quest.setType(1);
+        quest.setLabelType(null);
+        quest.setState(1);
+
+        AppQuest appQuest = AppQuest.toAppQuest(quest);
+        ZonedDateTime today = ZonedDateTime.now(ZoneId.of("GMT+04:00")).truncatedTo(ChronoUnit.DAYS);
+        String daily = today.plusDays(1)
+                .withZoneSameInstant(ZoneId.of("Asia/Tokyo"))
+                .format(Logs.DATE_FORMAT);
+        assertEquals(daily, appQuest.getExpire());
+    }
+
+    private static String yearlyExpire(int month) {
+        ZonedDateTime today = ZonedDateTime.now(ZoneId.of("GMT+04:00")).truncatedTo(ChronoUnit.DAYS);
+        ZonedDateTime tmp = today.plusMonths(1).withDayOfMonth(1);
+        while (tmp.getMonthValue() != month) {
+            tmp = tmp.plusMonths(1);
+        }
+        return tmp.withZoneSameInstant(ZoneId.of("Asia/Tokyo")).format(Logs.DATE_FORMAT);
     }
 }

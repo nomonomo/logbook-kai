@@ -86,6 +86,8 @@
                         <TableColumn fx:id="dropItem" prefWidth="75.0" text="アイテム" />
                         <TableColumn fx:id="shipExp" prefWidth="75.0" text="艦娘経験値" />
                         <TableColumn fx:id="exp" prefWidth="75.0" text="提督経験値" />
+                        <TableColumn fx:id="gimmick" prefWidth="100.0" text="ギミック" />
+                        <TableColumn fx:id="returnNotice" prefWidth="120.0" text="帰還時通知" />
                     </columns>
                     <contextMenu>
                        <ContextMenu>

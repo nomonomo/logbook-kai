@@ -18,6 +18,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 
 import javax.imageio.IIOImage;
@@ -40,6 +41,8 @@ import logbook.proxy.ResponseMetaData;
  */
 public class ImageListener implements ContentListenerSpi {
 
+    private static volatile ImageListenerConfig config;
+
     @Override
     public boolean test(RequestMetaData request) {
         String uri = request.getRequestURI();
@@ -50,24 +53,41 @@ public class ImageListener implements ContentListenerSpi {
     public void accept(RequestMetaData request, ResponseMetaData response) {
         try {
             String uri = request.getRequestURI();
+            ImageListenerConfig cfg = config();
             // 艦娘画像
             if (uri.startsWith("/kcs2/resources/ship/")) {
                 this.ships(request, response);
             }
-            // 汎用画像
-            if (uri.startsWith("/kcs2/img/common/")) {
-                this.images(request, response, "common");
-            }
-            // 任務関連画像
-            if (uri.startsWith("/kcs2/img/duty/")) {
-                this.images(request, response, "duty");
-            }
-            if (uri.startsWith("/kcs2/img/sally/")) {
-                this.images(request, response, "sally");
+            for (String category : cfg.imgCategories()) {
+                if (uri.startsWith("/kcs2/img/" + category + "/")) {
+                    this.images(request, response, category);
+                    break;
+                }
             }
         } catch (Exception e) {
             LoggerHolder.get().warn("画像ファイル処理中に例外が発生しました", e);
         }
+    }
+
+    private static ImageListenerConfig config() {
+        ImageListenerConfig current = config;
+        if (current == null) {
+            synchronized (ImageListener.class) {
+                current = config;
+                if (current == null) {
+                    current = ImageListenerConfigLoader.load();
+                    config = current;
+                }
+            }
+        }
+        return current;
+    }
+
+    /**
+     * テスト用に設定を差し替える。
+     */
+    static void replaceConfigForTest(ImageListenerConfig value) {
+        config = Objects.requireNonNull(value);
     }
 
     private void ships(RequestMetaData request, ResponseMetaData response) throws IOException {
@@ -125,28 +145,32 @@ public class ImageListener implements ContentListenerSpi {
         Path path = dir.resolve(Paths.get(URI.create(uri).getPath()).getFileName());
         if (response.getResponseBody().isPresent()) {
             this.write(response.getResponseBody().get(), path);
-
-            String filename = String.valueOf(path.getFileName());
-            // pngファイル
-            Path pngPath = null;
-            // jsonファイル
-            Path jsonPath = null;
-
-            // jsonファイルの場合
-            if (filename.endsWith(".json")) {
-                pngPath = path.resolveSibling(filename.replace(".json", ".png"));
-                jsonPath = path;
-            }
-            // pngファイルの場合
-            if (filename.endsWith(".png")) {
-                pngPath = path;
-                jsonPath = path.resolveSibling(filename.replace(".png", ".json"));
-            }
-            // 分解した画像の格納先
-            Path spriteDir = pngPath.resolveSibling(filename.substring(0, filename.lastIndexOf('.')));
-
-            this.sprite(spriteDir, pngPath, jsonPath);
+            this.trySprite(path);
         }
+    }
+
+    /**
+     * 同ディレクトリに同名の png/json があればスプライト分解を試みる。
+     */
+    private void trySprite(Path path) throws IOException {
+        String filename = String.valueOf(path.getFileName());
+        int dot = filename.lastIndexOf('.');
+        if (dot <= 0) {
+            return;
+        }
+        Path pngPath = null;
+        Path jsonPath = null;
+        if (filename.endsWith(".json")) {
+            pngPath = path.resolveSibling(filename.substring(0, dot) + ".png");
+            jsonPath = path;
+        } else if (filename.endsWith(".png")) {
+            pngPath = path;
+            jsonPath = path.resolveSibling(filename.substring(0, dot) + ".json");
+        } else {
+            return;
+        }
+        Path spriteDir = path.resolveSibling(filename.substring(0, dot));
+        this.sprite(spriteDir, pngPath, jsonPath);
     }
 
     private void sprite(Path storeDir, Path imageSrc, Path jsonSrc) throws IOException {

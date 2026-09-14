@@ -22,6 +22,7 @@ final class ShipSupplementalLoader {
 
     /**
      * 艦娘付加情報 JSON を読み込み、ID をキーとした Map を返す。
+     * ストリームのクローズは呼び出し元の責務。
      */
     static Map<Integer, ShipSupplementalInfo> loadSupplementalMap(InputStream is) {
         try {

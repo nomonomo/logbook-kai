@@ -53,7 +53,9 @@ public class ConfigJsonRoundTripTest {
                 Object instance = JsonMappers.LENIENT_READER.forType(clazz).readValue(path);
                 String roundTripJson = JsonMappers.MAPPER.writeValueAsString(instance);
                 String originalJson = Files.readString(path, StandardCharsets.UTF_8);
-                assertThatJson(roundTripJson).isEqualTo(originalJson);
+                assertThatJson(roundTripJson)
+                        .as(path.getFileName().toString())
+                        .isEqualTo(originalJson);
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException("設定 JSON に対応するクラスが見つかりません: " + path, e);
             } catch (IOException e) {

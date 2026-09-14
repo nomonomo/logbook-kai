@@ -44,9 +44,11 @@ public class MapTypes {
         public static Eventmap toEventmap(JsonObject json) {
             Eventmap bean = new Eventmap();
             JsonHelper.bind(json)
+                    .at("api_data.api_eventmap")
                     .setInteger("api_max_maphp", bean::setMaxMaphp)
                     .setInteger("api_now_maphp", bean::setNowMaphp)
-                    .setInteger("api_dmg", bean::setDmg);
+                    .setInteger("api_dmg", bean::setDmg)
+                    .reportUnknown();
             return bean;
         }
     }
@@ -75,8 +77,10 @@ public class MapTypes {
         public static Enemy toEnemy(JsonObject json) {
             Enemy bean = new Enemy();
             JsonHelper.bind(json)
+                    .at("api_data.api_enemy")
                     .setInteger("api_result", bean::setResult)
-                    .setString("api_result_str", bean::setResultStr);
+                    .setString("api_result_str", bean::setResultStr)
+                    .reportUnknown();
             return bean;
         }
     }
@@ -117,12 +121,14 @@ public class MapTypes {
         public static Happening toHappening(JsonObject json) {
             Happening bean = new Happening();
             JsonHelper.bind(json)
+                    .at("api_data.api_happening")
                     .setInteger("api_type", bean::setType)
                     .setInteger("api_count", bean::setCount)
                     .setInteger("api_usemst", bean::setUsemst)
                     .setInteger("api_mst_id", bean::setMstId)
                     .setInteger("api_icon_id", bean::setIconId)
-                    .setInteger("api_dentan", bean::setDentan);
+                    .setInteger("api_dentan", bean::setDentan)
+                    .reportUnknown();
             return bean;
         }
     }
@@ -160,11 +166,13 @@ public class MapTypes {
         public static Itemget toItemget(JsonObject json) {
             Itemget bean = new Itemget();
             JsonHelper.bind(json)
+                    .at("api_data.api_itemget[]")
                     .setInteger("api_getcount", bean::setGetcount)
                     .setInteger("api_icon_id", bean::setIconId)
                     .setInteger("api_id", bean::setId)
                     .setString("api_name", bean::setName)
-                    .setInteger("api_usemst", bean::setUsemst);
+                    .setInteger("api_usemst", bean::setUsemst)
+                    .reportUnknown();
             return bean;
         }
     }
@@ -190,7 +198,9 @@ public class MapTypes {
         public static SelectRoute toSelectRoute(JsonObject json) {
             SelectRoute bean = new SelectRoute();
             JsonHelper.bind(json)
-                    .setIntegerList("api_select_cells", bean::setSelectCells);
+                    .at("api_data.api_select_route")
+                    .setIntegerList("api_select_cells", bean::setSelectCells)
+                    .reportUnknown();
             return bean;
         }
     }

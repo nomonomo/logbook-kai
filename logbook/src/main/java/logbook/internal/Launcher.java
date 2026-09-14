@@ -73,6 +73,9 @@ public final class Launcher {
      * @param args アプリケーション引数
      */
     void initLocal(String[] args) {
+        // JavaFX / fxml と重ねて Config を先読み（完了待ちなし）
+        StartupDataWarmup.start();
+
         Main.main(args);
     }
 

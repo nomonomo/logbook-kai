@@ -1,6 +1,7 @@
 package logbook.internal.gui;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import javafx.fxml.FXML;
@@ -85,10 +86,8 @@ public class FleetTabShipPopup extends VBox {
                 this.bull.setText(ship.getBull()*100/max+"%");
                 this.bullDesc.setText("("+ship.getBull()+"/"+max+")");
             });
-            int maxPlane = Ships.shipMst(this.chara)
-                    .map(ShipMst::getMaxeq)
-                    .map(eq -> eq.stream().filter(e -> e > 0).mapToInt(Integer::intValue).sum())
-                    .orElse(0);
+            int maxPlane = Ships.onslotMax(ship)
+                    .stream().filter(e -> e > 0).mapToInt(Integer::intValue).sum();
             if (maxPlane == 0) {
                 this.planeBox.setVisible(false);
                 this.planeBox.setManaged(false);
@@ -122,6 +121,12 @@ public class FleetTabShipPopup extends VBox {
             for (int i = 0; i < this.chara.getSlot().size(); i++) {
                 if (this.chara.getSlot().get(i) > 0) {
                     this.getChildren().add(new FleetTabShipPopupItem(this.chara, this.itemMap, i));
+                }
+            }
+            if (this.chara.isFriend()) {
+                Integer slotEx = this.chara.asFriend().getSlotEx();
+                if (slotEx != null && slotEx > 0) {
+                    this.getChildren().add(new FleetTabShipPopupItem(this.chara, this.itemMap));
                 }
             }
         }
@@ -195,10 +200,8 @@ public class FleetTabShipPopup extends VBox {
 
                 SlotItem item = this.itemMap.get(itemId);
 
-                Integer slotEq = Ships.shipMst(this.chara)
-                        .map(ShipMst::getMaxeq)
-                        .map(eq -> eq.size() > this.slotIndex ? eq.get(this.slotIndex) : 0)
-                        .orElse(0);
+                List<Integer> maxeq = Ships.onslotMax(ship);
+                Integer slotEq = maxeq.size() > this.slotIndex ? maxeq.get(this.slotIndex) : 0;
                 if (slotEq != null && slotEq > 0) {
                     Integer onslot = ship.getOnslot().get(this.slotIndex);
 
@@ -228,9 +231,12 @@ public class FleetTabShipPopup extends VBox {
                     this.name.setText("-");
                 }
             } else {
+                Integer itemId = this.slotIndex == SLOT_EX && this.chara.isFriend()
+                        ? this.chara.asFriend().getSlotEx()
+                        : this.chara.getSlot().get(this.slotIndex);
                 SlotitemMst item = SlotitemMstCollection.get()
                         .getSlotitemMap()
-                        .get(this.chara.getSlot().get(this.slotIndex));
+                        .get(itemId);
                 this.image.setImage(Items.itemImage(item));
                 this.name.setText(item.getName());
             }

@@ -139,6 +139,7 @@ public class PhaseState {
             }
         }
         // 敵
+        List<List<Integer>> eEffectList = b.getEEffectList();
         for (int i = 0, s = b.getShipKe().size(); i < s; i++) {
             if (b.getShipKe().get(i) != -1) {
                 Enemy e = new Enemy();
@@ -146,6 +147,15 @@ public class PhaseState {
                 e.setLv(b.getShipLv().get(i));
                 e.setSlot(b.getESlot().get(i));
                 e.setOrder(i);
+                if (eEffectList != null && i < eEffectList.size()) {
+                    List<Integer> kinds = eEffectList.get(i);
+                    if (kinds != null && !kinds.isEmpty()) {
+                        Integer kind = kinds.get(0);
+                        if (kind != null && kind != 0) {
+                            e.setSpEffectKind(kind);
+                        }
+                    }
+                }
 
                 this.afterEnemy.add(e);
             }
@@ -328,6 +338,10 @@ public class PhaseState {
                     f.setShipId(friendlyInfo.getShipId().get(i));
                     f.setLv(friendlyInfo.getShipLv().get(i));
                     f.setSlot(friendlyInfo.getSlot().get(i));
+                    List<Integer> slotEx = friendlyInfo.getSlotEx();
+                    if (slotEx != null && i < slotEx.size()) {
+                        f.setSlotEx(slotEx.get(i));
+                    }
                     f.setMaxhp(friendlyInfo.getMaxhps().get(i));
                     f.setNowhp(friendlyInfo.getNowhps().get(i));
 

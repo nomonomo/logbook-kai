@@ -91,6 +91,7 @@ public class BattleMidnightSpMidnight implements IMidnightBattle, IFormation, IN
     public static BattleMidnightSpMidnight toBattle(JsonObject json) {
         BattleMidnightSpMidnight bean = new BattleMidnightSpMidnight();
         JsonHelper.bind(json)
+                .at("api_data")
                 .setInteger("api_dock_id", bean::setDockId)
                 .setInteger("api_deck_id", bean::setDockId)
                 .setIntegerList("api_ship_ke", bean::setShipKe)
@@ -112,7 +113,8 @@ public class BattleMidnightSpMidnight implements IMidnightBattle, IFormation, IN
                 .setInteger("api_atoll_cell", bean::setAtollCell)
                 .set("api_hougeki", bean::setHougeki, BattleTypes.MidnightHougeki::toMidnightHougeki)
                 .setInteger("api_n_support_flag", bean::setNSupportFlag)
-                .set("api_n_support_info", bean::setNSupportInfo, BattleTypes.SupportInfo::toSupportInfo);
+                .set("api_n_support_info", bean::setNSupportInfo, BattleTypes.SupportInfo::toSupportInfo)
+                .reportUnknown();
         return bean;
     }
 }

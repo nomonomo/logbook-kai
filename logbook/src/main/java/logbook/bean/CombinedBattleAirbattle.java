@@ -116,6 +116,7 @@ public class CombinedBattleAirbattle
     public static CombinedBattleAirbattle toBattle(JsonObject json) {
         CombinedBattleAirbattle bean = new CombinedBattleAirbattle();
         JsonHelper.bind(json)
+                .at("api_data")
                 .set("api_air_base_injection", bean::setAirBaseInjection,
                         BattleTypes.AirBaseAttack::toAirBaseAttack)
                 .set("api_air_base_attack", bean::setAirBaseAttack,
@@ -146,7 +147,8 @@ public class CombinedBattleAirbattle
                 .setInteger("api_support_flag", bean::setSupportFlag)
                 .set("api_support_info", bean::setSupportInfo, BattleTypes.SupportInfo::toSupportInfo)
                 .setIntegerList("api_stage_flag2", bean::setStageFlag2)
-                .set("api_kouku2", bean::setKouku2, BattleTypes.Kouku::toKouku);
+                .set("api_kouku2", bean::setKouku2, BattleTypes.Kouku::toKouku)
+                .reportUnknown();
         return bean;
     }
 }

@@ -14,8 +14,9 @@ package logbook.plugin.lifecycle;
  * <h3>実行環境</h3>
  * <ul>
  * <li>JavaFX Application Thread で実行されます</li>
- * <li>メインウィンドウ（primaryStage）が確実に初期化された後に実行されます</li>
+ * <li>メインウィンドウ（primaryStage）の {@code show()} が返った後の FX パルスで実行されます</li>
  * <li>UI操作を直接実行できます（Platform.runLater() は不要です）</li>
+ * <li>起動直後の艦隊表示を優先するため、更新確認や通知の開始はウィンドウ表示より後です</li>
  * </ul>
  * <br>
  * <h3>実装例</h3>

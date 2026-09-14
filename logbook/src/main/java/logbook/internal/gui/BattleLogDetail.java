@@ -16,6 +16,8 @@ import logbook.internal.Logs;
  */
 public class BattleLogDetail {
 
+    /** 種別 */
+    private StringProperty eventType;
     /** 日付 */
     private StringProperty date;
     /** 海域 */
@@ -52,6 +54,22 @@ public class BattleLogDetail {
     private final IntegerProperty shipExp = new SimpleIntegerProperty();
     /** 提督経験値 */
     private final IntegerProperty exp = new SimpleIntegerProperty();
+    /** ギミック */
+    private StringProperty gimmick;
+    /** 帰還時通知 */
+    private StringProperty returnNotice;
+
+    public String getEventType() {
+        return this.eventType.get();
+    }
+
+    public void setEventType(String eventType) {
+        this.eventType = new SimpleStringProperty(eventType);
+    }
+
+    public StringProperty eventTypeProperty() {
+        return this.eventType;
+    }
 
     /**
      * 日付を取得します。
@@ -485,6 +503,42 @@ public class BattleLogDetail {
         return this.exp;
     }
 
+    /**
+     * ギミックを取得します。
+     * @return ギミック
+     */
+    public String getGimmick() {
+        return this.gimmick.get();
+    }
+
+    /**
+     * ギミックを設定します。
+     * @param gimmick ギミック
+     */
+    public void setGimmick(String gimmick) {
+        this.gimmick = new SimpleStringProperty(gimmick);
+    }
+
+    /**
+     * ギミックを取得します。
+     * @return ギミック
+     */
+    public StringProperty gimmickProperty() {
+        return this.gimmick;
+    }
+
+    public String getReturnNotice() {
+        return this.returnNotice.get();
+    }
+
+    public void setReturnNotice(String returnNotice) {
+        this.returnNotice = new SimpleStringProperty(returnNotice);
+    }
+
+    public StringProperty returnNoticeProperty() {
+        return this.returnNotice;
+    }
+
     @Override
     public String toString() {
         return new StringJoiner("\t")
@@ -505,6 +559,8 @@ public class BattleLogDetail {
                 .add(this.dropItem.get())
                 .add(Integer.toString(this.shipExp.get()))
                 .add(Integer.toString(this.exp.get()))
+                .add(this.gimmick.get())
+                .add(this.returnNotice.get())
                 .toString();
     }
 
@@ -516,14 +572,49 @@ public class BattleLogDetail {
      */
     public static BattleLogDetail toBattleLogDetail(SimpleBattleLog log) {
         BattleLogDetail detail = new BattleLogDetail();
+        String eventType = log.getEventType() != null && !log.getEventType().isEmpty()
+                ? log.getEventType()
+                : "戦闘";
+        detail.setEventType(eventType);
         // GMT+04:00のタイムゾーンになっているので日本時間に戻す
         String date = Logs.DATE_FORMAT.format(log.getDate().withZoneSameInstant(ZoneId.of("Asia/Tokyo")));
         detail.setDate(date);
         detail.setArea(log.getArea());
         detail.setAreaShortName(log.getAreaShortName());
-        detail.setCell(log.getCell());
-        detail.setBoss(log.getBoss());
-        detail.setRank(log.getRank());
+        if (log.isBattle()) {
+            detail.setCell(log.getCell());
+            detail.setBoss(log.getBoss());
+            detail.setRank(log.getRank());
+            detail.setDropType(log.getDropType());
+            detail.setDropShip(log.getDropShip());
+            detail.setDropItem(log.getDropItem());
+            detail.setShipExp(parseExp(log.getShipExp()));
+            detail.setExp(parseExp(log.getExp()));
+            detail.setGimmick(log.getGimmick());
+            detail.setReturnNotice(log.getReturnNotice() != null ? log.getReturnNotice() : "");
+        } else if ("空襲".equals(eventType)) {
+            detail.setCell("空襲");
+            detail.setBoss("");
+            detail.setRank(log.getContent());
+            detail.setDropType("");
+            detail.setDropShip("");
+            detail.setDropItem("");
+            detail.setShipExp(0);
+            detail.setExp(0);
+            detail.setGimmick(log.getGimmick());
+            detail.setReturnNotice("");
+        } else {
+            detail.setCell(log.getCell());
+            detail.setBoss("");
+            detail.setRank("");
+            detail.setDropType("");
+            detail.setDropShip("");
+            detail.setDropItem("");
+            detail.setShipExp(0);
+            detail.setExp(0);
+            detail.setGimmick(log.getGimmick());
+            detail.setReturnNotice("");
+        }
         detail.setIntercept(log.getIntercept());
         detail.setFformation(log.getFformation());
         detail.setEformation(log.getEformation());
@@ -531,11 +622,23 @@ public class BattleLogDetail {
         detail.setFtouch(log.getFtouch());
         detail.setEtouch(log.getEtouch());
         detail.setEfleet(log.getEfleet());
-        detail.setDropType(log.getDropType());
-        detail.setDropShip(log.getDropShip());
-        detail.setDropItem(log.getDropItem());
-        detail.setShipExp(Integer.parseInt(log.getShipExp()));
-        detail.setExp(Integer.parseInt(log.getExp()));
         return detail;
+    }
+
+    /**
+     * 経験値文字列を整数にする。空欄・不正値は 0（基地空襲行など）。
+     *
+     * @param value CSV の経験値列
+     * @return 経験値
+     */
+    private static int parseExp(String value) {
+        if (value == null || value.isEmpty()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 }

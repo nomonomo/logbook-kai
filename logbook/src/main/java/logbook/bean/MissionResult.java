@@ -91,9 +91,11 @@ public class MissionResult implements Serializable {
         public static GetItem toGetItem(JsonObject json) {
             GetItem bean = new GetItem();
             JsonHelper.bind(json)
+                    .at("api_data.api_get_item")
                     .setInteger("api_useitem_id", bean::setUseitemId)
                     .setString("api_useitem_name", bean::setUseitemName)
-                    .setInteger("api_useitem_count", bean::setUseitemCount);
+                    .setInteger("api_useitem_count", bean::setUseitemCount)
+                    .reportUnknown();
             return bean;
         }
     }
@@ -107,6 +109,7 @@ public class MissionResult implements Serializable {
     public static MissionResult toMissionResult(JsonObject json) {
         MissionResult bean = new MissionResult();
         JsonHelper.bind(json)
+                .at("api_data")
                 .setInteger("api_clear_result", bean::setClearResult)
                 .setString("api_detail", bean::setDetail)
                 .setInteger("api_get_exp", bean::setGetExp)
@@ -127,7 +130,8 @@ public class MissionResult implements Serializable {
                 .setIntegerList("api_ship_id", bean::setShipId)
                 .setIntegerList("api_useitem_flag", bean::setUseitemFlag)
                 .set("api_get_item1", bean::setGetItem1, GetItem::toGetItem)
-                .set("api_get_item2", bean::setGetItem2, GetItem::toGetItem);
+                .set("api_get_item2", bean::setGetItem2, GetItem::toGetItem)
+                .reportUnknown();
         return bean;
     }
 }

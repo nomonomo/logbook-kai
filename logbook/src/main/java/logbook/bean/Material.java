@@ -31,8 +31,11 @@ public class Material implements Serializable {
     public static Material toMaterial(JsonObject json) {
         Material bean = new Material();
         JsonHelper.bind(json)
+                .at("api_data.api_material[]")
                 .setInteger("api_id", bean::setId)
-                .setInteger("api_value", bean::setValue);
+                .setInteger("api_value", bean::setValue)
+                .ignore("api_member_id") // 提督 ID
+                .reportUnknown();
         return bean;
     }
 }
