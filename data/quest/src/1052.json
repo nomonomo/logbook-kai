@@ -1,0 +1,20 @@
+/* [1052]改装多目的搭載母艦「北上改三」、出撃ッ！ */
+{
+    "type": "出撃",
+    "resetType": "単発",
+    "filter": {
+        "area": ["1-3", "2-4", "4-5"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["北上改三"], "order": 1},
+                {"name": ["花月", "潮", "響", "Верный", "竹", "桐", "榧", "杉", "樫"], "count": 2, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions": [
+        {"boss": true, "area": ["1-3"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["2-4"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["4-5"], "rank": ["S"], "count": 2}
+    ]
+}
