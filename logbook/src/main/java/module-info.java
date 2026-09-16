@@ -29,7 +29,6 @@ module logbook {
     requires transitive jakarta.json;
     requires transitive jakarta.servlet;
     requires transitive java.desktop;
-    requires transitive java.scripting;
     requires transitive javafx.base;
     requires transitive javafx.controls;
     requires transitive javafx.fxml;
