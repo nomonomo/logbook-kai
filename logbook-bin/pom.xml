@@ -66,6 +66,8 @@
                         <addOption>-XX:G1HeapRegionSize=2M</addOption>
                         <addOption>-XX:+UseStringDeduplication</addOption>
                         <addOption>--add-exports=javafx.base/com.sun.javafx.event=org.controlsfx.controls</addOption>
+                        <!-- Java 24+ : JNI System.load を許可（未指定だと起動時に警告、将来は拒否） -->
+                        <addOption>--enable-native-access=javafx.graphics,com.aayushatharva.brotli4j,com.github.luben.zstd_jni</addOption>
                     </addOptions>
                     <compress>zip-6</compress>
                     <launcher>logbook=logbook/logbook.internal.Launcher</launcher>

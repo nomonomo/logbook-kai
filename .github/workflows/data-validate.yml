@@ -32,7 +32,7 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v6
         with:
-          java-version: '21'
+          java-version: '25'
           distribution: 'microsoft'
           cache: 'maven'
       - name: quests 生成・manifest 整合・gamedata 正当化テスト
