@@ -23,7 +23,9 @@
         <!--
             ネイティブJNI向けプロパティ（brotli4j.classifier / zstandard.os.* / targetJniPath / logbook.platform.name）は
             下記 OS プロファイルでのみ設定する。未設定時は validate フェーズで enforcer により失敗する。
+            zstd.jni.stripLibPrefix は Windows のみ lib（System.loadLibrary が lib を付けないため展開時に除去）。
         -->
+        <zstd.jni.stripLibPrefix></zstd.jni.stripLibPrefix>
     </properties>
     <modules>
         <module>logbook-data</module>
@@ -197,6 +199,7 @@
                 <brotli4j.classifier>windows-x86_64</brotli4j.classifier>
                 <zstandard.os.name>win</zstandard.os.name>
                 <zstandard.os.arch>amd64</zstandard.os.arch>
+                <zstd.jni.stripLibPrefix>lib</zstd.jni.stripLibPrefix>
                 <targetJniPath>bin</targetJniPath>
                 <logbook.platform.name>win</logbook.platform.name>
             </properties>
@@ -214,6 +217,7 @@
                 <brotli4j.classifier>windows-aarch64</brotli4j.classifier>
                 <zstandard.os.name>win</zstandard.os.name>
                 <zstandard.os.arch>aarch64</zstandard.os.arch>
+                <zstd.jni.stripLibPrefix>lib</zstd.jni.stripLibPrefix>
                 <targetJniPath>bin</targetJniPath>
                 <logbook.platform.name>win-aarch64</logbook.platform.name>
             </properties>

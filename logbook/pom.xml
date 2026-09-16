@@ -132,7 +132,7 @@
                         </configuration>
                     </execution>
                     <!-- Zstandard JARからネイティブライブラリを抽出 -->
-                    <!-- プラットフォームを展開 -->
+                    <!-- プラットフォームを展開。Windows のみファイル名先頭の lib を落とす（loadLibrary 用） -->
                     <execution>
                         <id>extract-zstandard-native</id>
                         <phase>package</phase>
@@ -146,7 +146,7 @@
                             <!-- replacement は ./ にしない（Windows で .// と native-libs の case-only 衝突を避ける） -->
                             <fileMappers>
                                 <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
-                                    <pattern>^${zstandard.os.name}/${zstandard.os.arch}/</pattern>
+                                    <pattern>^${zstandard.os.name}/${zstandard.os.arch}/${zstd.jni.stripLibPrefix}</pattern>
                                     <replacement>n/</replacement>
                                 </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
                             </fileMappers>
