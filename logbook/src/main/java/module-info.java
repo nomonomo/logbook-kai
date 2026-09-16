@@ -10,7 +10,6 @@ module logbook {
     requires org.slf4j;
     requires ch.qos.logback.classic;
     requires ch.qos.logback.core;
-    requires jdk.crypto.ec;
     requires jdk.charsets;
     requires org.eclipse.jetty.compression.gzip;
     requires org.eclipse.jetty.compression.brotli;
