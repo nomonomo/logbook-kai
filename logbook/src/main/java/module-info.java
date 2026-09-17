@@ -3,8 +3,7 @@ module logbook {
     requires tools.jackson.core;
     requires javafx.media;
     requires javafx.swing;
-    requires javafx.web;
-    requires jdk.jsobject;
+    requires org.commonmark;
     requires org.eclipse.jetty.ee11.servlet;
     requires org.eclipse.jetty.http;
     requires org.slf4j;

@@ -28,25 +28,22 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import org.eclipse.jetty.util.StringUtil;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
-import javafx.concurrent.Worker;
+import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import logbook.internal.gui.InternalFXMLLoader;
+import logbook.internal.gui.ReleaseNotesPane;
 import logbook.internal.gui.Tools;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.core.type.TypeReference;
@@ -209,7 +206,7 @@ public class CheckUpdate {
             switch (result) {
             case UpdateCheckResult.Available available ->
                 Platform.runLater(() -> openInfo(available.versionInfo(), stage, false));
-            case UpdateCheckResult.UpToDate ignored ->
+            case UpdateCheckResult.UpToDate _ ->
                 Platform.runLater(() -> Tools.Controls.alert(
                         AlertType.INFORMATION, "更新の確認", "最新のバージョンです。", stage));
             case UpdateCheckResult.Failed failed -> {
@@ -400,172 +397,6 @@ public class CheckUpdate {
     }
 
     /**
-     * エラーメッセージのHTMLを作成
-     * 
-     * @param errorMessage エラーメッセージ
-     * @return エラーメッセージのHTML
-     */
-    private String createErrorMessageHtml(String errorMessage) {
-        // エラーメッセージをHTMLエスケープ
-        String escapedMessage = StringUtil.sanitizeXmlString(errorMessage);
-        return """
-                <div style='color: red; padding: 10px; border: 1px solid #ccc; border-radius: 4px;'>
-                    <strong>エラー:</strong><br>
-                    <pre style='white-space: pre-wrap; font-family: monospace; margin: 0;'>%s</pre>
-                </div>
-                """.formatted(escapedMessage);
-    }
-
-    /**
-     * Markdown用のHTMLテンプレートを作成
-     * 
-     * @param errorMessage エラーメッセージ（nullの場合は通常のローディング表示）
-     * @return HTMLテンプレート文字列
-     */
-    private String createMarkdownHtmlTemplate(String errorMessage) {
-        String contentHtml;
-        if (errorMessage != null) {
-            contentHtml = createErrorMessageHtml(errorMessage);
-        } else {
-            contentHtml = "<p style='color: gray;'>更新内容を読み込んでいます...</p>";
-        }
-        
-        return """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <link href='https://github.githubassets.com/assets/github-markdown.css' rel='stylesheet'>
-                    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-                    <style>
-                        html, body {
-                            margin: 0 !important;
-                            padding: 0 !important;
-                        }
-                        body {
-                            font-family: 'Meiryo UI', Meiryo, 'Segoe UI', 'Lucida Grande', Verdana, Arial, Helvetica, sans-serif;
-                            font-size: 14px !important;
-                            display: flex !important;
-                            flex-direction: column !important;
-                            align-items: flex-start !important;
-                        }
-                        .markdown-body {
-                            margin: 0 !important;
-                            padding: 10px 15px !important;
-                            font-size: 14px !important;
-                        }
-                        .markdown-body > *:first-child {
-                            margin-top: 0 !important;
-                        }
-                        .markdown-body > *:last-child {
-                            margin-bottom: 0 !important;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class='markdown-body' id='markdown-content'>
-                        %s
-                    </div>
-                </body>
-                </html>
-                """.formatted(contentHtml);
-    }
-
-    /**
-     * marked.jsを使用してMarkdownテキストをHTMLに変換して表示
-     * 
-     * <p>クライアント側で`marked.js`を使用して、リリースノートのMarkdownテキストをHTMLに変換します。
-     * エラー時は、エラーメッセージを含むHTMLテンプレートを静的に作成して表示します。
-     * 
-     * @param markdownText リリースノートのMarkdownテキスト（nullまたは空文字列でないことが保証されている）
-     * @param htmlTemplate HTMLテンプレート
-     * @param finalHtml 最終的なHTMLを格納する配列（ラムダ式内で使用するため配列を使用）
-     * @param webView WebView（UI更新用）
-     */
-    private void renderMarkdown(String markdownText, String htmlTemplate,
-            String[] finalHtml, WebView webView) {
-        log.debug("renderMarkdown開始: markdownTextサイズ={} bytes", markdownText.length());
-
-        // HTMLテンプレートをロード
-        finalHtml[0] = htmlTemplate;
-        
-        // openInfoメソッドは既にJavaFX Application Threadで実行されているため、
-        // Platform.runLater()は不要
-        webView.getEngine().loadContent(htmlTemplate);
-        
-        // HTMLのロード完了を待ってからJavaScriptを実行
-        webView.getEngine().getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
-            if (newState == Worker.State.SUCCEEDED) {
-                try {
-                    // JavaScriptの文字列リテラルとしてエスケープ
-                    String escapedMarkdown = escapeJavaScriptString(markdownText);
-                    // エラーメッセージのHTMLを事前に作成（JavaScript内で使用）
-                    String markedJsErrorHtml = escapeJavaScriptString(createErrorMessageHtml("marked.jsの読み込みに失敗しました。"));
-                    String renderErrorHtml = escapeJavaScriptString(createErrorMessageHtml("Markdownのレンダリングに失敗しました。"));
-                    // marked.jsでMarkdownをHTMLに変換
-                    String script = String.format("""
-                        (function() {
-                            try {
-                                if (typeof marked === 'undefined') {
-                                    // marked.jsの読み込み失敗時は、エラーメッセージのHTMLを直接設定
-                                    document.getElementById('markdown-content').innerHTML = %s;
-                                    return;
-                                }
-                                var html = marked.parse(%s, {
-                                    breaks: true,
-                                    gfm: true
-                                });
-                                document.getElementById('markdown-content').innerHTML = html;
-                            } catch (error) {
-                                // Markdownレンダリング失敗時は、エラーメッセージのHTMLを直接設定
-                                document.getElementById('markdown-content').innerHTML = %s;
-                            }
-                        })();
-                        """, 
-                        markedJsErrorHtml,
-                        escapedMarkdown,
-                        renderErrorHtml);
-                    webView.getEngine().executeScript(script);
-                    log.debug("Markdownレンダリング完了: サイズ={} bytes", markdownText.length());
-                } catch (Exception e) {
-                    log.warn("JavaScript実行中にエラーが発生しました", e);
-                    // JavaScript実行エラー時は、エラーメッセージのHTMLを直接設定
-                    String errorHtml = createMarkdownHtmlTemplate("Markdownのレンダリングに失敗しました: " + e.getMessage());
-                    finalHtml[0] = errorHtml;
-                    webView.getEngine().loadContent(errorHtml);
-                }
-            } else if (newState == Worker.State.FAILED) {
-                log.warn("HTMLの読み込みに失敗しました");
-                // HTML読み込み失敗時は、エラーメッセージを含むHTMLテンプレートを静的に作成
-                String errorHtml = createMarkdownHtmlTemplate("HTMLの読み込みに失敗しました");
-                finalHtml[0] = errorHtml;
-                webView.getEngine().loadContent(errorHtml);
-            }
-        });
-    }
-
-    /**
-     * Javaの文字列をJavaScriptの文字列リテラルとしてエスケープ
-     * 
-     * <p>バッククォートを使用したテンプレートリテラル形式でエスケープすることで、
-     * 改行や特殊文字を安全に扱える。
-     * 
-     * @param str エスケープする文字列
-     * @return JavaScriptの文字列リテラル（バッククォート形式）
-     */
-    private String escapeJavaScriptString(String str) {
-        if (str == null) {
-            return "null";
-        }
-        // バッククォートを使用したテンプレートリテラル形式でエスケープ
-        // これにより、改行や特殊文字を安全に扱える
-        return "`" + str.replace("\\", "\\\\")
-                        .replace("`", "\\`")
-                        .replace("${", "\\${") + "`";
-    }
-
-
-    /**
      * 新しいバージョン情報ダイアログを表示
      *
      * @param versionInfo バージョン情報
@@ -577,85 +408,31 @@ public class CheckUpdate {
         Version n = versionInfo.version();
         ButtonType update = new ButtonType("自動更新");
         ButtonType visible = new ButtonType("ダウンロードサイトを開く");
-        ButtonType no = new ButtonType("後で");
+        ButtonType no = new ButtonType("後で", ButtonBar.ButtonData.CANCEL_CLOSE);
 
         Alert alert = new Alert(AlertType.INFORMATION);
         alert.getDialogPane().getStylesheets().add("logbook/gui/application.css");
+        alert.getDialogPane().getStylesheets().add("logbook/gui/update_check.css");
+        alert.getDialogPane().getStyleClass().add("update-check-dialog");
         InternalFXMLLoader.setGlobal(alert.getDialogPane());
-        alert.setTitle("新しいバージョン");
-        alert.setHeaderText("新しいバージョン");
+        alert.setTitle("更新のお知らせ");
+        alert.setHeaderText("新しいバージョンがあります");
         alert.initOwner(stage);
 
         // メインコンテンツを作成
         VBox contentBox = new VBox(10);
         contentBox.setPadding(new Insets(10));
 
-        // バージョン情報
-        String versionInfoText = """
+        Label versionLabel = new Label("""
                 現在のバージョン: %s
                 新しいバージョン: %s
-                """.formatted(o, n);
-        Label versionLabel = new Label(versionInfoText);
+                """.formatted(o, n));
+        versionLabel.getStyleClass().add("update-check-versions");
         contentBox.getChildren().add(versionLabel);
 
-        // リリースノートを非同期で取得して表示
-        WebView webView = new WebView();
-        webView.setPrefHeight(300);
-        webView.setPrefWidth(600);
-
-        // リリースノートのMarkdownテキストを取得
-        String markdownText = versionInfo.body() != null && !versionInfo.body().trim().isEmpty() 
-                ? versionInfo.body() 
-                : null;
-
-        // リンククリック時にブラウザで開く
-        final boolean[] isInitialLoad = { true };
-        final String[] finalHtml = { null }; // ラムダ式内で使用するため配列に
-
-        webView.getEngine().locationProperty().addListener((ChangeListener<String>) (obs, oldLocation, newLocation) -> {
-            // 初期ロード（data:スキーム）はスキップ
-            if (isInitialLoad[0]) {
-                isInitialLoad[0] = false;
-                return;
-            }
-
-            // 外部リンクの場合、ブラウザで開く
-            if (newLocation != null && !newLocation.startsWith("data:")) {
-                // まず、WebViewのナビゲーションを即座にキャンセル（元のコンテンツに戻す）
-                Platform.runLater(() -> {
-                    if (finalHtml[0] != null) {
-                        webView.getEngine().loadContent(finalHtml[0]);
-                    }
-                });
-
-                // その後、ブラウザで開く
-                try {
-                    Desktop.getDesktop().browse(URI.create(newLocation));
-                } catch (Exception e) {
-                    log.warn("ブラウザを開くのに失敗しました: {}", newLocation, e);
-                }
-            }
-        });
-
-        ScrollPane scrollPane = new ScrollPane(webView);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setPrefHeight(300);
-
-        VBox.setVgrow(scrollPane, Priority.ALWAYS);
-        contentBox.getChildren().add(scrollPane);
-
-        // リリースノートが空の場合は、エラーメッセージを含むHTMLテンプレートを直接表示
-        if (markdownText == null || markdownText.trim().isEmpty()) {
-            log.debug("リリースノートが空のため、エラー表示を表示");
-            String errorHtml = createMarkdownHtmlTemplate("リリースノートがありません。");
-            finalHtml[0] = errorHtml;
-            webView.getEngine().loadContent(errorHtml);
-        } else {
-            // Markdownをレンダリングして表示
-            String htmlTemplate = createMarkdownHtmlTemplate(null);
-            finalHtml[0] = htmlTemplate;
-            renderMarkdown(markdownText, htmlTemplate, finalHtml, webView);
-        }
+        ReleaseNotesPane notesPane = new ReleaseNotesPane(versionInfo.body());
+        VBox.setVgrow(notesPane, Priority.ALWAYS);
+        contentBox.getChildren().add(notesPane);
 
         // 自動更新の説明
         String autoUpdateInfo = showSettingsHint
@@ -670,29 +447,24 @@ public class CheckUpdate {
         contentBox.getChildren().add(infoLabel);
 
         alert.getDialogPane().setContent(contentBox);
-        // 既存のボタンを削除してからカスタムボタンを追加
         // clear()を使うと×ボタンも削除されるため、setAll()を使用
-        // ButtonType.CANCELを追加しないことで、×ボタンのみが動作し、キャンセルボタンは表示されない
+        // 「後で」を CANCEL_CLOSE にして、× / Esc も閉じる（キャンセルと表示されるボタンは出さない）
         alert.getButtonTypes().setAll(update, visible, no);
+        // ブラウザ起動だけ行い、ダイアログは閉じない（自動更新 / 後で を続けて選べるようにする）
+        alert.getDialogPane().lookupButton(visible).addEventFilter(ActionEvent.ACTION, event -> {
+            event.consume();
+            openBrowser();
+        });
 
         Optional<ButtonType> result = alert.showAndWait();
-        // ×ボタンが押された場合、result.isEmpty()がtrueになる
-        // noボタンが押された場合、noが返される
-        // どちらも何も実行しない（noと同じ動作）
-        if (result.isPresent()) {
-            ButtonType selected = result.get();
-            if (selected == update) {
-                // ダイアログを閉じてから、非同期で自動更新を開始
-                // これにより、進捗ダイアログが正しく表示される
-                alert.close();
-                // 非同期で実行することで、openInfoメソッドが終了しても進捗ダイアログが表示され続ける
-                Platform.runLater(() -> launchUpdate(n, versionInfo, stage));
-            } else if (selected == visible) {
-                openBrowser();
+        if (result.isPresent() && result.get() == update) {
+            // ダイアログを閉じてから、非同期で自動更新を開始
+            // これにより、進捗ダイアログが正しく表示される
+            alert.close();
+            // 非同期で実行することで、openInfoメソッドが終了しても進捗ダイアログが表示され続ける
+            Platform.runLater(() -> launchUpdate(n, versionInfo, stage));
         }
-            // noボタンが押された場合、何も実行しない
-        }
-        // result.isEmpty()の場合（×ボタンが押された場合）、何も実行しない
+        // 「後で」・×・Esc は何もしない
     }
 
     /**
