@@ -20,6 +20,7 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
@@ -27,7 +28,9 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Hyperlink;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
@@ -39,12 +42,14 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.text.Font;
 import javafx.scene.text.TextFlow;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import javafx.util.StringConverter;
 import logbook.bean.AppBouyomiConfig;
 import logbook.bean.AppBouyomiConfig.AppBouyomiText;
 import logbook.bean.AppConfig;
@@ -93,7 +98,7 @@ public class ConfigController extends WindowController {
 
     @FXML
     /** フォント */
-    private TextField fontFamily;
+    private ComboBox<String> fontFamily;
 
     @FXML
     private ToggleGroup fontSize;
@@ -523,7 +528,7 @@ public class ConfigController extends WindowController {
         AppConfig conf = AppConfig.get();
         this.windowStyleSmart.setSelected("main".equals(conf.getWindowStyle()));
         this.windowStyleWide.setSelected("main_wide".equals(conf.getWindowStyle()));
-        this.fontFamily.setText(conf.getFontFamily());
+        this.initializeFontFamily(conf);
         this.fontSizeLarge1.setSelected("large1".equals(conf.getFontSize()));
         this.fontSizeLarge2.setSelected("large2".equals(conf.getFontSize()));
         this.useNotification.setSelected(conf.isUseNotification());
@@ -643,6 +648,27 @@ public class ConfigController extends WindowController {
     }
 
     /**
+     * フォントコンボを初期化する。
+     *
+     * @param conf アプリケーション設定
+     */
+    private void initializeFontFamily(AppConfig conf) {
+        this.fontFamily.setConverter(new FontFamilyConverter());
+        this.fontFamily.setCellFactory(lv -> new FontFamilyListCell());
+        this.fontFamily.setVisibleRowCount(16);
+
+        ObservableList<String> items = FXCollections.observableArrayList();
+        items.add("");
+        items.addAll(UiFonts.japaneseFamilies());
+        String saved = UiFonts.storedFamily(conf.getFontFamily());
+        if (!saved.isEmpty() && !items.contains(saved)) {
+            items.add(saved);
+        }
+        this.fontFamily.setItems(items);
+        this.fontFamily.setValue(saved);
+    }
+
+    /**
      * キャンセル
      *
      * @param event ActionEvent
@@ -666,7 +692,8 @@ public class ConfigController extends WindowController {
         if (this.windowStyleWide.isSelected())
             windowStyle = "main_wide";
         conf.setWindowStyle(windowStyle);
-        conf.setFontFamily(this.fontFamily.getText());
+        this.fontFamily.commitValue();
+        conf.setFontFamily(UiFonts.storedFamily(this.fontFamily.getValue()));
         String fontSize = "default";
         if (this.fontSizeLarge1.isSelected())
             fontSize = "large1";
@@ -759,6 +786,7 @@ public class ConfigController extends WindowController {
         this.bouyomiChanStore();
 
         Main.refreshMainWindowTitle();
+        InternalFXMLLoader.applyToOpenWindows();
 
         ThreadManager.getExecutorService()
                 .execute(Config.getDefault()::store);
@@ -1355,6 +1383,10 @@ public class ConfigController extends WindowController {
 
     @Override
     public void setWindowLocation(WindowLocation location) {
+        Stage window = this.getWindow();
+        if (window == null) {
+            return;
+        }
         if (location != null) {
             boolean intersect = Screen.getScreens()
                     .stream()
@@ -1363,9 +1395,94 @@ public class ConfigController extends WindowController {
                             location.getX(), location.getY(), location.getWidth(), location.getHeight()));
 
             if (intersect) {
-                this.getWindow().setX(location.getX());
-                this.getWindow().setY(location.getY());
+                window.setX(location.getX());
+                window.setY(location.getY());
             }
+        }
+        this.applyConfigWindowSize(window, location);
+    }
+
+    /**
+     * 文字サイズに応じた下限まで広げ、保存サイズがそれより大きければ使う。画面外には出さない。
+     */
+    private void applyConfigWindowSize(Stage window, WindowLocation location) {
+        Rectangle2D vis = visualBoundsFor(window);
+        double factor = UiFonts.sizeFactor(AppConfig.get().getFontSize());
+        double minW = ConfigWindowSizer.BASE_MIN_WIDTH * factor;
+        double minH = ConfigWindowSizer.BASE_MIN_HEIGHT * factor;
+        double prefW = ConfigWindowSizer.BASE_PREF_WIDTH * factor;
+        double prefH = ConfigWindowSizer.BASE_PREF_HEIGHT * factor;
+
+        double currentW = ConfigWindowSizer.positive(window.getWidth());
+        double currentH = ConfigWindowSizer.positive(window.getHeight());
+        if (location != null) {
+            currentW = Math.max(currentW, location.getWidth());
+            currentH = Math.max(currentH, location.getHeight());
+        }
+        double width = ConfigWindowSizer.growWithin(currentW, prefW, minW, vis.getWidth());
+        double height = ConfigWindowSizer.growWithin(currentH, prefH, minH, vis.getHeight());
+        window.setMinWidth(Math.min(minW, vis.getWidth()));
+        window.setMinHeight(Math.min(minH, vis.getHeight()));
+        window.setWidth(width);
+        window.setHeight(height);
+
+        double x = window.getX();
+        double y = window.getY();
+        if (!Double.isNaN(x)) {
+            window.setX(ConfigWindowSizer.clampPosition(x, width, vis.getMinX(), vis.getMaxX()));
+        }
+        if (!Double.isNaN(y)) {
+            window.setY(ConfigWindowSizer.clampPosition(y, height, vis.getMinY(), vis.getMaxY()));
+        }
+    }
+
+    private static Rectangle2D visualBoundsFor(Stage window) {
+        Screen screen = ScreenUtils.findScreenContaining(window.getX(), window.getY());
+        if (screen != null) {
+            return screen.getVisualBounds();
+        }
+        return ScreenUtils.getPrimaryScreenBounds();
+    }
+
+    /**
+     * フォントコンボの表示変換。空は既定ラベル。
+     */
+    private static final class FontFamilyConverter extends StringConverter<String> {
+
+        @Override
+        public String toString(String object) {
+            if (object == null || object.isEmpty()) {
+                return UiFonts.defaultChoiceLabel();
+            }
+            return object;
+        }
+
+        @Override
+        public String fromString(String string) {
+            return UiFonts.storedFamily(string);
+        }
+    }
+
+    /**
+     * ドロップダウンでファミリーをプレビューする。既定項目はプレビューしない。
+     */
+    private static final class FontFamilyListCell extends ListCell<String> {
+
+        @Override
+        protected void updateItem(String item, boolean empty) {
+            super.updateItem(item, empty);
+            if (empty || item == null) {
+                this.setText(null);
+                this.setFont(Font.getDefault());
+                return;
+            }
+            if (item.isEmpty()) {
+                this.setText(UiFonts.defaultChoiceLabel());
+                this.setFont(Font.getDefault());
+                return;
+            }
+            this.setText(item);
+            this.setFont(Font.font(item));
         }
     }
 }

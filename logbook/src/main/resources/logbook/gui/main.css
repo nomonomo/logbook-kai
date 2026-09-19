@@ -118,6 +118,11 @@ TabPane .tab.empty .tab-label {
 .ndock .name {
     -fx-font-size: 10pt;
 }
+.ndock .info .name,
+.ndock .info .time {
+    -fx-padding: 0;
+    -fx-label-padding: 0;
+}
 .ndock .time {
     -fx-font-size: 14pt;
     -fx-font-weight: bold;
