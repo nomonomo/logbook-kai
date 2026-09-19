@@ -5,6 +5,7 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.RadioButton?>
 <?import javafx.scene.control.ScrollPane?>
@@ -17,461 +18,428 @@
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.ToggleGroup?>
 <?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.TextFlow?>
 
-<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="530.0" prefWidth="600.0" styleClass="configWindow" xmlns="http://javafx.com/javafx/8.0.232-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="logbook.internal.gui.ConfigController">
+<VBox minHeight="560.0" minWidth="640.0" prefHeight="660.0" prefWidth="700.0" styleClass="configWindow" xmlns="http://javafx.com/javafx/8.0.232-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="logbook.internal.gui.ConfigController">
    <children>
       <TabPane fx:id="tabPane" VBox.vgrow="ALWAYS">
          <tabs>
             <Tab closable="false" text="一般">
                <content>
-                  <VBox styleClass="configInner">
-                     <children>
-                        <GridPane>
-                          <columnConstraints>
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                          </columnConstraints>
-                          <rowConstraints>
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="24.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                          </rowConstraints>
+                  <ScrollPane fitToWidth="true">
+                     <content>
+                        <VBox styleClass="configInner">
                            <children>
-                              <Label text="メイン画面のスタイル*" />
-                              <HBox alignment="CENTER_LEFT" GridPane.columnIndex="1">
+                              <GridPane vgap="4">
+                                <columnConstraints>
+                                    <ColumnConstraints fillWidth="false" />
+                                    <ColumnConstraints fillWidth="false" hgrow="ALWAYS" minWidth="10.0" />
+                                    <ColumnConstraints fillWidth="false" />
+                                    <ColumnConstraints fillWidth="false" />
+                                </columnConstraints>
                                  <children>
-                                    <RadioButton fx:id="windowStyleSmart" mnemonicParsing="false" selected="true" text="スマート">
-                                       <toggleGroup>
-                                          <ToggleGroup fx:id="windowStyle" />
-                                       </toggleGroup>
-                                    </RadioButton>
-                                    <RadioButton fx:id="windowStyleWide" mnemonicParsing="false" text="ワイド" toggleGroup="$windowStyle" />
+                                    <Label text="メイン画面のスタイル*" />
+                                    <HBox alignment="CENTER_LEFT" GridPane.columnIndex="1">
+                                       <children>
+                                          <RadioButton fx:id="windowStyleSmart" mnemonicParsing="false" selected="true" text="スマート">
+                                             <toggleGroup>
+                                                <ToggleGroup fx:id="windowStyle" />
+                                             </toggleGroup>
+                                          </RadioButton>
+                                          <RadioButton fx:id="windowStyleWide" mnemonicParsing="false" text="ワイド" toggleGroup="$windowStyle" />
+                                       </children>
+                                    </HBox>
+                                    <Label text="フォント" GridPane.rowIndex="1" />
+                                    <ComboBox fx:id="fontFamily" editable="true" maxWidth="Infinity" prefWidth="250.0" visibleRowCount="16" GridPane.columnIndex="1" GridPane.fillWidth="true" GridPane.rowIndex="1" />
+                                    <Label text="文字の大きさ" GridPane.rowIndex="2" />
+                                    <FlowPane hgap="8.0" maxWidth="Infinity" vgap="4.0" GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.fillWidth="true" GridPane.rowIndex="2">
+                                       <children>
+                                          <RadioButton fx:id="fontSizeDefault" mnemonicParsing="false" selected="true" text="標準">
+                                             <toggleGroup>
+                                                <ToggleGroup fx:id="fontSize" />
+                                             </toggleGroup>
+                                          </RadioButton>
+                                          <RadioButton fx:id="fontSizeLarge1" mnemonicParsing="false" text="少し大きい" toggleGroup="$fontSize" />
+                                          <RadioButton fx:id="fontSizeLarge2" mnemonicParsing="false" text="大きい" toggleGroup="$fontSize" />
+                                       </children>
+                                    </FlowPane>
+                                    <FlowPane hgap="8.0" maxWidth="Infinity" vgap="4.0" GridPane.columnSpan="2147483647" GridPane.fillWidth="true" GridPane.rowIndex="3">
+                                       <children>
+                                          <CheckBox fx:id="useNotification" mnemonicParsing="false" text="遠征・入渠完了時に通知をする" />
+                                          <CheckBox fx:id="useToast" mnemonicParsing="false" text="通知でトーストを表示" />
+                                       </children>
+                                    </FlowPane>
+                                    <CheckBox fx:id="useCondRecoverToast" mnemonicParsing="false" text="疲労回復予定時刻にトーストを表示" GridPane.columnSpan="2147483647" GridPane.rowIndex="4" />
+                                    <CheckBox fx:id="alertBadlyStart" mnemonicParsing="false" text="出撃時に大破艦がいる場合に通知をする" GridPane.columnSpan="2147483647" GridPane.rowIndex="5" />
+                                    <FlowPane hgap="8.0" maxWidth="Infinity" vgap="4.0" GridPane.columnSpan="2147483647" GridPane.fillWidth="true" GridPane.rowIndex="6">
+                                       <children>
+                                          <CheckBox fx:id="alertBadlyNext" mnemonicParsing="false" text="進撃時に大破艦がいる場合に通知をする"/>
+                                          <CheckBox fx:id="ignoreSecondFlagship" mnemonicParsing="false" text="連合艦隊の第二艦隊旗艦を除外"/>
+                                       </children>
+                                    </FlowPane>
+                                    <CheckBox fx:id="useSound" mnemonicParsing="false" text="通知でサウンドを鳴らす" GridPane.columnSpan="2147483647" GridPane.rowIndex="7" />
+                                    <Label text="デフォルトサウンド" GridPane.rowIndex="8" />
+                                    <TextField fx:id="defaultNotifySound" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.fillWidth="true" GridPane.hgrow="ALWAYS" GridPane.rowIndex="8" />
+                                    <Button mnemonicParsing="false" onAction="#selectSoundFile" text="参照..." GridPane.columnIndex="2" GridPane.rowIndex="8" />
+                                    <Label text="トーストの位置" GridPane.rowIndex="9" />
+                                    <ChoiceBox fx:id="toastLocation" maxWidth="90.0" prefWidth="90.0" GridPane.columnIndex="1" GridPane.rowIndex="9" />
+                                    <CheckBox fx:id="useRemind" mnemonicParsing="false" text="遠征完了時のリマインド(秒)" GridPane.rowIndex="10" />
+                                    <TextField fx:id="remind" prefWidth="60.0" GridPane.columnIndex="1" GridPane.rowIndex="10" />
+                                    <Label text="音量(%)" GridPane.rowIndex="11" />
+                                    <TextField fx:id="soundLevel" prefWidth="60.0" GridPane.columnIndex="1" GridPane.rowIndex="11" />
+                                    <Label text="資材ログ保存間隔(秒)" GridPane.rowIndex="12" />
+                                    <TextField fx:id="materialLogInterval" prefWidth="60.0" GridPane.columnIndex="1" GridPane.rowIndex="12" />
+                                    <CheckBox fx:id="onTop" mnemonicParsing="false" text="最前面に表示する*" GridPane.columnSpan="2147483647" GridPane.rowIndex="13" />
+                                    <CheckBox fx:id="checkDoit" mnemonicParsing="false" text="終了時に確認する" GridPane.rowIndex="14" />
+                                    <CheckBox fx:id="checkUpdate" mnemonicParsing="false" text="起動時にアップデートチェック*" GridPane.columnSpan="2147483647" GridPane.rowIndex="15" />
+                                    <CheckBox fx:id="checkGameDataUpdate" mnemonicParsing="false" text="ゲームデータ更新チェック" GridPane.columnSpan="2147483647" GridPane.rowIndex="16" />
+                                    <Label text="報告書の保存先" GridPane.rowIndex="17" />
+                                    <TextField fx:id="reportDir" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.fillWidth="true" GridPane.hgrow="ALWAYS" GridPane.rowIndex="17" />
+                                    <Button mnemonicParsing="false" onAction="#selectReportDir" text="参照..." GridPane.columnIndex="2" GridPane.rowIndex="17" />
+                                    <Label text="母港タブ表示内容" GridPane.rowIndex="18" />
+                                    <FlowPane hgap="5.0" maxWidth="Infinity" vgap="4.0" GridPane.columnIndex="1" GridPane.columnSpan="2147483647" GridPane.fillWidth="true" GridPane.rowIndex="18">
+                                       <children>
+                                          <CheckBox fx:id="showAchievement" mnemonicParsing="false" text="戦果" />
+                                          <CheckBox fx:id="showMission" mnemonicParsing="false" text="遠征" />
+                                          <CheckBox fx:id="showNdock" mnemonicParsing="false" text="入渠" />
+                                          <CheckBox fx:id="showQuest" mnemonicParsing="false" text="任務" />
+                                       </children>
+                                    </FlowPane>
                                  </children>
-                              </HBox>
-                              <Label text="フォント*" GridPane.rowIndex="1" />
-                              <TextField fx:id="fontFamily" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                              <Label text="文字の大きさ*" GridPane.rowIndex="2" />
-                              <HBox alignment="CENTER_LEFT" GridPane.columnSpan="2" GridPane.columnIndex="1" GridPane.rowIndex="2">
-                                 <children>
-                                    <RadioButton fx:id="fontSizeDefault" mnemonicParsing="false" selected="true" text="標準">
-                                       <toggleGroup>
-                                          <ToggleGroup fx:id="fontSize" />
-                                       </toggleGroup>
-                                    </RadioButton>
-                                    <RadioButton fx:id="fontSizeLarge1" mnemonicParsing="false" text="少し大きい" toggleGroup="$fontSize" />
-                                    <RadioButton fx:id="fontSizeLarge2" mnemonicParsing="false" text="大きい" toggleGroup="$fontSize" />
-                                 </children>
-                              </HBox>
-                              <HBox alignment="CENTER_LEFT" GridPane.rowIndex="3" GridPane.columnSpan="2147483647">
-                                 <CheckBox fx:id="useNotification" mnemonicParsing="false" text="遠征・入渠完了時に通知をする" />
-                                 <CheckBox fx:id="useToast" mnemonicParsing="false" text="通知でトーストを表示" />
-                              </HBox>
-                              <CheckBox fx:id="useCondRecoverToast" mnemonicParsing="false" text="疲労回復予定時刻にトーストを表示" GridPane.columnSpan="2147483647" GridPane.rowIndex="4" />
-                              <CheckBox fx:id="alertBadlyStart" mnemonicParsing="false" text="出撃時に大破艦がいる場合に通知をする" GridPane.columnSpan="2147483647" GridPane.rowIndex="5" />
-                              <HBox alignment="CENTER_LEFT" GridPane.rowIndex="6" GridPane.columnSpan="2147483647">
-                                  <CheckBox fx:id="alertBadlyNext" mnemonicParsing="false" text="進撃時に大破艦がいる場合に通知をする"/>
-                                  <CheckBox fx:id="ignoreSecondFlagship" mnemonicParsing="false" text="連合艦隊の第二艦隊旗艦を除外"/>
-                              </HBox>
-                              <CheckBox fx:id="useSound" mnemonicParsing="false" text="通知でサウンドを鳴らす" GridPane.columnSpan="2147483647" GridPane.rowIndex="7" />
-                              <Label text="デフォルトサウンド" GridPane.rowIndex="8" />
-                              <TextField fx:id="defaultNotifySound" prefWidth="300.0" GridPane.columnIndex="1" GridPane.rowIndex="8" />
-                              <Button mnemonicParsing="false" onAction="#selectSoundFile" text="参照..." GridPane.columnIndex="2" GridPane.rowIndex="8" />
-                              <Label text="トーストの位置" GridPane.rowIndex="9" />
-                              <ChoiceBox fx:id="toastLocation" prefWidth="60.0" GridPane.columnIndex="1"  GridPane.rowIndex="9" />
-                              <CheckBox fx:id="useRemind" mnemonicParsing="false" text="遠征完了時のリマインド(秒)" GridPane.rowIndex="10" />
-                              <TextField fx:id="remind" prefWidth="60.0" GridPane.columnIndex="1" GridPane.rowIndex="10" />
-                              <Label text="音量(%)" GridPane.rowIndex="11" />
-                              <TextField fx:id="soundLevel" prefWidth="60.0" GridPane.columnIndex="1" GridPane.rowIndex="11" />
-                              <Label text="資材ログ保存間隔(秒)" GridPane.rowIndex="12" />
-                              <TextField fx:id="materialLogInterval" prefWidth="60.0" GridPane.columnIndex="1" GridPane.rowIndex="12" />
-                              <CheckBox fx:id="onTop" mnemonicParsing="false" text="最前面に表示する*" GridPane.columnSpan="2147483647" GridPane.rowIndex="13" />
-                              <CheckBox fx:id="checkDoit" mnemonicParsing="false" text="終了時に確認する" GridPane.rowIndex="14" />
-                              <CheckBox fx:id="checkUpdate" mnemonicParsing="false" text="起動時にアップデートチェック*" GridPane.columnSpan="2147483647" GridPane.rowIndex="15" />
-                              <CheckBox fx:id="checkGameDataUpdate" mnemonicParsing="false" text="ゲームデータ更新チェック" GridPane.columnSpan="2147483647" GridPane.rowIndex="16" />
-                              <Label text="報告書の保存先" GridPane.rowIndex="17" />
-                              <TextField fx:id="reportDir" prefWidth="300.0" GridPane.columnIndex="1" GridPane.rowIndex="17" />
-                              <Button mnemonicParsing="false" onAction="#selectReportDir" text="参照..." GridPane.columnIndex="2" GridPane.rowIndex="17" />
-                              <Label text="母港タブ表示内容" GridPane.rowIndex="18" />
-                              <HBox  alignment="CENTER_LEFT" GridPane.rowIndex="18" GridPane.columnIndex="1" GridPane.columnSpan="2147483647" spacing="5">
-                              <CheckBox fx:id="showAchievement" mnemonicParsing="false" text="戦果" GridPane.columnIndex="1" GridPane.rowIndex="18"/>
-                              <CheckBox fx:id="showMission" mnemonicParsing="false" text="遠征" GridPane.columnIndex="2" GridPane.rowIndex="18"/>
-                              <CheckBox fx:id="showNdock" mnemonicParsing="false" text="入渠" GridPane.columnIndex="3" GridPane.rowIndex="18"/>
-                              <CheckBox fx:id="showQuest" mnemonicParsing="false" text="任務" GridPane.columnIndex="3" GridPane.rowIndex="18"/>
-                              </HBox>
+                              </GridPane>
                            </children>
-                        </GridPane>
-                     </children>
-                  </VBox>
+                        </VBox>
+                     </content>
+                  </ScrollPane>
                </content>
             </Tab>
             <Tab closable="false" text="戦闘・艦隊・艦娘">
                <content>
-                  <VBox styleClass="configInner">
-                     <children>
-                        <Label styleClass="bold" text="戦闘" />
-                        <GridPane>
-                           <columnConstraints>
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                           </columnConstraints>
-                           <rowConstraints>
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                           </rowConstraints>
+                  <ScrollPane fitToWidth="true">
+                     <content>
+                        <VBox styleClass="configInner">
                            <children>
-                              <CheckBox fx:id="applyBattle" mnemonicParsing="false" text="戦闘開始時に結果を反映" />
-                              <CheckBox fx:id="applyResult" mnemonicParsing="false" text="戦闘結果時に結果を反映" GridPane.columnSpan="2147483647" GridPane.rowIndex="1" />
-                              <TextField fx:id="battleLogExpires" prefWidth="60.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-                              <CheckBox fx:id="compressBattleLogs" mnemonicParsing="false" text="戦闘ログの詳細を圧縮する" GridPane.columnSpan="2147483647" GridPane.rowIndex="3" />
-                              <Label text="戦闘ログ詳細の保存日数" GridPane.rowIndex="2" />
-                              <Label text="日" GridPane.columnIndex="2" GridPane.rowIndex="2" />
-                              <CheckBox fx:id="indefiniteExpires" mnemonicParsing="false" text="保存期間を無期限にする" GridPane.columnIndex="4" GridPane.rowIndex="2">
-                                 <GridPane.margin>
-                                    <Insets left="3.0" />
-                                 </GridPane.margin>
-                              </CheckBox>
-                              <CheckBox fx:id="includeRawData" mnemonicParsing="false" text="戦闘ログにローデータを追加する" GridPane.columnSpan="2147483647" GridPane.rowIndex="4" />
+                              <Label styleClass="bold" text="戦闘" />
+                              <GridPane vgap="4">
+                                 <columnConstraints>
+                                    <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
+                                 </columnConstraints>
+                                 <children>
+                                    <CheckBox fx:id="applyBattle" mnemonicParsing="false" text="戦闘開始時に結果を反映" />
+                                    <CheckBox fx:id="applyResult" mnemonicParsing="false" text="戦闘結果時に結果を反映" GridPane.rowIndex="1" />
+                                    <FlowPane hgap="8.0" maxWidth="Infinity" vgap="4.0" GridPane.fillWidth="true" GridPane.rowIndex="2">
+                                       <children>
+                                          <Label text="戦闘ログ詳細の保存日数" />
+                                          <TextField fx:id="battleLogExpires" prefWidth="60.0" />
+                                          <Label text="日" />
+                                          <CheckBox fx:id="indefiniteExpires" mnemonicParsing="false" text="保存期間を無期限にする" />
+                                       </children>
+                                    </FlowPane>
+                                    <CheckBox fx:id="compressBattleLogs" mnemonicParsing="false" text="戦闘ログの詳細を圧縮する" GridPane.rowIndex="3" />
+                                    <CheckBox fx:id="includeRawData" mnemonicParsing="false" text="戦闘ログにローデータを追加する" GridPane.rowIndex="4" />
+                                 </children>
+                              </GridPane>
+                              <Label styleClass="bold" text="艦隊・艦娘" />
+                              <GridPane vgap="4">
+                                 <columnConstraints>
+                                    <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
+                                 </columnConstraints>
+                                 <children>
+                                    <CheckBox fx:id="visibleExpGauge" mnemonicParsing="false" text="艦娘の画像に経験値バーを表示する" />
+                                    <FlowPane hgap="8.0" maxWidth="Infinity" vgap="4.0" GridPane.fillWidth="true" GridPane.rowIndex="1">
+                                       <children>
+                                          <Label text="母港枠の空きが" />
+                                          <TextField fx:id="shipFullyThreshold" prefWidth="60.0" />
+                                          <Label text="以下でボタン色を変更" />
+                                       </children>
+                                    </FlowPane>
+                                    <FlowPane hgap="8.0" maxWidth="Infinity" vgap="4.0" GridPane.fillWidth="true" GridPane.rowIndex="2">
+                                       <children>
+                                          <Label text="装備枠の空きが" />
+                                          <TextField fx:id="itemFullyThreshold" prefWidth="60.0" />
+                                          <Label text="以下でボタン色を変更" />
+                                       </children>
+                                    </FlowPane>
+                                    <FlowPane hgap="8.0" maxWidth="Infinity" vgap="4.0" GridPane.fillWidth="true" GridPane.rowIndex="3">
+                                       <children>
+                                          <Label text="画像の拡大・縮小(%)" />
+                                          <TextField fx:id="imageZoomRate" prefWidth="60.0" />
+                                          <Label text="(一部の一覧表示にのみ適用)" />
+                                       </children>
+                                    </FlowPane>
+                                    <CheckBox fx:id="allDecksTab" mnemonicParsing="false" text="所有艦娘一覧に全艦隊のタブを追加" GridPane.rowIndex="4" />
+                                    <CheckBox fx:id="deckTabs" mnemonicParsing="false" text="所有艦娘一覧に艦隊単位のタブを追加" GridPane.rowIndex="5" />
+                                    <CheckBox fx:id="labelTabs" mnemonicParsing="false" text="所有艦娘一覧にラベル単位のタブを追加" GridPane.rowIndex="6" />
+                                 </children>
+                              </GridPane>
+                              <Label styleClass="bold" text="艦隊タブの色" />
+                              <FlowPane hgap="8.0" maxWidth="Infinity" vgap="6.0">
+                                 <children>
+                                    <HBox alignment="CENTER_LEFT" spacing="4.0">
+                                       <children>
+                                          <Label text="無傷" />
+                                          <TextField fx:id="tabColorNoDamage" prefWidth="100.0" promptText="-" />
+                                       </children>
+                                    </HBox>
+                                    <HBox alignment="CENTER_LEFT" spacing="4.0">
+                                       <children>
+                                          <Label text="健在" />
+                                          <TextField fx:id="tabColorLessThanSlightDamage" prefWidth="100.0" promptText="#D0EEFF" />
+                                       </children>
+                                    </HBox>
+                                    <HBox alignment="CENTER_LEFT" spacing="4.0">
+                                       <children>
+                                          <Label text="小破" />
+                                          <TextField fx:id="tabColorSlightDamage" prefWidth="100.0" promptText="#FFEB5C" />
+                                       </children>
+                                    </HBox>
+                                    <HBox alignment="CENTER_LEFT" spacing="4.0">
+                                       <children>
+                                          <Label text="中破" />
+                                          <TextField fx:id="tabColorHalfDamage" prefWidth="100.0" promptText="#FFBC5C" />
+                                       </children>
+                                    </HBox>
+                                    <HBox alignment="CENTER_LEFT" spacing="4.0">
+                                       <children>
+                                          <Label text="大破" />
+                                          <TextField fx:id="tabColorBadlyDamage" prefWidth="100.0" promptText="#FF655C" />
+                                       </children>
+                                    </HBox>
+                                    <HBox alignment="CENTER_LEFT" spacing="4.0">
+                                       <children>
+                                          <Label text="未遠征" />
+                                          <TextField fx:id="tabColorNoMission" prefWidth="100.0" promptText="#87CEFA" />
+                                       </children>
+                                    </HBox>
+                                    <HBox alignment="CENTER_LEFT" spacing="4.0">
+                                       <children>
+                                          <Label text="要補給" />
+                                          <TextField fx:id="tabColorNeedRefuel" prefWidth="100.0" promptText="#FFF030" />
+                                       </children>
+                                    </HBox>
+                                    <Label text="（色を変えない場合は「-」（ハイフン）を指定）" wrapText="true" />
+                                 </children>
+                              </FlowPane>
                            </children>
-                        </GridPane>
-                        <Label styleClass="bold" text="艦隊・艦娘" />
-                        <GridPane>
-                           <columnConstraints>
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                           </columnConstraints>
-                           <rowConstraints>
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                           </rowConstraints>
-                           <children>
-                              <CheckBox fx:id="visibleExpGauge" mnemonicParsing="false" text="艦娘の画像に経験値バーを表示する" GridPane.columnSpan="3" />
-                              <Label text="母港枠の空きが" GridPane.rowIndex="1" />
-                              <TextField fx:id="shipFullyThreshold" prefWidth="60.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                              <Label text="以下でボタン色を変更" GridPane.columnIndex="2" GridPane.rowIndex="1" />
-                              <Label text="装備枠の空きが" GridPane.rowIndex="2" />
-                              <TextField fx:id="itemFullyThreshold" prefWidth="60.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-                              <Label text="以下でボタン色を変更" GridPane.columnIndex="2" GridPane.rowIndex="2" />
-                              <Label text="画像の拡大・縮小(%)" GridPane.rowIndex="3" />
-                              <TextField fx:id="imageZoomRate" prefWidth="60.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-                              <Label text="(一部の一覧表示にのみ適用)" GridPane.columnIndex="2" GridPane.rowIndex="3" />
-                              <CheckBox fx:id="allDecksTab" mnemonicParsing="false" text="所有艦娘一覧に全艦隊のタブを追加" GridPane.columnSpan="2147483647" GridPane.rowIndex="4" />
-                              <CheckBox fx:id="deckTabs" mnemonicParsing="false" text="所有艦娘一覧に艦隊単位のタブを追加" GridPane.columnSpan="2147483647" GridPane.rowIndex="5" />
-                              <CheckBox fx:id="labelTabs" mnemonicParsing="false" text="所有艦娘一覧にラベル単位のタブを追加" GridPane.columnSpan="2147483647" GridPane.rowIndex="6" />
-                           </children>
-                        </GridPane>
-                        <Label styleClass="bold" text="艦隊タブの色" />
-                        <GridPane hgap="3">
-                           <columnConstraints>
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                           </columnConstraints>
-                           <rowConstraints>
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                           </rowConstraints>
-                           <children>
-                              <Label text="無傷" GridPane.rowIndex="0" />
-                              <TextField fx:id="tabColorNoDamage" prefWidth="70.0" promptText="-" GridPane.columnIndex="1" GridPane.rowIndex="0" />
-                              <Label text="健在" GridPane.columnIndex="2" GridPane.rowIndex="0" />
-                              <TextField fx:id="tabColorLessThanSlightDamage" prefWidth="70.0" promptText="#D0EEFF" GridPane.columnIndex="3" GridPane.rowIndex="0" />
-                              <Label text="小破" GridPane.columnIndex="4" GridPane.rowIndex="0" />
-                              <TextField fx:id="tabColorSlightDamage" prefWidth="70.0" promptText="#FFEB5C" GridPane.columnIndex="5" GridPane.rowIndex="0" />
-                              <Label text="中破" GridPane.columnIndex="6" GridPane.rowIndex="0" />
-                              <TextField fx:id="tabColorHalfDamage" prefWidth="70.0" promptText="#FFBC5C" GridPane.columnIndex="7" GridPane.rowIndex="0" />
-                              <Label text="大破" GridPane.columnIndex="8" GridPane.rowIndex="0" />
-                              <TextField fx:id="tabColorBadlyDamage" prefWidth="70.0" promptText="#FF655C" GridPane.columnIndex="9" GridPane.rowIndex="0" />
-                              <Label text="未遠征" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-                              <TextField fx:id="tabColorNoMission" prefWidth="70.0" promptText="#87CEFA" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                              <Label text="要補給" GridPane.columnIndex="2" GridPane.rowIndex="1" />
-                              <TextField fx:id="tabColorNeedRefuel" prefWidth="70.0" promptText="#FFF030" GridPane.columnIndex="3" GridPane.rowIndex="1" />
-                              <Label text="（色を変えない場合は「-」（ハイフン）を指定）" GridPane.columnSpan="6"  GridPane.columnIndex="4" GridPane.rowIndex="1" />
-                           </children>
-                        </GridPane>
-                     </children>
-                  </VBox>
+                        </VBox>
+                     </content>
+                  </ScrollPane>
                </content>
             </Tab>
             <Tab closable="false" text="画像">
                <content>
-                  <VBox styleClass="configInner">
-                     <children>
-                        <GridPane>
-                           <columnConstraints>
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                           </columnConstraints>
-                           <rowConstraints>
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                           </rowConstraints>
+                  <ScrollPane fitToWidth="true">
+                     <content>
+                        <VBox styleClass="configInner">
                            <children>
-                                <Label text="保存される艦娘の画像の種類" GridPane.columnIndex="1" />
-                                <TextFlow GridPane.columnIndex="1" GridPane.rowIndex="1">
-                                   <children>
-                                      <RadioButton fx:id="shipImageCacheStrategyAll" mnemonicParsing="false" selected="true" text="全て">
-                                         <toggleGroup>
-                                            <ToggleGroup fx:id="shipImage" />
-                                         </toggleGroup>
-                                      </RadioButton>
-                                      <RadioButton fx:id="shipImageCacheStrategyUsed" mnemonicParsing="false" text="使用される画像のみ" toggleGroup="$shipImage" />
-                                      <RadioButton fx:id="shipImageCacheStrategyLimit" mnemonicParsing="false" text="制限(中破画像を小破以下で代替)" toggleGroup="$shipImage" />
-                                   </children>
-                                </TextFlow>
-                                <CheckBox fx:id="shipImageCompress" mnemonicParsing="false" text="PNG形式のファイルをJPEG形式に再圧縮する" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-                                <CheckBox fx:id="hideShipImageFromShipTablePane" mnemonicParsing="false" text="所有艦娘一覧から艦娘の画像を隠す" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-                                <CheckBox fx:id="hideItemImageFromShipTablePane" mnemonicParsing="false" text="所有艦娘一覧から装備の画像を隠す" GridPane.columnIndex="1" GridPane.rowIndex="4" />
-                              <CheckBox fx:id="visiblePoseImageOnFleetTab" mnemonicParsing="false" text="艦隊タブに旗艦の立ち絵を表示" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                              <GridPane vgap="4">
+                                 <columnConstraints>
+                                    <ColumnConstraints fillWidth="false" />
+                                    <ColumnConstraints fillWidth="false" hgrow="ALWAYS" minWidth="10.0" />
+                                 </columnConstraints>
+                                 <children>
+                                      <Label text="保存される艦娘の画像の種類" GridPane.columnIndex="1" />
+                                      <TextFlow GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                         <children>
+                                            <RadioButton fx:id="shipImageCacheStrategyAll" mnemonicParsing="false" selected="true" text="全て">
+                                               <toggleGroup>
+                                                  <ToggleGroup fx:id="shipImage" />
+                                               </toggleGroup>
+                                            </RadioButton>
+                                            <RadioButton fx:id="shipImageCacheStrategyUsed" mnemonicParsing="false" text="使用される画像のみ" toggleGroup="$shipImage" />
+                                            <RadioButton fx:id="shipImageCacheStrategyLimit" mnemonicParsing="false" text="制限(中破画像を小破以下で代替)" toggleGroup="$shipImage" />
+                                         </children>
+                                      </TextFlow>
+                                      <CheckBox fx:id="shipImageCompress" mnemonicParsing="false" text="PNG形式のファイルをJPEG形式に再圧縮する" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                                      <CheckBox fx:id="hideShipImageFromShipTablePane" mnemonicParsing="false" text="所有艦娘一覧から艦娘の画像を隠す" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                                      <CheckBox fx:id="hideItemImageFromShipTablePane" mnemonicParsing="false" text="所有艦娘一覧から装備の画像を隠す" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                                    <CheckBox fx:id="visiblePoseImageOnFleetTab" mnemonicParsing="false" text="艦隊タブに旗艦の立ち絵を表示" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                                 </children>
+                              </GridPane>
                            </children>
-                        </GridPane>
-                     </children>
-                  </VBox>
+                        </VBox>
+                     </content>
+                  </ScrollPane>
                </content>
             </Tab>
             <Tab closable="false" text="通信">
                <content>
-                  <VBox styleClass="configInner">
-                     <children>
-                        <GridPane>
-                           <columnConstraints>
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints hgrow="ALWAYS" minWidth="200.0" />
-                              <ColumnConstraints fillWidth="false" />
-                           </columnConstraints>
-                           <rowConstraints>
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                           </rowConstraints>
+                  <ScrollPane fitToWidth="true">
+                     <content>
+                        <VBox styleClass="configInner">
                            <children>
-                              <CheckBox fx:id="connectionClose" mnemonicParsing="false" text="通信エラーの抑止(Connection: closeヘッダを追加)*" GridPane.columnSpan="2147483647" />
-                              <Label text="ポート番号*" GridPane.rowIndex="1" />
-                              <TextField fx:id="listenPort" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                              <CheckBox fx:id="allowOnlyFromLocalhost" mnemonicParsing="false" text="ローカルループバックアドレスからの接続のみ受け入れる*" GridPane.columnSpan="2147483647" GridPane.rowIndex="2" />
-                              <CheckBox fx:id="useProxy" mnemonicParsing="false" text="接続にプロキシを使用する(他ツール連携)*" GridPane.columnSpan="2147483647" GridPane.rowIndex="3" />
-                              <Label text="プロキシホスト*" GridPane.rowIndex="4" />
-                              <TextField fx:id="proxyHost" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
-                              <Label text="プロキシポート番号*" GridPane.rowIndex="5" />
-                              <TextField fx:id="proxyPort" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="5" />
-                              <Label text="使用証明書" GridPane.rowIndex="6" />
-                              <HBox alignment="CENTER_LEFT" spacing="12.0" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.rowIndex="6">
+                              <GridPane vgap="4">
+                                 <columnConstraints>
+                                    <ColumnConstraints fillWidth="false" />
+                                    <ColumnConstraints hgrow="ALWAYS" minWidth="200.0" />
+                                    <ColumnConstraints fillWidth="false" />
+                                 </columnConstraints>
                                  <children>
-                                    <RadioButton fx:id="proxySslUseRootCertificateRadio" mnemonicParsing="false" text="ルート証明書">
-                                       <toggleGroup>
-                                          <ToggleGroup fx:id="proxySslCertificateKind" />
-                                       </toggleGroup>
-                                    </RadioButton>
-                                    <RadioButton fx:id="proxySslUseServerCertificateRadio" mnemonicParsing="false" text="サーバ証明書（従来方式）" toggleGroup="$proxySslCertificateKind" />
+                                    <CheckBox fx:id="connectionClose" mnemonicParsing="false" text="通信エラーの抑止(Connection: closeヘッダを追加)*" wrapText="true" GridPane.columnSpan="2147483647" />
+                                    <Label text="ポート番号*" GridPane.rowIndex="1" />
+                                    <TextField fx:id="listenPort" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                    <CheckBox fx:id="allowOnlyFromLocalhost" mnemonicParsing="false" text="ローカルループバックアドレスからの接続のみ受け入れる*" wrapText="true" GridPane.columnSpan="2147483647" GridPane.rowIndex="2" />
+                                    <CheckBox fx:id="useProxy" mnemonicParsing="false" text="接続にプロキシを使用する(他ツール連携)*" wrapText="true" GridPane.columnSpan="2147483647" GridPane.rowIndex="3" />
+                                    <Label text="プロキシホスト*" GridPane.rowIndex="4" />
+                                    <TextField fx:id="proxyHost" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                                    <Label text="プロキシポート番号*" GridPane.rowIndex="5" />
+                                    <TextField fx:id="proxyPort" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                                    <Label text="使用証明書" GridPane.rowIndex="6" />
+                                    <FlowPane hgap="12.0" maxWidth="Infinity" vgap="4.0" GridPane.columnIndex="1" GridPane.columnSpan="2" GridPane.fillWidth="true" GridPane.rowIndex="6">
+                                       <children>
+                                          <RadioButton fx:id="proxySslUseRootCertificateRadio" mnemonicParsing="false" text="ルート証明書">
+                                             <toggleGroup>
+                                                <ToggleGroup fx:id="proxySslCertificateKind" />
+                                             </toggleGroup>
+                                          </RadioButton>
+                                          <RadioButton fx:id="proxySslUseServerCertificateRadio" mnemonicParsing="false" text="サーバ証明書（従来方式）" toggleGroup="$proxySslCertificateKind" />
+                                       </children>
+                                    </FlowPane>
+                                    <Label text="ルート証明書ファイル" GridPane.rowIndex="7" />
+                                    <TextField fx:id="rootCertificatePath" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="7" />
+                                    <HBox alignment="CENTER_LEFT" spacing="6.0" GridPane.columnIndex="2" GridPane.rowIndex="7">
+                                       <children>
+                                          <Button fx:id="rootCertificatePathRef" mnemonicParsing="false" onAction="#selectRootCertificate" text="参照..." />
+                                          <Button fx:id="createRootCertificate" mnemonicParsing="false" onAction="#createRootCertificate" text="証明書作成" />
+                                       </children>
+                                    </HBox>
+                                    <Label text="サーバ証明書ファイル" GridPane.rowIndex="8" />
+                                    <TextField fx:id="serverCertificatePath" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="8" />
+                                    <HBox alignment="CENTER_LEFT" spacing="6.0" GridPane.columnIndex="2" GridPane.rowIndex="8">
+                                       <children>
+                                          <Button fx:id="serverCertificatePathRef" mnemonicParsing="false" onAction="#selectServerCertificate" text="参照..." />
+                                          <Button fx:id="serverCertificateVerify" mnemonicParsing="false" onAction="#verifyServerCertificate" text="内容確認" />
+                                          <Button fx:id="createCertificate" mnemonicParsing="false" onAction="#createCertificate" text="証明書作成" />
+                                       </children>
+                                    </HBox>
+                                    <CheckBox fx:id="storeInternal" mnemonicParsing="false" onAction="#storeInternal" text="内部データを保存する(試験的)" GridPane.columnSpan="2147483647" GridPane.rowIndex="9" />
+                                    <CheckBox fx:id="storeApiStart2" mnemonicParsing="false" onAction="#storeApiStart2" text="api_start2" GridPane.rowIndex="10" />
+                                    <TextField fx:id="storeApiStart2Dir" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="10" />
+                                    <Button fx:id="storeApiStart2DirRef" mnemonicParsing="false" onAction="#selectApiStart2Dir" text="参照..." GridPane.columnIndex="2" GridPane.rowIndex="10" />
                                  </children>
-                              </HBox>
-                              <Label text="ルート証明書ファイル" GridPane.rowIndex="7" />
-                              <TextField fx:id="rootCertificatePath" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="7" />
-                              <HBox alignment="CENTER_LEFT" spacing="6.0" GridPane.columnIndex="2" GridPane.rowIndex="7">
+                              </GridPane>
+                              <VBox fx:id="apiCapturePane" spacing="6.0">
+                                 <padding>
+                                    <Insets top="12.0" />
+                                 </padding>
                                  <children>
-                                    <Button fx:id="rootCertificatePathRef" mnemonicParsing="false" onAction="#selectRootCertificate" text="参照..." />
-                                    <Button fx:id="createRootCertificate" mnemonicParsing="false" onAction="#createRootCertificate" text="証明書作成" />
+                                    <Label text="開発者向け: すべての kcsapi レスポンスを JSONL (zstd) で保存します。requestId でアクセスログと紐づけます。" wrapText="true" />
+                                    <CheckBox fx:id="apiCaptureEnabled" mnemonicParsing="false" onAction="#apiCaptureEnabledChanged" text="API レスポンスを記録する" />
+                                    <HBox alignment="CENTER_LEFT" spacing="8.0">
+                                       <children>
+                                          <Label minWidth="60.0" text="保存先" />
+                                          <TextField fx:id="apiCaptureDir" HBox.hgrow="ALWAYS" maxWidth="Infinity" />
+                                          <Button fx:id="apiCaptureDirRef" mnemonicParsing="false" onAction="#selectApiCaptureDir" text="参照..." />
+                                       </children>
+                                    </HBox>
                                  </children>
-                              </HBox>
-                              <Label text="サーバ証明書ファイル" GridPane.rowIndex="8" />
-                              <TextField fx:id="serverCertificatePath" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="8" />
-                              <HBox alignment="CENTER_LEFT" spacing="6.0" GridPane.columnIndex="2" GridPane.rowIndex="8">
-                                 <children>
-                                    <Button fx:id="serverCertificatePathRef" mnemonicParsing="false" onAction="#selectServerCertificate" text="参照..." />
-                                    <Button fx:id="serverCertificateVerify" mnemonicParsing="false" onAction="#verifyServerCertificate" text="内容確認" />
-                                    <Button fx:id="createCertificate" mnemonicParsing="false" onAction="#createCertificate" text="証明書作成" />
-                                 </children>
-                              </HBox>
-                              <CheckBox fx:id="storeInternal" mnemonicParsing="false" onAction="#storeInternal" text="内部データを保存する(試験的)" GridPane.columnSpan="2147483647" GridPane.rowIndex="9" />
-                              <CheckBox fx:id="storeApiStart2" mnemonicParsing="false" onAction="#storeApiStart2" text="api_start2" GridPane.rowIndex="10" />
-                              <TextField fx:id="storeApiStart2Dir" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="10" />
-                              <Button fx:id="storeApiStart2DirRef" mnemonicParsing="false" onAction="#selectApiStart2Dir" text="参照..." GridPane.columnIndex="2" GridPane.rowIndex="10" />
-                           </children>
-                        </GridPane>
-                        <VBox fx:id="apiCapturePane" spacing="6.0">
-                           <padding>
-                              <Insets top="12.0" />
-                           </padding>
-                           <children>
-                              <Label text="開発者向け: すべての kcsapi レスポンスを JSONL (zstd) で保存します。requestId でアクセスログと紐づけます。" wrapText="true" />
-                              <CheckBox fx:id="apiCaptureEnabled" mnemonicParsing="false" onAction="#apiCaptureEnabledChanged" text="API レスポンスを記録する" />
-                              <HBox alignment="CENTER_LEFT" spacing="8.0">
-                                 <children>
-                                    <Label minWidth="60.0" text="保存先" />
-                                    <TextField fx:id="apiCaptureDir" HBox.hgrow="ALWAYS" maxWidth="1.7976931348623157E308" />
-                                    <Button fx:id="apiCaptureDirRef" mnemonicParsing="false" onAction="#selectApiCaptureDir" text="参照..." />
-                                 </children>
-                              </HBox>
+                              </VBox>
                            </children>
                         </VBox>
-                     </children>
-                  </VBox>
+                     </content>
+                  </ScrollPane>
                </content>
             </Tab>
             <Tab closable="false" text="キャプチャ">
                <content>
-                  <VBox prefHeight="200.0" prefWidth="100.0" styleClass="configInner">
-                     <children>
-                        <Label text="動画オプション" />
-                        <GridPane>
-                          <columnConstraints>
-                            <ColumnConstraints fillWidth="false" />
-                            <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                          </columnConstraints>
-                          <rowConstraints>
-                            <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                          </rowConstraints>
+                  <ScrollPane fitToWidth="true">
+                     <content>
+                        <VBox styleClass="configInner">
                            <children>
-                              <Label text="FFmpeg 実行ファイル" />
-                              <TextField fx:id="ffmpegPath" prefWidth="200.0" GridPane.columnIndex="2" />
-                              <Button mnemonicParsing="false" onAction="#selectFFmpegPath" text="参照..." GridPane.columnIndex="3" />
+                              <Label text="動画オプション" />
+                              <GridPane vgap="4">
+                                <columnConstraints>
+                                  <ColumnConstraints fillWidth="false" />
+                                  <ColumnConstraints fillWidth="false" />
+                                    <ColumnConstraints fillWidth="false" hgrow="ALWAYS" minWidth="10.0" />
+                                    <ColumnConstraints fillWidth="false" />
+                                </columnConstraints>
+                                 <children>
+                                    <Label text="FFmpeg 実行ファイル" />
+                                    <TextField fx:id="ffmpegPath" maxWidth="Infinity" GridPane.columnIndex="2" GridPane.fillWidth="true" GridPane.hgrow="ALWAYS" />
+                                    <Button mnemonicParsing="false" onAction="#selectFFmpegPath" text="参照..." GridPane.columnIndex="3" />
+                                 </children>
+                              </GridPane>
+                              <GridPane vgap="4">
+                                 <columnConstraints>
+                                    <ColumnConstraints fillWidth="false" />
+                                    <ColumnConstraints fillWidth="false" />
+                                    <ColumnConstraints fillWidth="false" hgrow="ALWAYS" minWidth="10.0" />
+                                    <ColumnConstraints fillWidth="false" />
+                                 </columnConstraints>
+                                 <children>
+                                    <Label text="設定テンプレート" />
+                                    <ChoiceBox fx:id="ffmpegTemplate" prefWidth="150.0" GridPane.columnIndex="2" />
+                                    <Label text="引数" GridPane.rowIndex="1" />
+                                    <TextArea fx:id="ffmpegArgs" maxWidth="Infinity" prefHeight="100.0" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.fillWidth="true" GridPane.rowIndex="1" />
+                                    <Label text="拡張子" GridPane.rowIndex="2" />
+                                    <TextField fx:id="ffmpegExt" prefWidth="50.0" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+                                 </children>
+                              </GridPane>
                            </children>
-                        </GridPane>
-                        <GridPane>
-                           <columnConstraints>
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
-                           </columnConstraints>
-                           <rowConstraints>
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints vgrow="SOMETIMES" />
-                              <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                           </rowConstraints>
-                           <children>
-                              <Label text="設定テンプレート" />
-                              <ChoiceBox fx:id="ffmpegTemplate" prefWidth="150.0" GridPane.columnIndex="2" />
-                              <Label text="引数" GridPane.rowIndex="1" />
-                              <TextArea fx:id="ffmpegArgs" prefHeight="100.0" prefWidth="250.0" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.rowIndex="1" />
-                              <Label text="拡張子" GridPane.rowIndex="2" />
-                              <TextField fx:id="ffmpegExt" prefWidth="50.0" GridPane.columnIndex="2" GridPane.rowIndex="2" />
-                           </children>
-                        </GridPane>
-                     </children>
-                  </VBox>
+                        </VBox>
+                     </content>
+                  </ScrollPane>
                </content>
             </Tab>
             <Tab closable="false" text="プラグイン">
                <content>
-                  <VBox styleClass="configInner">
-                     <children>
-                        <CheckBox fx:id="usePlugin" mnemonicParsing="false" text="プラグインを有効にする*" />
-                        <Label text="読み込まれたプラグイン" />
-                        <TableView fx:id="pluginTable" prefHeight="200.0" prefWidth="200.0" VBox.vgrow="ALWAYS">
-                          <columns>
-                            <TableColumn fx:id="pluginName" prefWidth="150.0" text="名称" />
-                            <TableColumn fx:id="pluginVendor" prefWidth="100.0" text="作者" />
-                              <TableColumn fx:id="pluginVersion" prefWidth="70.0" text="バージョン" />
-                              <TableColumn fx:id="pluginLicense" prefWidth="120.0" text="ライセンス" />
-                              <TableColumn fx:id="pluginLocation" prefWidth="150.0" text="場所" />
-                          </columns>
-                        </TableView>
-                     </children>
-                  </VBox>
+                  <ScrollPane fitToWidth="true">
+                     <content>
+                        <VBox styleClass="configInner">
+                           <children>
+                              <CheckBox fx:id="usePlugin" mnemonicParsing="false" text="プラグインを有効にする*" />
+                              <Label text="読み込まれたプラグイン" />
+                              <TableView fx:id="pluginTable" prefHeight="200.0" prefWidth="200.0" VBox.vgrow="ALWAYS">
+                                <columns>
+                                  <TableColumn fx:id="pluginName" prefWidth="150.0" text="名称" />
+                                  <TableColumn fx:id="pluginVendor" prefWidth="100.0" text="作者" />
+                                    <TableColumn fx:id="pluginVersion" prefWidth="70.0" text="バージョン" />
+                                    <TableColumn fx:id="pluginLicense" prefWidth="120.0" text="ライセンス" />
+                                    <TableColumn fx:id="pluginLocation" prefWidth="150.0" text="場所" />
+                                </columns>
+                              </TableView>
+                           </children>
+                        </VBox>
+                     </content>
+                  </ScrollPane>
                </content>
             </Tab>
             <Tab closable="false" text="棒読みちゃん連携">
                <content>
                   <VBox styleClass="configInner">
                      <children>
-                        <GridPane>
+                        <GridPane vgap="4">
                            <columnConstraints>
                               <ColumnConstraints fillWidth="false" />
-                              <ColumnConstraints fillWidth="false" />
+                              <ColumnConstraints fillWidth="false" hgrow="ALWAYS" minWidth="10.0" />
                               <ColumnConstraints fillWidth="false" />
                            </columnConstraints>
-                           <rowConstraints>
-                              <RowConstraints minHeight="30.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="30.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="30.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="30.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="30.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                              <RowConstraints minHeight="30.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                           </rowConstraints>
                            <children>
                               <CheckBox fx:id="enableBouyomi" mnemonicParsing="false" text="棒読みちゃん連携を使用する" GridPane.columnSpan="2147483647" />
                               <Label text="ホスト" GridPane.rowIndex="1" />
                               <TextField fx:id="bouyomiHost" prefWidth="150.0" text="localhost" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                               <Label text="ポート番号" GridPane.rowIndex="2" />
                               <TextField fx:id="bouyomiPort" prefWidth="150.0" text="50001" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-                              <Label text="棒読みちゃん側で設定を変更していない場合はホスト・ポート番号を変更する必要はありません。" GridPane.columnSpan="2147483647" GridPane.rowIndex="3" />
+                              <Label text="棒読みちゃん側で設定を変更していない場合はホスト・ポート番号を変更する必要はありません。" wrapText="true" GridPane.columnSpan="2147483647" GridPane.rowIndex="3" />
                               <CheckBox fx:id="bouyomiTryExecute" mnemonicParsing="false" onAction="#checkBouyomiTryExecute" text="棒読みちゃんに接続できない場合は起動する" GridPane.columnSpan="2147483647" GridPane.rowIndex="4" />
                               <Label text="場所" GridPane.rowIndex="5" />
-                              <TextField fx:id="bouyomiPath" prefWidth="250.0" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                              <TextField fx:id="bouyomiPath" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.fillWidth="true" GridPane.hgrow="ALWAYS" GridPane.rowIndex="5" />
                               <Button mnemonicParsing="false" onAction="#selectBouyomiDir" text="参照..." GridPane.columnIndex="2" GridPane.rowIndex="5" />
                            </children>
                         </GridPane>
                         <Separator prefWidth="200.0" />
                         <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS">
                            <content>
-                              <GridPane fx:id="bouyomiTexts">
+                              <GridPane fx:id="bouyomiTexts" vgap="4">
                                  <columnConstraints>
                                     <ColumnConstraints fillWidth="false" />
                                     <ColumnConstraints />
                                  </columnConstraints>
-                                 <rowConstraints>
-                                    <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                                    <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                                    <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                                    <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                                    <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                                    <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                                    <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                                    <RowConstraints prefHeight="30.0" vgrow="SOMETIMES" />
-                                 </rowConstraints>
                               </GridPane>
                            </content>
                         </ScrollPane>
@@ -482,7 +450,7 @@
          </tabs>
       </TabPane>
       <Separator />
-      <HBox alignment="TOP_RIGHT" styleClass="footer">
+      <HBox alignment="CENTER_RIGHT" minHeight="44.0" styleClass="footer" VBox.vgrow="NEVER">
          <children>
             <Label text="*再起動後に有効になります" />
             <Button mnemonicParsing="false" onAction="#ok" text="OK" />
