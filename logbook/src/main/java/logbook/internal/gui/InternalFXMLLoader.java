@@ -7,8 +7,12 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import logbook.bean.AppConfig;
@@ -54,6 +58,36 @@ public final class InternalFXMLLoader {
             Parent root = scene.getRoot();
             if (root != null) {
                 setGlobal(root);
+                for (Node node : root.lookupAll(".ship-banner")) {
+                    if (node instanceof ImageView view) {
+                        UiScale.applyShipBanner(view);
+                    }
+                }
+                for (Node node : root.lookupAll(".fleet-stat-icon")) {
+                    if (node instanceof ImageView view) {
+                        UiScale.applyFit(view, UiScale.FLEET_STAT_ICON_SIZE);
+                    }
+                }
+                for (Node node : root.lookupAll(".fleet-stat-indent")) {
+                    if (node instanceof Region region) {
+                        UiScale.applyLeftPadding(region, UiScale.FLEET_STAT_ICON_SIZE);
+                    }
+                }
+                for (Node node : root.lookupAll(".fleet-stats")) {
+                    if (node instanceof GridPane grid) {
+                        UiScale.applyFleetStatsGrid(grid);
+                    }
+                }
+                for (Node node : root.lookupAll(".ship-type-checks")) {
+                    if (node instanceof Region region) {
+                        UiScale.applyPrefWidth(region, UiScale.SHIP_TYPE_WRAP_WIDTH);
+                    }
+                }
+                for (Node node : root.lookupAll(".filter-text-value")) {
+                    if (node instanceof Region region) {
+                        UiScale.applyPrefWidth(region, UiScale.SHIP_TEXT_FIELD_WIDTH);
+                    }
+                }
             }
         }
     }

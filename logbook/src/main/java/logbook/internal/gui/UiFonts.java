@@ -5,7 +5,7 @@ import java.util.List;
 import javafx.scene.text.Font;
 
 /**
- * UI で使うフォントファミリーと文字サイズの解決。
+ * UI で使うフォントファミリーの解決と、ルートへ載せる font style。
  */
 public final class UiFonts {
 
@@ -77,22 +77,6 @@ public final class UiFonts {
     }
 
     /**
-     * 文字サイズ設定の em 倍率。標準は 1.0。
-     *
-     * @param fontSize AppConfig の fontSize
-     * @return 標準 1.0、少し大きい 1.2、大きい 1.3
-     */
-    static double sizeFactor(String fontSize) {
-        if ("large2".equals(fontSize)) {
-            return 1.3;
-        }
-        if ("large1".equals(fontSize)) {
-            return 1.2;
-        }
-        return 1.0;
-    }
-
-    /**
      * シーンルートへ載せる inline style。標準は font-size を書かない。
      *
      * @param configuredFamily 設定のファミリー名
@@ -101,7 +85,7 @@ public final class UiFonts {
      */
     static String rootStyle(String configuredFamily, String fontSize) {
         String family = resolveFamily(configuredFamily);
-        double factor = sizeFactor(fontSize);
+        double factor = UiScale.sizeFactor(fontSize);
         if (factor == 1.0) {
             return "-fx-font-family: \"" + family + "\";";
         }

@@ -29,9 +29,9 @@
                         <Label text="期間" />
                         <ChoiceBox fx:id="term" prefWidth="100.0" />
                         <Label text="開始" />
-                        <DatePicker fx:id="from" onAction="#change" prefWidth="120.0" />
+                        <DatePicker fx:id="from" onAction="#change" prefWidth="135.0" />
                         <Label text="終了" />
-                        <DatePicker fx:id="to" onAction="#change" prefWidth="120.0" />
+                        <DatePicker fx:id="to" onAction="#change" prefWidth="135.0" />
                         <Button text="今日" onAction="#today" />
                      </children>
                      <padding>

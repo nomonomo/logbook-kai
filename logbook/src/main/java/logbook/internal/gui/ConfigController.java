@@ -1407,7 +1407,7 @@ public class ConfigController extends WindowController {
      */
     private void applyConfigWindowSize(Stage window, WindowLocation location) {
         Rectangle2D vis = visualBoundsFor(window);
-        double factor = UiFonts.sizeFactor(AppConfig.get().getFontSize());
+        double factor = UiScale.sizeFactor(AppConfig.get().getFontSize());
         double minW = ConfigWindowSizer.BASE_MIN_WIDTH * factor;
         double minH = ConfigWindowSizer.BASE_MIN_HEIGHT * factor;
         double prefW = ConfigWindowSizer.BASE_PREF_WIDTH * factor;

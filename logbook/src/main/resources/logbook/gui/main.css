@@ -41,7 +41,7 @@ TabPane .tab.empty {
 TabPane .tab.empty .tab-label {
 }
 .message {
-    -fx-font-size: 10pt;
+    -fx-font-size: 1.11em;
 }
 .hp {
     -fx-min-width: 4.25em;
@@ -71,11 +71,15 @@ TabPane .tab.empty .tab-label {
     -fx-font-size: 1.1em;
     -fx-font-weight: bold;
 }
+HBox > .achievement {
+    -fx-min-height: 3.33em;
+    -fx-pref-height: 3.33em;
+}
 .achievement .name {
-    -fx-font-size: 10pt;
+    -fx-font-size: 1.11em;
 }
 .achievement .achievement {
-    -fx-font-size: 14pt;
+    -fx-font-size: 1.56em;
     -fx-font-weight: bold;
 }
 
@@ -105,14 +109,19 @@ TabPane .tab.empty .tab-label {
 .mission.empty {
     -fx-background-color: linear-gradient(from 25% 25% to 100% 100%, #87CEFA, transparent);
 }
+.mission-row,
+.mission-row .progress {
+    -fx-min-height: 3.33em;
+    -fx-pref-height: 3.33em;
+}
 .mission .fleet {
-    -fx-font-size: 9pt;
+    -fx-font-size: 1em;
 }
 .mission .name {
-    -fx-font-size: 14pt;
+    -fx-font-size: 1.56em;
 }
 .mission .time {
-    -fx-font-size: 14pt;
+    -fx-font-size: 1.56em;
     -fx-font-weight: bold;
 }
 .ndock .name {
@@ -138,7 +147,6 @@ TabPane .tab.empty .tab-label {
 }
 /* 任務 */
 .quest {
-    -fx-font-size: 11pt;
     -fx-border-width: 1px;
     -fx-border-color: transparent;
 }
@@ -147,7 +155,7 @@ TabPane .tab.empty .tab-label {
     -fx-padding: 1px 0;
 }
 .quest .name {
-    -fx-font-size: 11pt;
+    -fx-font-size: 1.22em;
     -fx-underline: false;
     -fx-text-fill: black;
 }
@@ -163,14 +171,14 @@ TabPane .tab.empty .tab-label {
     -fx-text-fill: white;
 }
 .quest .remove {
-    -fx-font-size: 8pt;
+    -fx-font-size: 0.89em;
     -fx-text-fill: #d9333f;
 }
 .quest .search {
-    -fx-font-size: 8pt;
+    -fx-font-size: 0.89em;
 }
 .quest .condition {
-    -fx-font-size: 8pt;
+    -fx-font-size: 0.89em;
     -fx-text-fill: green;
 }
 .quest.expanded {

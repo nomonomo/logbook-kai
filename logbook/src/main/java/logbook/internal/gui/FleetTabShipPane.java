@@ -59,6 +59,7 @@ public class FleetTabShipPane extends HBox {
 
     @FXML
     void initialize() {
+        UiScale.applyShipBanner(this.img);
         this.img.setImage(Ships.shipWithItemImage(this.ship));
 
         Optional<ShipMst> mst = Ships.shipMst(this.ship);
@@ -77,6 +78,7 @@ public class FleetTabShipPane extends HBox {
         ObservableList<String> styleClass = this.cond.getStyleClass();
         styleClass.clear();
         styleClass.add("label");
+        styleClass.add("cond");
         if (Ships.isDeepGreen(this.ship)) {
             styleClass.add("deepgreen");
         } else if (Ships.isGreen(this.ship)) {

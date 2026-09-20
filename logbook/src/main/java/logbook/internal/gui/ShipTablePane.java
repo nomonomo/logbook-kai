@@ -53,7 +53,9 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import logbook.bean.AppConfig;
@@ -97,6 +99,10 @@ public class ShipTablePane extends VBox {
     /** テキスト */
     @FXML
     private TextField textValue;
+
+    /** 艦種チェック */
+    @FXML
+    private TextFlow typeChecks;
 
     /** 艦種 */
     @FXML
@@ -414,8 +420,19 @@ public class ShipTablePane extends VBox {
 
             // フィルター
             this.filter.expandedProperty().addListener((ob, ov, nv) -> {
+                this.filter.requestLayout();
+                if (this.filter.getParent() != null) {
+                    this.filter.getParent().requestLayout();
+                }
                 this.saveConfig();
             });
+            this.filter.setMinHeight(Region.USE_PREF_SIZE);
+            if (this.filter.getContent() instanceof Region content) {
+                content.setMinHeight(Region.USE_PREF_SIZE);
+            }
+            this.filters.setMinHeight(Region.USE_PREF_SIZE);
+            UiScale.applyPrefWidth(this.typeChecks, UiScale.SHIP_TYPE_WRAP_WIDTH);
+            UiScale.applyPrefWidth(this.textValue, UiScale.SHIP_TEXT_FIELD_WIDTH);
 
             // フィルター 初期化
             this.parameterFilters = new ArrayList<>();
