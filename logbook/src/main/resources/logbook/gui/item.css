@@ -12,3 +12,6 @@
 .toggle-switch {
     -fx-font-weight: bold;
 }
+.filter-toggle > .label {
+    -fx-font-weight: bold;
+}

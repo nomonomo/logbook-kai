@@ -26,6 +26,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import logbook.Messages;
 import logbook.bean.AppCondition;
@@ -85,6 +86,10 @@ public class FleetTabPane extends ScrollPane {
     @FXML
     private VBox ships;
 
+    /** 制空・判定式などの数値エリア */
+    @FXML
+    private GridPane fleetStats;
+
     /** 制空値アイコン */
     @FXML
     private ImageView airSuperiorityImg;
@@ -120,6 +125,10 @@ public class FleetTabPane extends ScrollPane {
     /** 艦娘レベル計 */
     @FXML
     private Label lvsum;
+
+    /** 疲労回復ラベル（アイコン無しのため左余白で揃える） */
+    @FXML
+    private Label condRecoverLabel;
 
     /** 疲労 */
     @FXML
@@ -196,6 +205,7 @@ public class FleetTabPane extends ScrollPane {
 
     @FXML
     void initialize() {
+        this.applyFontScale();
         this.update();
         this.setIcon();
         this.initializeRemarkPlugin();
@@ -478,6 +488,27 @@ public class FleetTabPane extends ScrollPane {
         this.sakutekisumImg.setImage(Items.itemImageByType(11));
         this.tpsumImg.setImage(Items.itemImageByType(25));
         this.speedImg.setImage(Items.itemImageByType(19));
+    }
+
+    /**
+     * 制空・判定式エリアのアイコンと左余白を文字サイズ倍率に合わせる。
+     */
+    private void applyFontScale() {
+        double icon = UiScale.FLEET_STAT_ICON_SIZE;
+        UiScale.applyFit(this.airSuperiorityImg, icon);
+        UiScale.applyFit(this.touchPlaneStartProbabilityImg, icon);
+        UiScale.applyFit(this.decision33Img, icon);
+        UiScale.applyFit(this.lvsumImg, icon);
+        UiScale.applyFit(this.karyokusumImg, icon);
+        UiScale.applyFit(this.taikusumImg, icon);
+        UiScale.applyFit(this.taissumImg, icon);
+        UiScale.applyFit(this.sakutekisumImg, icon);
+        UiScale.applyFit(this.tpsumImg, icon);
+        UiScale.applyFit(this.speedImg, icon);
+        UiScale.applyLeftPadding(this.condRecoverLabel, icon);
+        if (this.fleetStats != null) {
+            UiScale.applyFleetStatsGrid(this.fleetStats);
+        }
     }
 
     /**

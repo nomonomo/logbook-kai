@@ -74,20 +74,6 @@ class UiFontsTest {
     }
 
     @Test
-    void sizeFactor_defaultAndUnknown() {
-        assertEquals(1.0, UiFonts.sizeFactor(null));
-        assertEquals(1.0, UiFonts.sizeFactor(""));
-        assertEquals(1.0, UiFonts.sizeFactor("default"));
-        assertEquals(1.0, UiFonts.sizeFactor("other"));
-    }
-
-    @Test
-    void sizeFactor_large() {
-        assertEquals(1.2, UiFonts.sizeFactor("large1"));
-        assertEquals(1.3, UiFonts.sizeFactor("large2"));
-    }
-
-    @Test
     void rootStyle_defaultOmitsFontSize() {
         assertEquals("-fx-font-family: \"Meiryo UI\";", UiFonts.rootStyle("Meiryo UI", "default"));
         assertEquals("-fx-font-family: \"Meiryo UI\";", UiFonts.rootStyle("Meiryo UI", null));

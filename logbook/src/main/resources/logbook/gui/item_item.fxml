@@ -14,6 +14,7 @@
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import org.controlsfx.control.ToggleSwitch?>
 
@@ -28,11 +29,21 @@
                       <VBox spacing="5">
                       <FlowPane fx:id="filters" hgap="5" >
                          <children>
-                            <VBox>
+                            <VBox fillWidth="false">
                                <children>
-                                  <ToggleSwitch fx:id="textFilter" prefWidth="0.0" style="-fx-font-weight: bold;" text="テキスト" />
+                                  <HBox alignment="CENTER_LEFT" styleClass="filter-toggle">
+                                     <children>
+                                        <Label text="テキスト" />
+                                        <ToggleSwitch fx:id="textFilter" prefWidth="0.0" />
+                                     </children>
+                                  </HBox>
                                   <ComboBox fx:id="textValue" disable="true" editable="true" prefWidth="180.0" />
-                                  <ToggleSwitch fx:id="typeFilter" prefWidth="0.0" style="-fx-font-weight: bold; -fx-padding: 20 0 0 0;" text="種類" />
+                                  <HBox alignment="CENTER_LEFT" style="-fx-padding: 20 0 0 0;" styleClass="filter-toggle">
+                                     <children>
+                                        <Label text="種類" />
+                                        <ToggleSwitch fx:id="typeFilter" prefWidth="0.0" />
+                                     </children>
+                                  </HBox>
                                </children>
                             </VBox>
                          </children>

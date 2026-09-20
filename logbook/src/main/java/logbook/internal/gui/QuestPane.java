@@ -134,6 +134,7 @@ public class QuestPane extends HBox {
             this.detail.setText(quest.getDetail().replaceAll("<br>", ""));
             this.setOnContextMenuRequested(this::showContextMenu);
 
+            this.condition.managedProperty().bind(this.condition.visibleProperty());
             if (!AppQuestConditionLoader.contains(quest.getNo())) {
                 this.condition.setVisible(false);
             }

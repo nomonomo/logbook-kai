@@ -64,6 +64,7 @@ public class BattleDetailPhaseShip extends HBox {
 
     @FXML
     void initialize() {
+        UiScale.applyShipBanner(this.img);
         this.img.setImage(Ships.shipWithItemWithoutStateBannerImage(this.chara, this.itemMap, this.escape));
         this.name.setText(Ships.toName(this.chara));
         if(this.chara.getMaxhp() != null) {

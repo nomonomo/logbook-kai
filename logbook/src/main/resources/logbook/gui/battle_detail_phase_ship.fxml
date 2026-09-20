@@ -6,11 +6,15 @@
 <?import java.lang.*?>
 <?import javafx.scene.layout.*?>
 
-<fx:root prefWidth="260.0" styleClass="ndock" type="HBox" xmlns="http://javafx.com/javafx/8.0.72" xmlns:fx="http://javafx.com/fxml/1">
+<fx:root type="HBox" xmlns="http://javafx.com/javafx/8.0.72" xmlns:fx="http://javafx.com/fxml/1">
+   <styleClass>
+      <String fx:value="ndock" />
+      <String fx:value="ship-banner-row" />
+   </styleClass>
    <children>
       <AnchorPane prefHeight="40.0" prefWidth="160.0">
          <children>
-            <ImageView fx:id="img" fitHeight="40.0" fitWidth="160.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0">
+            <ImageView fx:id="img" fitHeight="40.0" fitWidth="160.0" styleClass="ship-banner" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0">
       </ImageView>
          </children>
       </AnchorPane>
