@@ -159,6 +159,9 @@ HBox > .achievement {
     -fx-underline: false;
     -fx-text-fill: black;
 }
+.quest .detail {
+    -fx-font-size: 1.22em;
+}
 .quest .name:visible {
     -fx-text-fill: black;
 }
