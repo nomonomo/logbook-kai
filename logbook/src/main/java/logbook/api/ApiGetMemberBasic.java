@@ -4,6 +4,7 @@ import jakarta.json.JsonObject;
 
 import logbook.bean.AppExpRecords;
 import logbook.bean.Basic;
+import logbook.internal.Config;
 import logbook.proxy.RequestMetaData;
 import logbook.proxy.ResponseMetaData;
 
@@ -19,7 +20,9 @@ public class ApiGetMemberBasic implements APIListenerSpi {
         JsonObject data = json.getJsonObject("api_data");
         if (data != null) {
             Basic.updateBasic(Basic.get(), data);
-            AppExpRecords.get().update(Basic.get());
+            if (AppExpRecords.get().update(Basic.get())) {
+                Config.getDefault().requestStore(AppExpRecords.class);
+            }
         }
     }
 
