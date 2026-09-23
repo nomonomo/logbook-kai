@@ -69,7 +69,7 @@
                                  </children>
                               </HBox>
                               <Label fx:id="lvsum" styleClass="value" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-                              <HBox GridPane.columnIndex="2" GridPane.rowIndex="2">
+                              <HBox alignment="CENTER_LEFT" GridPane.columnIndex="2" GridPane.rowIndex="2">
                                  <children>
                                     <Label fx:id="condRecoverLabel" styleClass="fleet-stat-indent" text="疲労回復:">
                                        <padding>
@@ -114,7 +114,7 @@
                                  </children>
                               </HBox>
                               <Label fx:id="tpsum" styleClass="value" GridPane.columnIndex="1" GridPane.rowIndex="5" />
-                              <HBox GridPane.columnIndex="2" GridPane.rowIndex="5">
+                              <HBox alignment="CENTER_LEFT" GridPane.columnIndex="2" GridPane.rowIndex="5">
                                  <children>
                                     <ImageView fx:id="speedImg" fitHeight="24.0" fitWidth="24.0" pickOnBounds="true" preserveRatio="true" styleClass="fleet-stat-icon" />
                                     <Label text="艦隊速度:"/>
