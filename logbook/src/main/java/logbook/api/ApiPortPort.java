@@ -68,6 +68,7 @@ public class ApiPortPort implements APIListenerSpi {
             "api_furniture_affect_items",
             "api_parallel_quest_count",
             "api_dest_ship_slot",
+            "api_c_flags",
             "api_friendly_setting",
             "api_plane_info");
 
