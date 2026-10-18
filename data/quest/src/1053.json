@@ -1,0 +1,21 @@
+/* [1053]再編二十駆「天霧」「狭霧」南方へ展開せよ！ */
+{
+    "type" : "出撃",
+    "resetType" : "単発",
+    "filter" : {
+        "area": ["5-1", "5-3", "5-4", "5-6"],
+        "fleet": {
+            "operator": "AND",
+            "conditions": [
+                {"name": ["天霧改二"], "count": 1, "operator": "GE"},
+                {"name": ["狭霧改二"], "count": 1, "operator": "GE"}
+            ]
+        }
+    },
+    "conditions" : [
+        {"boss": true, "area": ["5-1"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-3"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-4"], "rank": ["S"], "count": 1},
+        {"boss": true, "area": ["5-6"], "cell": "Z", "rank": ["S"], "count": 1}
+    ]
+}
