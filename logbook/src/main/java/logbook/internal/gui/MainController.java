@@ -9,9 +9,10 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -52,6 +53,7 @@ import logbook.bean.ShipMst;
 import logbook.bean.SlotItemCollection;
 import logbook.internal.Audios;
 import logbook.internal.BouyomiChanUtils;
+import logbook.internal.fleet.FleetSnapshot;
 import logbook.internal.BouyomiChanUtils.Type;
 import logbook.internal.Items;
 import logbook.internal.LoggerHolder;
@@ -76,8 +78,14 @@ public class MainController extends WindowController {
 
     private String shipFormat;
 
-    /** 艦隊コレクションのハッシュ・コード */
-    private long portHashCode;
+    /** デッキ ID ごとの表示値 */
+    private final Map<Integer, FleetModel> fleetModels = new HashMap<>();
+
+    /** 前回描画した遠征艦隊の ID */
+    private List<Integer> missionDeckIds = List.of();
+
+    /** 前回の遠征表示 */
+    private boolean missionShown;
 
     /** 入渠ドックコレクションのハッシュ・コード */
     private long ndockHashCode;
@@ -367,89 +375,137 @@ public class MainController extends WindowController {
      * 艦隊の確認
      */
     private void checkPort() {
-        Map<Integer, DeckPort> ports = DeckPortCollection.get()
-                .getDeckPortMap();
+        List<DeckPort> ports = new ArrayList<>(DeckPortCollection.get().getDeckPortMap().values());
         boolean show = AppConfig.get().isShowMission();
-        long newHashCode = hashCode(ports, show);
-        boolean change = this.portHashCode != newHashCode;
-        this.portHashCode = newHashCode;
-
-        this.fleetTab(change);
-        this.mission(change, show);
+        this.fleetTab(ports);
+        this.mission(ports, show);
     }
 
     /**
      * 艦隊タブの更新
+     * 艦隊数が変わったときはタブを作り直し、見える先頭だけ即構築して残りは後回しにする。
+     * スマート画面は艦隊タブを除くと「母港」が残るので全艦隊を後回しにする。
+     * ワイド画面はタブが空になるので、先頭艦隊だけその場で作る。
      *
-     * @param change 艦隊の変更フラグ
+     * @param ports 艦隊
      */
-    private void fleetTab(boolean change) {
-        Map<Integer, DeckPort> ports = DeckPortCollection.get()
-                .getDeckPortMap();
+    private void fleetTab(List<DeckPort> ports) {
         ObservableList<Tab> tabs = this.fleetTab.getTabs();
-        if (change) {
-            int tabsize = (int) tabs.stream()
-                    .map(Tab::getContent)
-                    .filter(e -> e instanceof FleetTabPane)
-                    .count();
-            if (ports.size() != tabsize) {
-                tabs.removeIf(e -> e.getContent() instanceof FleetTabPane);
-                boolean first = true;
-                boolean deferred = false;
-                for (DeckPort port : ports.values()) {
-                    Tab tab;
-                    if (first) {
-                        first = false;
-                        FleetTabPane pane = new FleetTabPane(port);
-                        tab = new Tab(port.getName(), pane);
-                        tab.setClosable(false);
-                        tab.getStyleClass().removeIf(s -> !s.equals("tab"));
-                        Optional.ofNullable(pane.tabStyle())
-                                .ifPresent(tab::setStyle);
-                    } else {
-                        deferred = true;
-                        tab = new Tab(port.getName(), new Pane());
-                        tab.setClosable(false);
-                        tab.setUserData(port);
-                        tab.getStyleClass().removeIf(s -> !s.equals("tab"));
-                    }
-                    tabs.add(tab);
+        List<Tab> fleetTabs = fleetTabs(tabs);
+        if (fleetTabs.size() != ports.size()) {
+            tabs.removeAll(fleetTabs);
+            // 空ならワイド（先頭を即構築）。母港が残るならスマート（全後回し）
+            boolean buildFirst = tabs.isEmpty();
+            boolean deferred = false;
+            for (DeckPort port : ports) {
+                FleetModel model = this.fleetModel(port);
+                Tab tab = new Tab();
+                tab.setClosable(false);
+                tab.getStyleClass().removeIf(s -> !s.equals("tab"));
+                this.bindFleetTab(tab, port.getId(), model);
+                // 疲労回復トーストはスナップショット再適用より先（旧 FleetTabPane.update と同順）
+                this.pollCond(model);
+                if (buildFirst) {
+                    buildFirst = false;
+                    FleetTabPane pane = new FleetTabPane(model);
+                    tab.setContent(pane);
+                    pane.refresh(port);
+                } else {
+                    deferred = true;
+                    tab.setContent(new Pane());
+                    tab.setUserData(port);
+                    model.apply(FleetSnapshot.of(port, 1));
                 }
-                if (deferred) {
-                    this.scheduleFillNextFleetTab();
-                }
+                tabs.add(tab);
+            }
+            if (deferred) {
+                this.scheduleFillNextFleetTab();
+            }
+            return;
+        }
+        for (int i = 0; i < ports.size(); i++) {
+            DeckPort port = ports.get(i);
+            Tab tab = fleetTabs.get(i);
+            int portId = port.getId() == null ? 0 : port.getId();
+            boolean sameDeck = Integer.valueOf(portId).equals(tab.getProperties().get("fleetDeckId"));
+            FleetModel model = this.fleetModel(port);
+            // 疲労回復トーストはスナップショット再適用より先（旧 FleetTabPane.update と同順）
+            this.pollCond(model);
+            Node node = tab.getContent();
+            if (node instanceof FleetTabPane && sameDeck) {
+                ((FleetTabPane) node).refresh(port);
+            } else if (sameDeck) {
+                tab.setUserData(port);
+                model.apply(FleetSnapshot.of(port, 1));
             } else {
-                Iterator<DeckPort> portIte = ports.values().iterator();
-                Iterator<Tab> tabIte = tabs.iterator();
-                while (portIte.hasNext()) {
-                    DeckPort port = portIte.next();
-                    Tab tab = null;
-                    while (tabIte.hasNext()) {
-                        tab = tabIte.next();
-                        if (tab.getContent() instanceof FleetTabPane)
-                            break;
-                    }
-                    if (tab != null) {
-                        tab.setText(port.getName());
-                        FleetTabPane pane = (FleetTabPane) tab.getContent();
-                        pane.update(port);
-                        tab.getStyleClass().removeIf(s -> !s.equals("tab"));
-                        Optional.ofNullable(pane.tabStyle())
-                                .ifPresent(tab::setStyle);
-                    }
-                }
+                this.bindFleetTab(tab, port.getId(), model);
+                FleetTabPane pane = new FleetTabPane(model);
+                tab.setUserData(null);
+                tab.setContent(pane);
+                pane.refresh(port);
             }
-        } else {
-            for (Tab tab : tabs) {
-                Node node = tab.getContent();
-                if (node instanceof FleetTabPane) {
-                    FleetTabPane pane = (FleetTabPane) node;
-                    pane.update();
-                    tab.getStyleClass().removeIf(s -> !s.equals("tab"));
-                    Optional.ofNullable(pane.tabStyle())
-                            .ifPresent(tab::setStyle);
-                }
+        }
+    }
+
+    /**
+     * スマート画面の「母港」タブを除いた艦隊タブを返します。
+     *
+     * @param tabs タブ
+     * @return 艦隊タブ
+     */
+    private static List<Tab> fleetTabs(List<Tab> tabs) {
+        List<Tab> fleetTabs = new ArrayList<>();
+        for (Tab tab : tabs) {
+            if (tab.getContent() instanceof FleetTabPane
+                    || tab.getUserData() instanceof DeckPort
+                    || tab.getProperties().containsKey("fleetDeckId")) {
+                fleetTabs.add(tab);
             }
+        }
+        return fleetTabs;
+    }
+
+    /**
+     * デッキ ID に対応する艦隊モデルを返します。未作成なら作ります。
+     *
+     * @param port 艦隊
+     * @return 艦隊モデル
+     */
+    private FleetModel fleetModel(DeckPort port) {
+        int deckId = port.getId() == null ? 0 : port.getId();
+        return this.fleetModels.computeIfAbsent(deckId, id -> new FleetModel());
+    }
+
+    /**
+     * 艦隊タブの見出しとタブ色を艦隊モデルへバインドします。同じデッキなら何もしません。
+     *
+     * @param tab 艦隊タブ
+     * @param deckId デッキ ID
+     * @param model 艦隊モデル
+     */
+    private void bindFleetTab(Tab tab, Integer deckId, FleetModel model) {
+        int id = deckId == null ? 0 : deckId;
+        Object bound = tab.getProperties().get("fleetDeckId");
+        if (Integer.valueOf(id).equals(bound)) {
+            return;
+        }
+        tab.getProperties().put("fleetDeckId", id);
+        tab.textProperty().unbind();
+        tab.styleProperty().unbind();
+        tab.textProperty().bind(model.nameProperty());
+        tab.styleProperty().bind(model.tabStyleProperty());
+    }
+
+    /**
+     * 疲労の回復時刻を現在時刻で更新し、回復していれば通知します。
+     *
+     * @param model 艦隊モデル
+     */
+    private void pollCond(FleetModel model) {
+        long now = ZonedDateTime.now(ZoneId.systemDefault()).toEpochSecond();
+        if (model.pollCondRecover(now)) {
+            String message = Messages.getString("cond.recover", model.getName());
+            Tools.Controls.showNotify(null, "疲労抜け", message);
         }
     }
 
@@ -474,12 +530,12 @@ public class MainController extends WindowController {
                 continue;
             }
             DeckPort port = (DeckPort) tab.getUserData();
-            FleetTabPane pane = new FleetTabPane(port);
+            FleetModel model = this.fleetModel(port);
+            FleetTabPane pane = new FleetTabPane(model);
             tab.setUserData(null);
             tab.setContent(pane);
-            tab.getStyleClass().removeIf(s -> !s.equals("tab"));
-            Optional.ofNullable(pane.tabStyle())
-                    .ifPresent(tab::setStyle);
+            this.bindFleetTab(tab, port.getId(), model);
+            pane.refresh(port);
             if (this.hasPendingFleetTab()) {
                 this.scheduleFillNextFleetTab();
             }
@@ -500,27 +556,30 @@ public class MainController extends WindowController {
     /**
      * 遠征の更新
      *
-     * @param change 艦隊の変更フラグ
+     * @param ports 艦隊
      * @param show 表示するフラグ
      */
-    private void mission(boolean change, boolean show) {
-        ObservableList<Node> mission = this.missionbox.getChildren();
-        if (change) {
-            this.missionPane.setVisible(show);
-            this.missionPane.setManaged(show);
+    private void mission(List<DeckPort> ports, boolean show) {
+        this.missionPane.setVisible(show);
+        this.missionPane.setManaged(show);
 
-            Map<Integer, DeckPort> ports = DeckPortCollection.get()
-                    .getDeckPortMap();
+        List<Integer> deckIds = new ArrayList<>();
+        for (int i = 1; i < ports.size(); i++) {
+            Integer id = ports.get(i).getId();
+            deckIds.add(id == null ? 0 : id);
+        }
+        ObservableList<Node> mission = this.missionbox.getChildren();
+        if (!deckIds.equals(this.missionDeckIds) || show != this.missionShown) {
+            this.missionDeckIds = List.copyOf(deckIds);
+            this.missionShown = show;
             mission.clear();
-            ports.values().stream()
-                    .skip(1)
-                    .map(MissionPane::new)
-                    .forEach(mission::add);
-        } else {
-            for (Node node : mission) {
-                if (node instanceof MissionPane) {
-                    ((MissionPane) node).update();
-                }
+            for (int i = 1; i < ports.size(); i++) {
+                mission.add(new MissionPane(this.fleetModel(ports.get(i))));
+            }
+        }
+        for (Node node : mission) {
+            if (node instanceof MissionPane) {
+                ((MissionPane) node).update();
             }
         }
     }
@@ -783,14 +842,13 @@ public class MainController extends WindowController {
     }
 
     private static long hashCode(Map<?, ?> map, boolean show) {
-        long h = 59;
-        Iterator<?> i = map.entrySet().iterator();
-        while (i.hasNext()) {
-            h *= 63;
-            h += i.next().hashCode();
+        long hash = 59;
+        for (Object entry : map.entrySet()) {
+            hash *= 63;
+            hash += entry.hashCode();
         }
-        h *= 63;
-        h += Boolean.hashCode(show);
-        return h;
+        hash *= 63;
+        hash += Boolean.hashCode(show);
+        return hash;
     }
 }
