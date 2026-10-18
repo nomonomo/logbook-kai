@@ -1,5 +1,5 @@
 {
-  "version" : 4,
+  "version" : 5,
   "files" : {
     "map/mapping.json" : {
       "sha256" : "0122c4663824b6043a6841249f1d9df6a0ee2dbc4846042ad921a40cb28c3cd9"
@@ -8,7 +8,7 @@
       "sha256" : "c83010c804c905e0babb577ad592e2b4692943084a1ed3fab60aa9b4bc77ee42"
     },
     "quest/quests.json" : {
-      "sha256" : "0f05032766cd0912a8807f475f89399bbdf824d47a79fc5164ddf06f112f445c"
+      "sha256" : "6a9bfe6d70faca1751a2f2e9110d8ae0201c07c1b2bf3a88d3e6e8e56ea03b8e"
     }
   },
   "formatVersion" : 1
