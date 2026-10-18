@@ -10,6 +10,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import logbook.bean.Ship;
+import logbook.bean.ShipCollection;
 import logbook.bean.ShipMst;
 import logbook.internal.LoggerHolder;
 import logbook.internal.Ships;
@@ -89,9 +90,13 @@ public class FleetTabShipPane extends HBox {
             styleClass.add("red");
         }
 
-        // マウスオーバーでのポップアップ
+        // マウスオーバーでのポップアップ。開いたときに母港の艦を引き直す
+        int shipId = this.ship.getId() == null ? 0 : this.ship.getId();
         PopOver<Ship> popover = new PopOver<>((node, ship) -> {
-            return new PopOverPane(name, new FleetTabShipPopup(ship));
+            Ship current = ShipCollection.get().getShipMap().get(shipId);
+            Ship shown = current != null ? current : ship;
+            String title = Ships.shipMst(shown).map(ShipMst::getName).orElse(name);
+            return new PopOverPane(title, new FleetTabShipPopup(shown));
         });
         popover.install(this, this.ship);
     }

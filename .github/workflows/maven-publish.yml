@@ -70,9 +70,8 @@ jobs:
             platform: mac
           - os: macos-latest
             platform: mac-aarch64
-        # ターゲットの OS(Runner) , macos-latest, ubuntu-latest
-        # javafx.platform: win, mac (Intel Mac), mac-aarch64 (Apple Silicon)
-        # brotli4j_arch: macos-latestの場合のみaarch64を指定
+        # 成果物 ZIP は親 POM の OS プロファイル（logbook.platform.name）が決める。
+        # javafx.platform は渡さない（OpenJFX の OS プロファイルに任せる）。
     steps:
     - uses: actions/checkout@v7
       with:
@@ -92,9 +91,7 @@ jobs:
       # shell: bashを指定することで、Windows環境でもbashが使用され、
       # -Dオプションがタスクとして誤認識されることを防ぐ
       shell: bash
-      run: |
-        MAVEN_ARGS="-Djavafx.platform=${{ matrix.platform }}"
-        mvn clean package --batch-mode --show-version --file pom.xml $MAVEN_ARGS
+      run: mvn clean package --batch-mode --show-version --file pom.xml
 #      run: mvn -B package --file pom.xml -Drevision=${{ env.RELEASE_VERSION }}
 
     - name: Upload artifacts
@@ -130,9 +127,7 @@ jobs:
       # shell: bashを指定することで、Windows環境でもbashが使用され、
       # -Dオプションがタスクとして誤認識されることを防ぐ
       shell: bash
-      run: |
-        MAVEN_ARGS="-Djavafx.platform=win"
-        mvn --batch-mode deploy -pl logbook -am -DskipTests --show-version --file pom.xml $MAVEN_ARGS
+      run: mvn --batch-mode deploy -pl logbook -am -DskipTests --show-version --file pom.xml
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 #  release:
