@@ -1,19 +1,18 @@
-/* [986]【期間限定任務】米特務強襲艦隊+α、出撃！ */
+/* [986]【期間限定任務】USS Trick or Treat！ */
 {
     "type" : "出撃",
     "resetType" : "単発",
     "filter" : {
-        "area": ["3-1", "2-4", "6-1"],
+        "area": ["2-1", "2-5", "3-1"],
         "fleet": {
-            "operator": "AND",
-            "conditions": [
-                {"name": ["Gambier Bay","Minneapolis","Tuscaloosa","Brooklyn","Johnston","Luigi Torelli"], "count": 3, "operator": "GE"}
-            ]
+            "name": ["Minneapolis","Tuscaloosa","Gambier Bay","Brooklyn","Johnston","Richard P.Leary","Indiana"],
+            "count": 3,
+            "operator": "GE"
         }
     },
     "conditions" : [
-        {"boss": true, "area": ["3-1"], "rank": ["S"], "count": 1},
-        {"boss": true, "area": ["2-4"], "rank": ["S", "A"], "count": 1},
-        {"boss": true, "area": ["6-1"], "rank": ["S", "A"], "count": 1}
+        {"boss": true, "area": ["2-1"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["2-5"], "rank": ["S"], "count": 2},
+        {"boss": true, "area": ["3-1"], "rank": ["S"], "count": 2}
     ]
 }
