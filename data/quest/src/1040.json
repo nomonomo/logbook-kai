@@ -1,14 +1,14 @@
-/* [1040]【期間限定任務】Halloween狼隊、夜の襲撃！ */
+/* [1040]【限定拡張作戦】Halloween狼隊、夜の襲撃！ */
 {
     "type" : "出撃",
-    "resetType" : "ウィークリー",
+    "resetType" : "マンスリー",
     "filter" : {
         "area": ["2-1", "2-2"],
         "fleet": {
             "operator": "AND",
             "conditions": [
-                {"name": ["朧","夕立","野分","早波","熊野丸","迅鯨改","Tuscaloosa"], "order": 1},
-                {"name": ["朧","夕立","野分","早波","熊野丸","迅鯨改","Tuscaloosa"], "count": 2, "operator": "GE"}
+                {"name": ["朧","夕立","野分","早波","熊野丸","迅鯨改","Tuscaloosa","Indiana"], "order": 1},
+                {"name": ["朧","夕立","野分","早波","熊野丸","迅鯨改","Tuscaloosa","Indiana"], "count": 2, "operator": "GE"}
             ]
         }
     },

@@ -8,10 +8,12 @@ on:
     paths-ignore:
       - 'data/**'
       - '**.md'
+      - '.github/**'
   pull_request:
     paths-ignore:
       - 'data/**'
       - '**.md'
+      - '.github/**'
 
 #連続実行された場合、古いWorkflowを止める
 concurrency:

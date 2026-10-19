@@ -2,6 +2,7 @@
 name: Data Validate
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'data/**'
@@ -22,7 +23,7 @@ permissions: {}
 jobs:
   verify-gamedata:
     name: Verify Game Data
-    if: ( github.event_name == 'push' || ( github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork ) )
+    if: ( github.event_name == 'push' || github.event_name == 'workflow_dispatch' || ( github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork ) )
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -39,8 +40,7 @@ jobs:
         shell: bash
         run: |
           mvn -pl logbook-data,logbook -am --batch-mode verify \
-            -Pgamedata-update \
-            -Djavafx.platform=linux
+            -Pgamedata-update
       - name: data/ がツール出力と一致していること
         shell: bash
         run: |
