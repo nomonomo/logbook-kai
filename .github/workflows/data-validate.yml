@@ -2,6 +2,7 @@
 name: Data Validate
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'data/**'
@@ -22,7 +23,7 @@ permissions: {}
 jobs:
   verify-gamedata:
     name: Verify Game Data
-    if: ( github.event_name == 'push' || ( github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork ) )
+    if: ( github.event_name == 'push' || github.event_name == 'workflow_dispatch' || ( github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork ) )
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
