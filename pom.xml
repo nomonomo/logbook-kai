@@ -105,6 +105,18 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.16.0</version>
+                    <configuration>
+                        <!--
+                            fork 時の javac は標準出力がパイプになる。Windows ではコンソール以外の
+                            出力エンコーディングが native.encoding（日本語環境では MS932）になり、
+                            Maven が UTF-8 で読むと診断メッセージが文字化けする。
+                            -J は fork=true のときだけ javac の JVM に渡る。
+                        -->
+                        <compilerArgs>
+                            <arg>-J-Dstdout.encoding=UTF-8</arg>
+                            <arg>-J-Dstderr.encoding=UTF-8</arg>
+                        </compilerArgs>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -135,6 +147,11 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-resources-plugin</artifactId>
                     <version>3.5.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <version>3.8.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
