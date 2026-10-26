@@ -5106,6 +5106,12 @@
     "min_kaihi" : 27,
     "min_sakuteki" : 30
   }, {
+    "id" : 1061,
+    "name" : "Béarn amélioration",
+    "min_taisen" : 0,
+    "min_kaihi" : 28,
+    "min_sakuteki" : 45
+  }, {
     "id" : 1062,
     "name" : "Visby",
     "min_taisen" : 50,

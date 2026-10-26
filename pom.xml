@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>logbook-kai</groupId>
     <artifactId>logbook-kai</artifactId>
-    <version>26.9.1</version>
+    <version>26.10.1</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -83,6 +83,13 @@
                 <version>6.3.0</version>
                 <scope>import</scope>
                 <type>pom</type>
+            </dependency>
+            <!-- CVE-2026-111497。jetty-compression-brotli 12.1.14 は brotli4j 1.23.0。
+                 Jetty 側が 1.24.0 以上を使うようになったら削除する。 -->
+            <dependency>
+                <groupId>com.aayushatharva.brotli4j</groupId>
+                <artifactId>brotli4j</artifactId>
+                <version>1.24.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
