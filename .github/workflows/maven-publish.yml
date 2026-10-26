@@ -45,7 +45,7 @@ jobs:
         cache: 'maven'
 
     - name: Build with Version
-      run: mvn --batch-mode --non-recursive help:evaluate -Dexpression=project.version -Doutput=target/version.txt
+      run: ./mvnw --batch-mode --non-recursive help:evaluate -Dexpression=project.version -Doutput=target/version.txt
 
     - name: Upload artifacts Version
       uses: actions/upload-artifact@v7
@@ -93,7 +93,7 @@ jobs:
       # shell: bashを指定することで、Windows環境でもbashが使用され、
       # -Dオプションがタスクとして誤認識されることを防ぐ
       shell: bash
-      run: mvn clean package --batch-mode --show-version --file pom.xml
+      run: ./mvnw clean package --batch-mode --show-version --file pom.xml
 #      run: mvn -B package --file pom.xml -Drevision=${{ env.RELEASE_VERSION }}
 
     - name: Upload artifacts
@@ -129,7 +129,7 @@ jobs:
       # shell: bashを指定することで、Windows環境でもbashが使用され、
       # -Dオプションがタスクとして誤認識されることを防ぐ
       shell: bash
-      run: mvn --batch-mode deploy -pl logbook -am -DskipTests --show-version --file pom.xml
+      run: ./mvnw --batch-mode deploy -pl logbook -am -DskipTests --show-version --file pom.xml
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 #  release:
