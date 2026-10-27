@@ -39,7 +39,7 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v6
       with:
-        java-version: '25'
+        java-version: '25.0.5+8'
         distribution: 'temurin'
         server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
         cache: 'maven'
@@ -81,7 +81,7 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v6
       with:
-        java-version: '25'
+        java-version: '25.0.5+8'
         distribution: 'temurin'
         server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
         cache: 'maven'
@@ -121,7 +121,7 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v6
       with:
-        java-version: '25'
+        java-version: '25.0.5+8'
         distribution: 'temurin'
         server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
         cache: 'maven'
