@@ -35,6 +35,7 @@ import logbook.internal.Audios;
 import logbook.internal.BattleEventLogs;
 import logbook.internal.BouyomiChanUtils;
 import logbook.internal.BouyomiChanUtils.Type;
+import logbook.internal.Config;
 import logbook.internal.DestructionBattleSupport;
 import logbook.internal.JsonHelper;
 import logbook.internal.gui.Tools;
@@ -67,6 +68,7 @@ public class ApiPortPort implements APIListenerSpi {
             "api_furniture_affect_items",
             "api_parallel_quest_count",
             "api_dest_ship_slot",
+            "api_c_flags",
             "api_friendly_setting",
             "api_plane_info");
 
@@ -101,7 +103,9 @@ public class ApiPortPort implements APIListenerSpi {
      */
     private void apiBasic(JsonObject object) {
         Basic.updateBasic(Basic.get(), object);
-        AppExpRecords.get().update(Basic.get());
+        if (AppExpRecords.get().update(Basic.get())) {
+            Config.getDefault().requestStore(AppExpRecords.class);
+        }
     }
 
     /**

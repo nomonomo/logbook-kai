@@ -6,16 +6,16 @@
 
 <fx:root prefWidth="260.0" styleClass="mission" type="VBox" xmlns="http://javafx.com/javafx/8.0.131" xmlns:fx="http://javafx.com/fxml/1">
    <children>
-      <AnchorPane prefWidth="260.0">
+      <AnchorPane>
          <children>
-            <Label maxWidth="160.0" prefWidth="160.0" styleClass="name" text="泊地修理" AnchorPane.bottomAnchor="1.0" AnchorPane.leftAnchor="1.0" />
-            <Label fx:id="time" maxWidth="100.0" prefWidth="100.0" styleClass="time" AnchorPane.bottomAnchor="1.0" AnchorPane.leftAnchor="160.0" />
+            <Label styleClass="name" text="泊地修理" AnchorPane.bottomAnchor="1.0" AnchorPane.leftAnchor="1.0" />
+            <Label fx:id="time" maxWidth="Infinity" styleClass="time" textOverrun="ELLIPSIS" AnchorPane.bottomAnchor="1.0" AnchorPane.leftAnchor="160.0" AnchorPane.rightAnchor="1.0" />
          </children>
       </AnchorPane>
-      <AnchorPane prefWidth="260.0">
+      <AnchorPane>
          <children>
-            <Label maxWidth="160.0" prefWidth="160.0" styleClass="name" text="母港給糧" AnchorPane.bottomAnchor="1.0" AnchorPane.leftAnchor="1.0" />
-            <Label fx:id="portSupplyTime" maxWidth="100.0" prefWidth="100.0" styleClass="time" AnchorPane.bottomAnchor="1.0" AnchorPane.leftAnchor="160.0" />
+            <Label styleClass="name" text="母港給糧" AnchorPane.bottomAnchor="1.0" AnchorPane.leftAnchor="1.0" />
+            <Label fx:id="portSupplyTime" maxWidth="Infinity" styleClass="time" textOverrun="ELLIPSIS" AnchorPane.bottomAnchor="1.0" AnchorPane.leftAnchor="160.0" AnchorPane.rightAnchor="1.0" />
          </children>
       </AnchorPane>
    </children>

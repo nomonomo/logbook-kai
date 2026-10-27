@@ -1,0 +1,52 @@
+/* 更新のお知らせダイアログ */
+
+.update-check-dialog .header-panel .label {
+    -fx-font-size: 18px;
+}
+.update-check-versions {
+    -fx-font-size: 15px;
+}
+
+.release-notes {
+    -fx-background-color: transparent;
+}
+.release-notes > .viewport {
+    -fx-background-color: transparent;
+}
+.release-notes-content {
+    -fx-padding: 10 15 10 15;
+}
+.release-notes-empty {
+    -fx-text-fill: red;
+}
+.release-notes-h1, .release-notes-h1 .text {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+.release-notes-h2, .release-notes-h2 .text {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-padding: 8 0 0 0;
+}
+.release-notes-h3, .release-notes-h3 .text {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 6 0 0 0;
+}
+.release-notes-item {
+    -fx-padding: 0 0 0 4;
+    -fx-alignment: top-left;
+}
+.release-notes-bullet-marker {
+    -fx-padding: 0 0 0 0;
+}
+.release-notes-strong {
+    -fx-font-weight: bold;
+}
+.release-notes-emphasis {
+    -fx-font-style: italic;
+}
+.release-notes-code {
+    -fx-font-family: monospace;
+    -fx-wrap-text: true;
+}

@@ -33,13 +33,13 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v6
         with:
-          java-version: '21'
-          distribution: 'microsoft'
+          java-version: '25'
+          distribution: 'temurin'
           cache: 'maven'
       - name: quests 生成・manifest 整合・gamedata 正当化テスト
         shell: bash
         run: |
-          mvn -pl logbook-data,logbook -am --batch-mode verify \
+          ./mvnw -pl logbook-data,logbook -am --batch-mode verify \
             -Pgamedata-update
       - name: data/ がツール出力と一致していること
         shell: bash

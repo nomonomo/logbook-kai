@@ -17,7 +17,7 @@
       <FlowPane>
          <children>
             <Label text="集計" />
-            <ChoiceBox fx:id="type" prefWidth="100.0" />
+            <ChoiceBox fx:id="type" prefWidth="110.0" />
             <Label text="期間" />
             <ChoiceBox fx:id="term" prefWidth="100.0" />
             <CheckBox fx:id="forceZero" mnemonicParsing="false" onAction="#forceZeroChange" text="ゼロを基準" />

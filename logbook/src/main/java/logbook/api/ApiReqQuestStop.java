@@ -4,6 +4,7 @@ import jakarta.json.JsonObject;
 
 import logbook.bean.AppQuestCollection;
 import logbook.bean.AppQuestDuration;
+import logbook.internal.Config;
 import logbook.proxy.RequestMetaData;
 import logbook.proxy.ResponseMetaData;
 
@@ -21,6 +22,7 @@ public class ApiReqQuestStop implements APIListenerSpi {
             Integer key = Integer.valueOf(id);
             AppQuestCollection.get().getQuest().remove(key);
             AppQuestDuration.get().unset(key);
+            Config.getDefault().requestStore(AppQuestCollection.class, AppQuestDuration.class);
         }
     }
 

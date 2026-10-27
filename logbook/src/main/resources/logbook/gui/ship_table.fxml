@@ -3,6 +3,7 @@
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.ChoiceBox?>
 <?import javafx.scene.control.ContextMenu?>
+<?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.SeparatorMenuItem?>
@@ -26,16 +27,26 @@
                      <children>
                         <FlowPane>
                            <children>
-                              <ToggleSwitch fx:id="textFilter" prefWidth="0.0" text="テキスト" />
-                              <TextField fx:id="textValue" disable="true" prefWidth="200.0" promptText="名前・艦種または装備" />
+                              <HBox alignment="CENTER_LEFT" styleClass="filter-toggle">
+                                 <children>
+                                    <Label text="テキスト" />
+                                    <ToggleSwitch fx:id="textFilter" prefWidth="0.0" />
+                                 </children>
+                              </HBox>
+                              <TextField fx:id="textValue" disable="true" prefWidth="200.0" promptText="名前・艦種または装備" styleClass="filter-text-value" />
                            </children>
                         </FlowPane>
                         <FlowPane fx:id="filters" Hgap="5" Vgap="5">
                            <children>
                               <VBox fillWidth="false">
                                  <children>
-                                    <ToggleSwitch fx:id="typeFilter" prefWidth="0.0" text="艦種" />
-                                    <TextFlow prefWidth="370.0">
+                                    <HBox alignment="CENTER_LEFT" styleClass="filter-toggle">
+                                       <children>
+                                          <Label text="艦種" />
+                                          <ToggleSwitch fx:id="typeFilter" prefWidth="0.0" />
+                                       </children>
+                                    </HBox>
+                                    <TextFlow fx:id="typeChecks" prefWidth="370.0" styleClass="ship-type-checks">
                                        <children>
                                           <CheckBox fx:id="escort" disable="true" mnemonicParsing="false" selected="true" text="海防艦" />
                                           <CheckBox fx:id="destroyer" disable="true" mnemonicParsing="false" selected="true" text="駆逐艦" />
@@ -63,19 +74,34 @@
                               </VBox>
                               <VBox fillWidth="false">
                                  <children>
-                                    <ToggleSwitch fx:id="labelFilter" prefWidth="0.0" text="ラベル" />
+                                    <HBox alignment="CENTER_LEFT" styleClass="filter-toggle">
+                                       <children>
+                                          <Label text="ラベル" />
+                                          <ToggleSwitch fx:id="labelFilter" prefWidth="0.0" />
+                                       </children>
+                                    </HBox>
                                     <ChoiceBox fx:id="labelValue" disable="true" />
                                  </children>
                               </VBox>
                               <VBox fillWidth="false">
                                  <children>
-                                    <ToggleSwitch fx:id="slotExFilter" prefWidth="0.0" text="補強増設" />
+                                    <HBox alignment="CENTER_LEFT" styleClass="filter-toggle">
+                                       <children>
+                                          <Label text="補強増設" />
+                                          <ToggleSwitch fx:id="slotExFilter" prefWidth="0.0" />
+                                       </children>
+                                    </HBox>
                                     <CheckBox fx:id="slotExValue" disable="true" mnemonicParsing="false" selected="true" text="有り" />
                                  </children>
                               </VBox>
                               <VBox fillWidth="false">
                                  <children>
-                                    <ToggleSwitch fx:id="missionFilter" prefWidth="0.0" text="遠征" />
+                                    <HBox alignment="CENTER_LEFT" styleClass="filter-toggle">
+                                       <children>
+                                          <Label text="遠征" />
+                                          <ToggleSwitch fx:id="missionFilter" prefWidth="0.0" />
+                                       </children>
+                                    </HBox>
                                     <CheckBox fx:id="missionValue" disable="true" mnemonicParsing="false" selected="true" text="遠征中" />
                                  </children>
                               </VBox>

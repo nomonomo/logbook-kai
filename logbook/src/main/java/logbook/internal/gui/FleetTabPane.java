@@ -1,19 +1,8 @@
 package logbook.internal.gui;
 
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.nio.file.Path;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.StringJoiner;
-import java.util.stream.Collectors;
 
 import javafx.collections.ObservableList;
 import javafx.css.PseudoClass;
@@ -26,19 +15,16 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
-import logbook.Messages;
-import logbook.bean.AppCondition;
-import logbook.bean.AppConfig;
 import logbook.bean.DeckPort;
-import logbook.bean.NdockCollection;
 import logbook.bean.Ship;
 import logbook.bean.ShipCollection;
-import logbook.bean.ShipMst;
-import logbook.bean.ShipgraphCollection;
 import logbook.internal.Items;
 import logbook.internal.LoggerHolder;
-import logbook.internal.Ships;
+import logbook.internal.fleet.FleetShipRow;
+import logbook.internal.fleet.FleetShipRows;
+import logbook.internal.fleet.FleetSnapshot;
 import logbook.plugin.gui.FleetTabRemark;
 import logbook.plugin.gui.Plugin;
 import logbook.plugin.gui.Updateable;
@@ -50,32 +36,19 @@ import lombok.val;
  */
 public class FleetTabPane extends ScrollPane {
 
-    /** 艦隊 */
+    private static final PseudoClass ENABLE_BG = PseudoClass.getPseudoClass("enablebgimage");
+
+    /** 表示値 */
+    private final FleetModel model;
+
+    /** 注釈プラグインへ渡す艦隊 */
     private DeckPort port;
-
-    /** 艦娘達 */
-    private List<Ship> shipList;
-
-    /** 艦隊のハッシュ・コード */
-    private int portHashCode;
-
-    /** 艦娘達のハッシュ・コード */
-    private int shipsHashCode;
-
-    /** 入渠中の艦娘達のハッシュ・コード */
-    private int ndocksHashCode;
-
-    /** 疲労回復予想時刻 */
-    private long condRecoverEpoch = Long.MAX_VALUE;
-
-    /** 連合艦隊フラグ */
-    private boolean combinedFlag;
-
-    /** Tabのスタイル(タブ色を変えるのに使用) */
-    private String tabStyle;
 
     /** 分岐点係数 */
     private double branchCoefficient = 1;
+
+    /** 前回描画した艦の行 */
+    private List<FleetShipRow> rowState;
 
     /** メッセージ */
     @FXML
@@ -84,6 +57,10 @@ public class FleetTabPane extends ScrollPane {
     /** 艦娘達 */
     @FXML
     private VBox ships;
+
+    /** 制空・判定式などの数値エリア */
+    @FXML
+    private GridPane fleetStats;
 
     /** 制空値アイコン */
     @FXML
@@ -120,6 +97,10 @@ public class FleetTabPane extends ScrollPane {
     /** 艦娘レベル計 */
     @FXML
     private Label lvsum;
+
+    /** 疲労回復ラベル（アイコン無しのため左余白で揃える） */
+    @FXML
+    private Label condRecoverLabel;
 
     /** 疲労 */
     @FXML
@@ -172,7 +153,7 @@ public class FleetTabPane extends ScrollPane {
     /** 艦隊速度 */
     @FXML
     private Label speed;
-    
+
     /** 注釈 */
     @FXML
     private VBox remark;
@@ -180,10 +161,10 @@ public class FleetTabPane extends ScrollPane {
     /**
      * 艦隊ペインのコンストラクタ
      *
-     * @param port 艦隊
+     * @param model 表示値
      */
-    public FleetTabPane(DeckPort port) {
-        this.port = port;
+    public FleetTabPane(FleetModel model) {
+        this.model = model;
         try {
             FXMLLoader loader = InternalFXMLLoader.load("logbook/gui/fleet_tab.fxml");
             loader.setRoot(this);
@@ -196,10 +177,26 @@ public class FleetTabPane extends ScrollPane {
 
     @FXML
     void initialize() {
-        this.update();
+        this.applyFontScale();
+        this.bind();
         this.setIcon();
+        this.installDecision33Popover();
         this.initializeRemarkPlugin();
-        this.updateRemarkPlugin(this.port);
+    }
+
+    /**
+     * 母港の内容をモデルへ反映し、変わった艦の行だけ作り直します。
+     *
+     * @param port 艦隊
+     */
+    public void refresh(DeckPort port) {
+        this.port = port;
+        FleetSnapshot snapshot = FleetSnapshot.of(port, this.branchCoefficient);
+        boolean changed = this.model.apply(snapshot);
+        if (this.rowState == null || changed || !snapshot.getRows().equals(this.rowState)) {
+            this.syncRows();
+            this.updateRemarkPlugin(port);
+        }
     }
 
     /**
@@ -227,244 +224,68 @@ public class FleetTabPane extends ScrollPane {
             if (!value.isEmpty()) {
                 try {
                     this.branchCoefficient = Double.parseDouble(value);
-                    this.setDecision33();
+                    if (this.port != null) {
+                        this.refresh(this.port);
+                    }
                 } catch (NumberFormatException e) {
                 }
             }
         }
     }
 
-    /**
-     * 画面を更新します
-     *
-     * @param port 艦隊
-     */
-    public void update(DeckPort port) {
-        this.port = port;
-        this.update();
+    private void bind() {
+        this.message.textProperty().bind(this.model.nameProperty());
+        this.airSuperiority.textProperty().bind(this.model.airSuperiorityProperty());
+        this.touchPlaneStartProbability.textProperty().bind(this.model.touchPlaneStartProbabilityProperty());
+        this.decision33.textProperty().bind(this.model.decision33Property());
+        this.branchCoefficientButton.textProperty().bind(this.model.branchCoefficientProperty());
+        this.lvsum.textProperty().bind(this.model.lvSumProperty());
+        this.karyokusum.textProperty().bind(this.model.karyokuSumProperty());
+        this.taikusum.textProperty().bind(this.model.taikuSumProperty());
+        this.taissum.textProperty().bind(this.model.taisenSumProperty());
+        this.sakutekisum.textProperty().bind(this.model.sakutekiSumProperty());
+        this.tpsum.textProperty().bind(this.model.tpSumProperty());
+        this.speed.textProperty().bind(this.model.speedProperty());
+        this.speed.styleProperty().bind(this.model.speedStyleProperty());
+        this.cond.textProperty().bind(this.model.condTextProperty());
+        this.styleProperty().bind(this.model.backgroundStyleProperty());
+        this.model.backgroundEnabledProperty().addListener((obs, prev, enabled) -> this.pseudoClassStateChanged(ENABLE_BG, enabled));
+        this.pseudoClassStateChanged(ENABLE_BG, this.model.backgroundEnabledProperty().get());
     }
 
-    /**
-     * 画面を更新します
-     */
-    public void update() {
-        Map<Integer, Ship> shipMap = ShipCollection.get()
-                .getShipMap();
-        this.shipList = this.port.getShip()
-                .stream()
-                .map(shipMap::get)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+    private void installDecision33Popover() {
+        PopOver<String> popover = new PopOver<>((node, data) -> new PopOverPane("判定式(33)", this.model.getDecision33Detail()));
+        popover.install(this.decision33, "");
+    }
 
-        int ndocksHashCode = NdockCollection.get().getNdockSet().hashCode();
-
-        if (this.portHashCode != this.port.hashCode() || this.shipsHashCode != this.shipList.hashCode()
-                || this.ndocksHashCode != ndocksHashCode || this.combinedFlag != AppCondition.get().isCombinedFlag()) {
-            this.updateShips();
-            this.portHashCode = this.port.hashCode();
-            this.shipsHashCode = this.shipList.hashCode();
-            this.ndocksHashCode = ndocksHashCode;
-            this.combinedFlag = AppCondition.get().isCombinedFlag();
+    private void syncRows() {
+        FleetSnapshot snapshot = this.model.getSnapshot();
+        if (snapshot == null) {
+            return;
         }
-        if (this.condRecoverEpoch != Long.MAX_VALUE && ZonedDateTime.now(ZoneId.systemDefault()).toEpochSecond() > this.condRecoverEpoch) {
-            this.condRecoverEpoch = Long.MAX_VALUE;
-            if (!AppCondition.get().isMapStart() && this.port.getMission().get(0).intValue() == 0) { // 出撃中・遠征中だったら通知しない
-                String message = Messages.getString("cond.recover", this.port.getName());
-                Tools.Controls.showNotify(null, "疲労抜け", message);
+        List<FleetShipRow> rows = snapshot.getRows();
+        List<Integer> changed = FleetShipRows.changedIndices(this.rowState, rows);
+        Map<Integer, Ship> shipMap = ShipCollection.get().getShipMap();
+        ObservableList<Node> children = this.ships.getChildren();
+        while (children.size() > rows.size()) {
+            children.remove(children.size() - 1);
+        }
+        for (int index : changed) {
+            Ship ship = shipMap.get(rows.get(index).getShipId());
+            if (ship == null) {
+                continue;
             }
-        }
-    }
-
-    /**
-     * タブに設定するスタイル
-     *
-     * @return スタイル
-     */
-    public String tabStyle() {
-        return this.tabStyle;
-    }
-
-    private void updateShips() {
-        if (AppConfig.get().isVisiblePoseImageOnFleetTab() && !this.shipList.isEmpty()) {
-            Ship ship = this.shipList.get(0);
-
-            Path path = Ships.shipStandingPoseImagePath(ship);
-            if (path != null) {
-                StringBuilder sb = new StringBuilder();
-                sb.append("-fx-background-image: url('" + path.toUri() + "');");
-                sb.append("-fx-background-position: ");
-                sb.append(Ships.shipMst(ship)
-                        .map(ShipMst::getId)
-                        .flatMap(id -> Optional.ofNullable(ShipgraphCollection.get().getShipgraphMap().get(id)))
-                        .map(g -> ((g.getWeda().get(0) * -1) + 100) + "px " + (g.getWeda().get(1) * -1) + "px")
-                        .orElse("center top"));
-                sb.append(";");
-                this.setStyle(sb.toString());
-                this.pseudoClassStateChanged(PseudoClass.getPseudoClass("enablebgimage"), true);
+            FleetTabShipPane pane = new FleetTabShipPane(ship);
+            if (index < children.size()) {
+                children.set(index, pane);
             } else {
-                this.setStyle("-fx-background-image: null");
-                this.pseudoClassStateChanged(PseudoClass.getPseudoClass("enablebgimage"), false);
-            }
-        } else {
-            this.setStyle("-fx-background-image: null");
-            this.pseudoClassStateChanged(PseudoClass.getPseudoClass("enablebgimage"), false);
-        }
-
-        this.message.setText(this.port.getName());
-
-        List<Ship> withoutEscape = this.shipList.stream()
-                .filter(s -> !Ships.isEscape(s))
-                .collect(Collectors.toList());
-
-        // 制空値
-        this.airSuperiority
-                .setText(Integer.toString(withoutEscape.stream()
-                        .mapToInt(Ships::airSuperiority)
-                        .sum()));
-        // 触接開始率
-        this.touchPlaneStartProbability
-                .setText((int) Math.floor(Ships.touchPlaneStartProbability(withoutEscape) * 100) + "%");
-        // 判定式(33)
-        this.setDecision33();
-        // 艦娘レベル計
-        this.lvsum.setText(Integer.toString(withoutEscape.stream().mapToInt(Ship::getLv).sum()));
-        // 火力合計
-        this.karyokusum.setText(Integer.toString(withoutEscape.stream().mapToInt(ship -> ship.getKaryoku().get(0)).sum()));
-        // 対空合計
-        this.taikusum.setText(Integer.toString(withoutEscape.stream().mapToInt(ship -> ship.getTaiku().get(0)).sum()));
-        // 対潜合計
-        this.taissum.setText(Integer.toString(withoutEscape.stream().mapToInt(ship -> ship.getTaisen().get(0)).sum()));
-        // 索敵合計
-        this.sakutekisum.setText(Integer.toString(withoutEscape.stream().mapToInt(ship -> ship.getSakuteki().get(0)).sum()));
-        // TP合計
-        int tp = withoutEscape.stream().mapToInt(Ships::transportPoint).sum();
-        this.tpsum.setText(tp + "/" + (int)(tp*7/10));
-
-        // 艦隊速度 - 各艦の速度のうち最低の速度を艦隊の速度とする
-        String label;
-        int speed = this.shipList.stream().map(Ship::getSoku).mapToInt(Integer::intValue).min().orElse(0);
-        this.speed.setStyle("");
-        if (speed >= 20) {
-            label = "最速";
-            this.speed.setStyle("-fx-text-fill: #9FEEEE;");
-        } else if (speed >= 15) {
-            label = "高速+";
-            this.speed.setStyle("-fx-text-fill: #CFEEEE;");
-        } else if (speed >= 10) {
-            label = "高速";
-        } else if (speed >= 5) {
-            label = "低速";
-        } else {
-            label = "(不明)";
-        }
-        this.speed.setText(label);
-
-        ObservableList<Node> childs = this.ships.getChildren();
-        childs.clear();
-        this.shipList.stream()
-                .map(FleetTabShipPane::new)
-                .forEach(childs::add);
-
-        String left = null;
-        String right = null;
-        AppConfig conf = AppConfig.get();
-        if (this.shipList.stream().anyMatch(Ships::isBadlyDamage)) {
-            // 大破時
-            left = Optional.ofNullable(conf.getTabColorBadlyDamage()).map(String::trim).filter(color -> color.length() > 0).orElse("#FF655C");
-        } else if (this.shipList.stream().anyMatch(Ships::isHalfDamage)) {
-            // 中破時
-            left = Optional.ofNullable(conf.getTabColorHalfDamage()).map(String::trim).filter(color -> color.length() > 0).orElse("#FFBC5C");
-        } else if (this.shipList.stream().anyMatch(Ships::isSlightDamage)) {
-            // 小破時
-            left = Optional.ofNullable(conf.getTabColorSlightDamage()).map(String::trim).filter(color -> color.length() > 0).orElse("#FFEB5C");
-        } else if (this.shipList.stream().anyMatch(s -> s.getNowhp() != s.getMaxhp())) {
-            // 健在時
-            left = Optional.ofNullable(conf.getTabColorLessThanSlightDamage()).map(String::trim).filter(color -> color.length() > 0).orElse("#D0EEFF");
-        } else {
-            // 無傷時
-            left = Optional.ofNullable(conf.getTabColorNoDamage()).map(String::trim).filter(color -> color.length() > 0).orElse(null);
-        }
-        if (this.shipList.stream()
-                .anyMatch(ship -> !ship.getFuel().equals(Ships.shipMst(ship).map(ShipMst::getFuelMax).orElse(0)) ||
-                        !ship.getBull().equals(Ships.shipMst(ship).map(ShipMst::getBullMax).orElse(0)))) {
-            // 未補給時
-            right = Optional.ofNullable(conf.getTabColorNeedRefuel()).map(String::trim).filter(color -> color.length() > 0).orElse("#FFF030");
-        } else if (this.port.getId() > 1 && this.port.getMission().get(0) == 0L && (this.port.getId() != 2 || !AppCondition.get().isCombinedFlag())) {
-            // 遠征未出撃
-            right = Optional.ofNullable(conf.getTabColorNoMission()).map(String::trim).filter(color -> color.length() > 0).orElse("#87CEFA");
-        } else {
-            right = null;
-        }
-        Optional<String> l = Optional.ofNullable(left).map(String::trim).filter(str -> !str.equals("-"));
-        Optional<String> r = Optional.ofNullable(right).map(String::trim).filter(str -> !str.equals("-"));
-        if (!l.isPresent() && !r.isPresent()) {
-            this.tabStyle = "";
-        } else {
-            this.tabStyle = "-fx-background-color: -fx-outer-border, -fx-text-box-border, linear-gradient(from 40% 0% to 70% 100%, "
-                    + l.orElse("-fx-color") + ", " + r.orElse("-fx-color") + ");";
-        }
-        
-        // 疲労
-        int minCond = this.shipList.stream()
-                .mapToInt(Ship::getCond)
-                .min()
-                .orElse(49);
-        this.condRecoverEpoch = Long.MAX_VALUE;
-        if (minCond < 49) {
-
-            long cut = AppCondition.get().getCondUpdateTime();
-            // 疲労抜け想定時刻(エポック秒)
-            long end = cut + (-Math.floorDiv(49 - minCond, -3) * 180);
-            // 疲労回復タイミングは3の倍数+2
-            int calc = ZonedDateTime.ofInstant(Instant.ofEpochSecond(end), ZoneId.systemDefault()).getMinute();
-            calc = (calc + 1) % 3;
-            end = end - ( 60 * calc);
-
-            // 現在時刻
-            ZonedDateTime now = ZonedDateTime.now(ZoneId.systemDefault());
-            // 現在時刻(エポック秒)
-            long nowepoch = now.toEpochSecond();
-
-            if (end > nowepoch) {
-                ZonedDateTime disp = ZonedDateTime.ofInstant(Instant.ofEpochSecond(end), ZoneId.systemDefault());
-                DateTimeFormatter format = DateTimeFormatter.ofPattern("HH:mm");
-
-                this.cond.setText(format.format(disp));
-                // 未出撃の時のみ通知する
-                if (AppConfig.get().isUseCondRecoverToast() && !AppCondition.get().isMapStart()
-                        && this.port.getMission().get(0).intValue() == 0) {  // (0=未出撃, 1=遠征中, 2=遠征帰還, 3=遠征中止)
-                    this.condRecoverEpoch = end;
+                while (children.size() < index) {
+                    children.add(new javafx.scene.layout.Pane());
                 }
-            } else {
-                this.cond.setText("");
+                children.add(pane);
             }
-        } else {
-            this.cond.setText("");
         }
-        this.updateRemarkPlugin(this.port);
-    }
-
-    /**
-     * 判定式(33) を設定する
-     */
-    private void setDecision33() {
-        Ships.Decision33 decision33 = Ships.decision33(this.shipList, this.branchCoefficient);
-        // 判定式(33)
-        this.decision33.setText(BigDecimal.valueOf(decision33.get())
-                .setScale(3, RoundingMode.FLOOR)
-                .toPlainString());
-        PopOver<Ships.Decision33> popover = new PopOver<>((node, data) -> {
-            String content = new StringJoiner("\n")
-                    .add("判定式(33):" + data.get() + "(分岐点係数:" + data.getBranchCoefficient() + ")")
-                    .add("装備索敵:" + data.getItemView())
-                    .add("艦娘索敵:" + data.getShipView())
-                    .add("司令部スコア:" + data.getLevelScore())
-                    .add("艦隊スコア:" + data.getFleetScore())
-                    .toString();
-            return new PopOverPane("判定式(33)", content);
-        });
-        popover.install(this.decision33, decision33);
-        this.branchCoefficientButton.setText("分岐点係数:" + this.branchCoefficient);
+        this.rowState = rows;
     }
 
     private void setIcon() {
@@ -478,6 +299,27 @@ public class FleetTabPane extends ScrollPane {
         this.sakutekisumImg.setImage(Items.itemImageByType(11));
         this.tpsumImg.setImage(Items.itemImageByType(25));
         this.speedImg.setImage(Items.itemImageByType(19));
+    }
+
+    /**
+     * 制空・判定式エリアのアイコンと左余白を文字サイズ倍率に合わせる。
+     */
+    private void applyFontScale() {
+        double icon = UiScale.FLEET_STAT_ICON_SIZE;
+        UiScale.applyFit(this.airSuperiorityImg, icon);
+        UiScale.applyFit(this.touchPlaneStartProbabilityImg, icon);
+        UiScale.applyFit(this.decision33Img, icon);
+        UiScale.applyFit(this.lvsumImg, icon);
+        UiScale.applyFit(this.karyokusumImg, icon);
+        UiScale.applyFit(this.taikusumImg, icon);
+        UiScale.applyFit(this.taissumImg, icon);
+        UiScale.applyFit(this.sakutekisumImg, icon);
+        UiScale.applyFit(this.tpsumImg, icon);
+        UiScale.applyFit(this.speedImg, icon);
+        UiScale.applyLeftPadding(this.condRecoverLabel, icon);
+        if (this.fleetStats != null) {
+            UiScale.applyFleetStatsGrid(this.fleetStats);
+        }
     }
 
     /**
@@ -497,7 +339,7 @@ public class FleetTabPane extends ScrollPane {
 
     /**
      * 注釈プラグインを更新する
-     * 
+     *
      * @param port 艦隊
      */
     @SuppressWarnings("unchecked")

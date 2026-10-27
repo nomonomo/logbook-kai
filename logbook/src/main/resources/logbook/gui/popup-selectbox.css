@@ -1,5 +1,4 @@
 .popup-selectbox {
-    -fx-font-family: "Meiryo UI";
     -fx-background-color: linear-gradient(to bottom, derive(-fx-color, -17%),
         derive(-fx-color, -30%)), -fx-control-inner-background;
     -fx-background-insets: 0, 1;

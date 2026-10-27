@@ -5,6 +5,9 @@
 .configWindow .configInner,.configWindow .footer {
     -fx-padding: 10px;
 }
+.configWindow .footer {
+    -fx-min-height: 44px;
+}
 .bold {
     -fx-font-weight: bold;
 }

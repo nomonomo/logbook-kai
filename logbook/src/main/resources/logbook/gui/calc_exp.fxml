@@ -33,7 +33,7 @@
                      <children>
                         <HBox alignment="CENTER_LEFT">
                            <children>
-                              <ComboBox fx:id="shipList" prefWidth="150.0">
+                              <ComboBox fx:id="shipList" prefWidth="280.0">
                                  <HBox.margin>
                                     <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                                  </HBox.margin>
@@ -62,26 +62,26 @@
                           <rowConstraints>
                               <RowConstraints />
                               <RowConstraints />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" />
+                              <RowConstraints />
+                              <RowConstraints />
                           </rowConstraints>
                            <children>
                               <Label text="今のレベル" GridPane.rowIndex="2" />
                               <Spinner fx:id="nowLv" editable="true" prefWidth="80.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
                               <Label text="Lv" GridPane.columnIndex="2" GridPane.rowIndex="2" />
-                              <TextField fx:id="nowExp" editable="false" prefWidth="70.0" GridPane.columnIndex="3" GridPane.rowIndex="2" />
+                              <TextField fx:id="nowExp" editable="false" prefWidth="85.0" GridPane.columnIndex="3" GridPane.rowIndex="2" />
                               <Label text="Exp" GridPane.columnIndex="4" GridPane.rowIndex="2" />
                               <Label text="目標レベル" GridPane.rowIndex="3" />
                               <Spinner fx:id="goalLv" editable="true" prefWidth="80.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
                               <Label text="Lv" GridPane.columnIndex="2" GridPane.rowIndex="3" />
-                              <TextField fx:id="goalExp" editable="false" prefWidth="70.0" GridPane.columnIndex="3" GridPane.rowIndex="3" />
+                              <TextField fx:id="goalExp" editable="false" prefWidth="85.0" GridPane.columnIndex="3" GridPane.rowIndex="3" />
                               <Label text="Exp" GridPane.columnIndex="4" GridPane.rowIndex="3" />
                            </children>
                         </GridPane>
                         <HBox alignment="CENTER_LEFT">
                            <children>
                               <Label text="海域" />
-                              <ChoiceBox fx:id="sea" prefWidth="150.0">
+                              <ChoiceBox fx:id="sea" prefWidth="220.0">
                                  <HBox.margin>
                                     <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                                  </HBox.margin>
@@ -129,18 +129,18 @@
                               <ColumnConstraints minWidth="10.0" />
                           </columnConstraints>
                           <rowConstraints>
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" />
-                              <RowConstraints minHeight="10.0" prefHeight="30.0" />
+                              <RowConstraints />
+                              <RowConstraints />
                           </rowConstraints>
                            <children>
                               <Label text="1回あたり" />
-                              <TextField fx:id="getExp" editable="false" prefWidth="70.0" GridPane.columnIndex="1">
+                              <TextField fx:id="getExp" editable="false" prefWidth="85.0" GridPane.columnIndex="1">
                                  <GridPane.margin>
                                     <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                                  </GridPane.margin>
                               </TextField>
                               <Label text="必要経験値" GridPane.rowIndex="1" />
-                              <TextField fx:id="needExp" editable="false" prefWidth="70.0" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                              <TextField fx:id="needExp" editable="false" prefWidth="85.0" GridPane.columnIndex="1" GridPane.rowIndex="1">
                                  <GridPane.margin>
                                     <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                                  </GridPane.margin>

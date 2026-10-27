@@ -8,16 +8,21 @@ import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import logbook.bean.ConfigDefaults;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * アプリケーションの設定を読み書きします
  *
  */
+@Slf4j
 public final class Config {
 
     private static final Path CONFIG_DIR = Paths.get("./config"); //$NON-NLS-1$
@@ -27,6 +32,17 @@ public final class Config {
     private final Path dir;
 
     private final Map<Class<?>, Object> map = new ConcurrentHashMap<>();
+
+    /** requestStore で書き込み待ちの型 */
+    private final Set<Class<?>> dirtyTypes = ConcurrentHashMap.newKeySet();
+
+    /** requestStore の単一フライト */
+    private final AtomicBoolean storing = new AtomicBoolean(false);
+
+    /** write 呼び出し回数（テスト用） */
+    private final AtomicInteger writeCount = new AtomicInteger();
+
+    private final Object idleMonitor = new Object();
 
     /**
      * アプリケーション設定の読み書きを指定のディレクトリで行います
@@ -69,6 +85,86 @@ public final class Config {
                 .forEach(this::store);
     }
 
+    /**
+     * 指定した型だけをファイルに書き込みます。未ロードの型は無視します。
+     *
+     * @param classes 書き込む Bean 型
+     */
+    public synchronized void store(Class<?>... classes) {
+        if (classes == null) {
+            return;
+        }
+        for (Class<?> clazz : classes) {
+            if (clazz == null) {
+                continue;
+            }
+            Object instance = this.map.get(clazz);
+            if (instance != null) {
+                this.write(clazz, instance);
+            }
+        }
+    }
+
+    /**
+     * 指定した型の書き込みを要求します。書き込み中なら dirty のみ立て、キューには積みません。
+     *
+     * @param classes 書き込む Bean 型
+     */
+    public void requestStore(Class<?>... classes) {
+        if (classes == null || classes.length == 0) {
+            return;
+        }
+        for (Class<?> clazz : classes) {
+            if (clazz != null) {
+                this.dirtyTypes.add(clazz);
+            }
+        }
+        this.tryStartRequestedStore();
+    }
+
+    private void tryStartRequestedStore() {
+        if (!this.storing.compareAndSet(false, true)) {
+            return;
+        }
+        ThreadManager.getExecutorService().execute(this::drainRequestedStore);
+    }
+
+    private void drainRequestedStore() {
+        try {
+            do {
+                Set<Class<?>> batch = Set.copyOf(this.dirtyTypes);
+                this.dirtyTypes.removeAll(batch);
+                this.store(batch.toArray(Class<?>[]::new));
+            } while (!this.dirtyTypes.isEmpty());
+        } finally {
+            this.storing.set(false);
+            if (!this.dirtyTypes.isEmpty()) {
+                this.tryStartRequestedStore();
+            } else {
+                synchronized (this.idleMonitor) {
+                    this.idleMonitor.notifyAll();
+                }
+            }
+        }
+    }
+
+    /**
+     * 進行中の {@link #requestStore(Class[])} が終わるまで待ちます。
+     *
+     * @throws InterruptedException 割り込み
+     */
+    void awaitRequestStore() throws InterruptedException {
+        synchronized (this.idleMonitor) {
+            while (this.storing.get() || !this.dirtyTypes.isEmpty()) {
+                this.idleMonitor.wait(100);
+            }
+        }
+    }
+
+    int writeCountForTest() {
+        return this.writeCount.get();
+    }
+
     private void store(Entry<Class<?>, ?> entry) {
         this.write(entry.getKey(), entry.getValue());
     }
@@ -85,7 +181,7 @@ public final class Config {
                         break tryRead;
                     } catch (Exception e) {
                         instance = null;
-                        LoggerHolder.get().warn("アプリケーションの設定を読み込み中に例外が発生", e); //$NON-NLS-1$
+                        log.warn("アプリケーションの設定を読み込み中に例外が発生", e); //$NON-NLS-1$
                     }
                 }
                 // ファイルが読み込めないまたはサイズがゼロの場合バックアップファイルを読み込む
@@ -97,7 +193,7 @@ public final class Config {
             }
         } catch (Exception e) {
             instance = null;
-            LoggerHolder.get().warn("アプリケーションの設定を読み込み中に例外が発生", e); //$NON-NLS-1$
+            log.warn("アプリケーションの設定を読み込み中に例外が発生", e); //$NON-NLS-1$
         }
         return instance;
     }
@@ -122,6 +218,7 @@ public final class Config {
     }
 
     private void write(Class<?> clazz, Object instance) {
+        this.writeCount.incrementAndGet();
         try {
             Path filepath = this.jsonPath(clazz);
 
@@ -141,7 +238,7 @@ public final class Config {
             }
             JsonMappers.MAPPER.writeValue(filepath, instance);
         } catch (Exception e) {
-            LoggerHolder.get().warn("アプリケーションの設定を読み込み中に例外が発生", e); //$NON-NLS-1$
+            log.warn("アプリケーションの設定を書き込み中に例外が発生", e); //$NON-NLS-1$
         }
     }
 

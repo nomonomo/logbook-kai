@@ -2,25 +2,23 @@ package logbook.internal.gui;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.Optional;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Region;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import logbook.bean.AppConfig;
 import logbook.plugin.PluginServices;
 
 public final class InternalFXMLLoader {
-
-    /** OSによる（今の所Macのみ特別扱い）デフォルトのフォントファミリー */
-    private static final String DEFAULT_FONT;
-
-    static {
-        DEFAULT_FONT = System.getProperty("os.name").toLowerCase().startsWith("mac") ? "Hiragino Maru Gothic ProN" : "Meiryo UI";
-    }
 
     public static FXMLLoader load(String name) throws IOException {
         URL url = PluginServices.getResource(name);
@@ -33,17 +31,65 @@ public final class InternalFXMLLoader {
         return loader;
     }
 
+    /**
+     * フォントファミリーと文字サイズをルートへ付け直す。
+     *
+     * @param root シーンのルート
+     * @return {@code root}
+     */
     public static Parent setGlobal(Parent root) {
-        String fontSize = AppConfig.get().getFontSize();
-        if (fontSize != null && !"default".equals(fontSize)) {
-            URL url = PluginServices.getResource("logbook/gui/application_" + fontSize + ".css");
-            if (url != null) {
-                root.getStylesheets().add(url.toString());
+        if (root == null) {
+            return null;
+        }
+        AppConfig conf = AppConfig.get();
+        root.setStyle(UiFonts.rootStyle(conf.getFontFamily(), conf.getFontSize()));
+        return root;
+    }
+
+    /**
+     * 開いているウィンドウへ現在のフォント設定を再適用する。
+     */
+    static void applyToOpenWindows() {
+        for (Window window : List.copyOf(Window.getWindows())) {
+            Scene scene = window.getScene();
+            if (scene == null) {
+                continue;
+            }
+            Parent root = scene.getRoot();
+            if (root != null) {
+                setGlobal(root);
+                for (Node node : root.lookupAll(".ship-banner")) {
+                    if (node instanceof ImageView view) {
+                        UiScale.applyShipBanner(view);
+                    }
+                }
+                for (Node node : root.lookupAll(".fleet-stat-icon")) {
+                    if (node instanceof ImageView view) {
+                        UiScale.applyFit(view, UiScale.FLEET_STAT_ICON_SIZE);
+                    }
+                }
+                for (Node node : root.lookupAll(".fleet-stat-indent")) {
+                    if (node instanceof Region region) {
+                        UiScale.applyLeftPadding(region, UiScale.FLEET_STAT_ICON_SIZE);
+                    }
+                }
+                for (Node node : root.lookupAll(".fleet-stats")) {
+                    if (node instanceof GridPane grid) {
+                        UiScale.applyFleetStatsGrid(grid);
+                    }
+                }
+                for (Node node : root.lookupAll(".ship-type-checks")) {
+                    if (node instanceof Region region) {
+                        UiScale.applyPrefWidth(region, UiScale.SHIP_TYPE_WRAP_WIDTH);
+                    }
+                }
+                for (Node node : root.lookupAll(".filter-text-value")) {
+                    if (node instanceof Region region) {
+                        UiScale.applyPrefWidth(region, UiScale.SHIP_TEXT_FIELD_WIDTH);
+                    }
+                }
             }
         }
-        String font = Optional.ofNullable(AppConfig.get().getFontFamily()).filter(str -> str.trim().length() > 0).orElse(DEFAULT_FONT);
-        root.setStyle("-fx-font-family: \""+ font + "\";");
-        return root;
     }
 
     /**

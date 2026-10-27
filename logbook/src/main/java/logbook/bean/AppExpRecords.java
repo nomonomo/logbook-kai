@@ -23,13 +23,19 @@ public class AppExpRecords {
     /** exp1d を設定した時刻 [ms] */
     private long time1d;
 
-    public void update(Basic basic) {
+    /**
+     * 半日境界を跨いでいれば基準経験値を更新します。
+     *
+     * @param basic 提督基本情報
+     * @return 基準を更新したとき {@code true}
+     */
+    public boolean update(Basic basic) {
         // 戦果は JST 2時/14時で切り替わるため UTC+7 を基準とすると計算しやすい
         final ZoneId UTC7 = ZoneId.of("UTC+07:00");
         ZonedDateTime now = ZonedDateTime.now(UTC7);
         long base = getBase(now);
         long base12 = getBase(Instant.ofEpochMilli(this.time12h).atZone(UTC7));
-        long exp = Optional.ofNullable(Basic.get()).map(Basic::getExperience).map(Integer::longValue).orElse(0L);
+        long exp = Optional.ofNullable(basic).map(Basic::getExperience).map(Integer::longValue).orElse(0L);
         if (base != base12) {
             if (getBase(now.minusHours(12)) == base12) {
                 // 1日用の経験値にシフト
@@ -42,7 +48,9 @@ public class AppExpRecords {
             }
             this.exp12h = exp;
             this.time12h = now.toInstant().toEpochMilli();
+            return true;
         }
+        return false;
     }
 
 

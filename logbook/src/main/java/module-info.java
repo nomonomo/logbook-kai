@@ -3,14 +3,12 @@ module logbook {
     requires tools.jackson.core;
     requires javafx.media;
     requires javafx.swing;
-    requires javafx.web;
-    requires jdk.jsobject;
+    requires org.commonmark;
     requires org.eclipse.jetty.ee11.servlet;
     requires org.eclipse.jetty.http;
     requires org.slf4j;
     requires ch.qos.logback.classic;
     requires ch.qos.logback.core;
-    requires jdk.crypto.ec;
     requires jdk.charsets;
     requires org.eclipse.jetty.compression.gzip;
     requires org.eclipse.jetty.compression.brotli;
@@ -30,7 +28,6 @@ module logbook {
     requires transitive jakarta.json;
     requires transitive jakarta.servlet;
     requires transitive java.desktop;
-    requires transitive java.scripting;
     requires transitive javafx.base;
     requires transitive javafx.controls;
     requires transitive javafx.fxml;

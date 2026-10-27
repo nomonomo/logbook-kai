@@ -8,16 +8,16 @@
 
 <fx:root styleClass="ndock" type="HBox" xmlns="http://javafx.com/javafx/8.0.72" xmlns:fx="http://javafx.com/fxml/1">
    <children>
-      <AnchorPane prefHeight="40.0" prefWidth="160.0">
+      <AnchorPane maxWidth="160.0" minWidth="160.0" prefHeight="40.0" prefWidth="160.0">
          <children>
             <ImageView fx:id="ship" fitHeight="40.0" fitWidth="160.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0">
       </ImageView>
          </children>
       </AnchorPane>
-      <AnchorPane prefHeight="40.0" prefWidth="100.0">
+      <AnchorPane maxHeight="40.0" minWidth="100.0" prefHeight="40.0" prefWidth="100.0" styleClass="info" HBox.hgrow="ALWAYS">
          <children>
-            <Label fx:id="time" styleClass="time" AnchorPane.bottomAnchor="1.0" AnchorPane.leftAnchor="1.0" />
-            <Label fx:id="name" maxWidth="100.0" prefWidth="100.0" styleClass="name" AnchorPane.leftAnchor="1.0" AnchorPane.topAnchor="1.0" />
+            <Label fx:id="name" maxHeight="16.0" maxWidth="Infinity" styleClass="name" textOverrun="ELLIPSIS" wrapText="false" AnchorPane.leftAnchor="2.0" AnchorPane.rightAnchor="2.0" AnchorPane.topAnchor="0.0" />
+            <Label fx:id="time" maxHeight="22.0" maxWidth="Infinity" styleClass="time" textOverrun="ELLIPSIS" wrapText="false" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="2.0" AnchorPane.rightAnchor="2.0" />
          </children>
       </AnchorPane>
    </children>

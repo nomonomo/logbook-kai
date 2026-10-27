@@ -16,3 +16,11 @@
 .align_right {
     -fx-alignment: center_right;
 }
+.ndock.ship-banner-row .name {
+    -fx-font-size: 1.11em;
+}
+.ndock.ship-banner-row .level,
+.ndock.ship-banner-row .hp,
+.ndock.ship-banner-row .cond {
+    -fx-font-size: 1em;
+}

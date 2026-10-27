@@ -3,7 +3,9 @@ package logbook.api;
 import jakarta.json.JsonObject;
 
 import logbook.bean.AppQuestCollection;
+import logbook.bean.AppQuestDuration;
 import logbook.bean.QuestList;
+import logbook.internal.Config;
 import logbook.proxy.RequestMetaData;
 import logbook.proxy.ResponseMetaData;
 
@@ -22,6 +24,7 @@ public class ApiGetMemberQuestlist implements APIListenerSpi {
 
             AppQuestCollection.get()
                     .update(quest, "0".equals(req.getParameter("api_tab_id")));
+            Config.getDefault().requestStore(AppQuestCollection.class, AppQuestDuration.class);
         }
     }
 
