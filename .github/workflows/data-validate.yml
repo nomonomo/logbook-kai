@@ -34,7 +34,7 @@ jobs:
         uses: actions/setup-java@v6
         with:
           java-version: '25'
-          distribution: 'microsoft'
+          distribution: 'temurin'
           cache: 'maven'
       - name: quests 生成・manifest 整合・gamedata 正当化テスト
         shell: bash
