@@ -1,10 +1,7 @@
 package logbook.internal.gui;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.text.MessageFormat;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -29,12 +26,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TitledPane;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
-import javafx.scene.media.AudioClip;
-import logbook.Messages;
-import logbook.bean.AppBouyomiConfig;
 import logbook.bean.AppCondition;
 import logbook.bean.AppConfig;
 import logbook.bean.AppExpRecords;
@@ -43,24 +36,18 @@ import logbook.bean.AppQuestCollection;
 import logbook.bean.Basic;
 import logbook.bean.DeckPort;
 import logbook.bean.DeckPortCollection;
-import logbook.bean.Mission;
-import logbook.bean.MissionCollection;
 import logbook.bean.Ndock;
 import logbook.bean.NdockCollection;
-import logbook.bean.Ship;
 import logbook.bean.ShipCollection;
-import logbook.bean.ShipMst;
 import logbook.bean.SlotItemCollection;
-import logbook.internal.Audios;
-import logbook.internal.BouyomiChanUtils;
-import logbook.internal.fleet.FleetSnapshot;
-import logbook.internal.BouyomiChanUtils.Type;
 import logbook.internal.Items;
 import logbook.internal.LoggerHolder;
-import logbook.internal.Ships;
 import logbook.internal.SlotItemType;
-import logbook.internal.Tuple;
+import logbook.internal.fleet.FleetSnapshot;
+import logbook.internal.notify.PeriodicNotificationWatch;
 import logbook.internal.proxy.ProxyHolder;
+import logbook.notify.CondRecovered;
+import logbook.notify.Notifications;
 
 /**
  * UIコントローラー
@@ -70,9 +57,6 @@ public class MainController extends WindowController {
 
     /** 装備|母港枠の警告cssクラス名 */
     private static final String FULLY_CLASS = "fully";
-
-    /** 通知 */
-    private static final Duration NOTIFY = Duration.ofMinutes(1);
 
     private String itemFormat;
 
@@ -96,11 +80,8 @@ public class MainController extends WindowController {
     /** 戦果のハッシュ・コード */
     private long achievementHashCode;
 
-    /** 遠征通知のタイムスタンプ */
-    private Map<Integer, Long> timeStampMission = new HashMap<>();
-
-    /** 入渠通知のタイムスタンプ */
-    private Map<Integer, Long> timeStampNdock = new HashMap<>();
+    /** 遠征・入渠・母港給糧の通知 */
+    private final PeriodicNotificationWatch notificationWatch = new PeriodicNotificationWatch();
 
     @FXML
     private MainMenuController mainMenuController;
@@ -149,8 +130,6 @@ public class MainController extends WindowController {
 
     @FXML
     private VBox questbox;
-
-    private AudioClip clip;
 
     /** 未構築の艦隊タブを 1 パルスで埋める処理が予約済みなら true */
     private boolean fleetTabFillScheduled;
@@ -278,13 +257,8 @@ public class MainController extends WindowController {
             // 任務
             this.quest();
 
-            // 遠征・入渠完了時に通知をする
-            if (AppConfig.get().isUseNotification()) {
-                // 遠征の通知
-                this.checkNotifyMission();
-                // 入渠ドックの通知
-                this.checkNotifyNdock();
-            }
+            // 遠征・入渠・母港給糧の通知を発行する
+            this.notificationWatch.tick();
         } catch (Exception ex) {
             LoggerHolder.get().error("設定の初期化に失敗しました", ex);
         }
@@ -404,7 +378,7 @@ public class MainController extends WindowController {
                 tab.getStyleClass().removeIf(s -> !s.equals("tab"));
                 this.bindFleetTab(tab, port.getId(), model);
                 // 疲労回復トーストはスナップショット再適用より先（旧 FleetTabPane.update と同順）
-                this.pollCond(model);
+                this.pollCond(port.getId(), model);
                 if (buildFirst) {
                     buildFirst = false;
                     FleetTabPane pane = new FleetTabPane(model);
@@ -430,7 +404,7 @@ public class MainController extends WindowController {
             boolean sameDeck = Integer.valueOf(portId).equals(tab.getProperties().get("fleetDeckId"));
             FleetModel model = this.fleetModel(port);
             // 疲労回復トーストはスナップショット再適用より先（旧 FleetTabPane.update と同順）
-            this.pollCond(model);
+            this.pollCond(portId, model);
             Node node = tab.getContent();
             if (node instanceof FleetTabPane && sameDeck) {
                 ((FleetTabPane) node).refresh(port);
@@ -499,13 +473,13 @@ public class MainController extends WindowController {
     /**
      * 疲労の回復時刻を現在時刻で更新し、回復していれば通知します。
      *
+     * @param fleetId 艦隊番号。不明なら null
      * @param model 艦隊モデル
      */
-    private void pollCond(FleetModel model) {
+    private void pollCond(Integer fleetId, FleetModel model) {
         long now = ZonedDateTime.now(ZoneId.systemDefault()).toEpochSecond();
         if (model.pollCondRecover(now)) {
-            String message = Messages.getString("cond.recover", model.getName());
-            Tools.Controls.showNotify(null, "疲労抜け", message);
+            Notifications.publish(new CondRecovered(fleetId == null ? 0 : fleetId, model.getName()));
         }
     }
 
@@ -658,187 +632,6 @@ public class MainController extends WindowController {
             // ハッシュ・コードの更新
             this.questHashCode = newHashCode;
         }
-    }
-
-    /**
-     * 遠征の通知をチェックします
-     */
-    private void checkNotifyMission() {
-        Map<Integer, DeckPort> ports = DeckPortCollection.get()
-                .getDeckPortMap();
-        for (DeckPort port : ports.values()) {
-            // 0=未出撃, 1=遠征中, 2=遠征帰還, 3=遠征中止
-            int state = port.getMission().get(0).intValue();
-            // 帰還時間
-            long time = port.getMission().get(2);
-
-            if (0 == state) {
-                this.timeStampMission.put(port.getId(), 0L);
-            } else {
-                // 残り時間を計算
-                Duration now = Duration.ofMillis(time - System.currentTimeMillis());
-                // 前回の通知の時間
-                long timeStamp = this.timeStampMission.getOrDefault(port.getId(), 0L);
-                if (this.requireNotify(now, timeStamp, AppConfig.get().isUseRemind())) {
-                    this.timeStampMission.put(port.getId(), System.currentTimeMillis());
-                    this.pushNotifyMission(port);
-                }
-            }
-        }
-    }
-
-    /**
-     * 遠征通知
-     *
-     * @param port 艦隊
-     */
-    private void pushNotifyMission(DeckPort port) {
-        if (AppConfig.get().isUseToast()) {
-            String message = Messages.getString("mission.complete", port.getName()); //$NON-NLS-1$
-            Tools.Controls.showNotify(null, "遠征完了", message);
-        }
-        if (AppConfig.get().isUseSound()) {
-            this.soundNotify(Paths.get(AppConfig.get().getMissionSoundDir()));
-        }
-        // 棒読みちゃん連携
-        if (AppBouyomiConfig.get().isEnable()) {
-            this.sendBouyomiMissionComplete(port);
-        }
-    }
-
-    /**
-     * 入渠ドックの通知をチェックします
-     */
-    private void checkNotifyNdock() {
-        Map<Integer, Ndock> ndockMap = NdockCollection.get()
-                .getNdockMap();
-
-        for (Ndock ndock : ndockMap.values()) {
-            // 完了時間
-            long time = ndock.getCompleteTime();
-
-            if (1 > time) {
-                this.timeStampNdock.put(ndock.getId(), 0L);
-            } else {
-                // 残り時間を計算
-                Duration now = Duration.ofMillis(time - System.currentTimeMillis());
-                // 前回の通知の時間
-                long timeStamp = this.timeStampNdock.getOrDefault(ndock.getId(), 0L);
-
-                if (this.requireNotify(now, timeStamp, false)) {
-                    this.timeStampNdock.put(ndock.getId(), System.currentTimeMillis());
-                    this.pushNotifyNdock(ndock);
-                }
-            }
-        }
-    }
-
-    /**
-     * 入渠ドックの通知
-     *
-     * @param ndock 入渠ドック
-     */
-    private void pushNotifyNdock(Ndock ndock) {
-        if (AppConfig.get().isUseToast()) {
-            Ship ship = ShipCollection.get()
-                    .getShipMap()
-                    .get(ndock.getShipId());
-            String name = Ships.shipMst(ship)
-                    .map(ShipMst::getName)
-                    .orElse("");
-            String message = Messages.getString("ship.ndock", name, ship.getLv()); //$NON-NLS-1$
-
-            ImageView img = new ImageView(Ships.shipWithItemImage(ship));
-
-            Tools.Controls.showNotify(img, "修復完了", message);
-        }
-        if (AppConfig.get().isUseSound()) {
-            this.soundNotify(Paths.get(AppConfig.get().getNdockSoundDir()));
-        }
-        // 棒読みちゃん連携
-        if (AppBouyomiConfig.get().isEnable()) {
-            this.sendBouyomiNdockComplete(ndock);
-        }
-    }
-
-    /**
-     * 通知するか判断します
-     *
-     * @param now 残り時間
-     * @param timeStamp 前回の通知の時間
-     * @param remind リマインド
-     */
-    private boolean requireNotify(Duration now, long timeStamp, boolean remind) {
-        if (now.compareTo(NOTIFY) <= 0) {
-            // 前回の通知からの経過時間
-            Duration course = Duration.ofMillis(System.currentTimeMillis() - timeStamp);
-            // リマインド間隔
-            Duration interval = Duration.ofSeconds(AppConfig.get().getRemind());
-            if (course.compareTo(interval) >= 0) {
-                if (timeStamp == 0L || remind) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * サウンド通知
-     */
-    private void soundNotify(Path dir) {
-        if (this.clip == null || !this.clip.isPlaying()) {
-            try {
-                Path p = Audios.randomAudioFile(dir);
-                if (p != null) {
-                    this.clip = new AudioClip(p.toUri().toString());
-                    this.clip.setVolume(AppConfig.get().getSoundLevel() / 100D);
-                    this.clip.play();
-                }
-            } catch (Exception e) {
-                LoggerHolder.get().warn("サウンド通知に失敗しました", e);
-            }
-        }
-    }
-
-    /**
-     * 棒読みちゃん連携
-     *
-     * @param port 艦隊
-     */
-    private void sendBouyomiMissionComplete(DeckPort port) {
-        int target = port.getMission().get(1).intValue();
-        Optional<Mission> mission = Optional.ofNullable(MissionCollection.get()
-                .getMissionMap()
-                .get(target));
-        String missionName = mission.map(Mission::getName).orElse("");
-
-        BouyomiChanUtils.speak(Type.MissionComplete,
-                Tuple.of("${fleetName}", port.getName()),
-                Tuple.of("${fleetNumber}", String.valueOf(port.getId())),
-                Tuple.of("${missionName}", missionName));
-    }
-
-    /**
-     * 棒読みちゃん連携
-     *
-     * @param ndock 入渠ドック
-     */
-    private void sendBouyomiNdockComplete(Ndock ndock) {
-        Ship ship = ShipCollection.get()
-                .getShipMap()
-                .get(ndock.getShipId());
-
-        String hiragana = Ships.shipMst(ship)
-                .map(ShipMst::getYomi)
-                .orElse("");
-        String kanji = Ships.shipMst(ship)
-                .map(ShipMst::getName)
-                .orElse("");
-
-        BouyomiChanUtils.speak(Type.NdockComplete,
-                Tuple.of("${hiraganaName}", hiragana),
-                Tuple.of("${kanjiName}", kanji));
     }
 
     private static long hashCode(Map<?, ?> map, boolean show) {

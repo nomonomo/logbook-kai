@@ -1,5 +1,6 @@
 package logbook.internal;
 
+import java.awt.Toolkit;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -59,7 +60,8 @@ public final class Audios {
 
     /**
      * デフォルトサウンドを再生するタスクを返します。
-     * 
+     * ファイルが未設定、または存在しないときは OS のビープ音を鳴らします。
+     *
      * @return デフォルトサウンドを再生するタスク
      */
     public static Runnable playDefaultNotifySound() {
@@ -70,10 +72,19 @@ public final class Audios {
                     AudioClip clip = new AudioClip(p.toUri().toString());
                     clip.setVolume(AppConfig.get().getSoundLevel() / 100D);
                     clip.play();
+                } else {
+                    beep();
                 }
             } catch (Exception e) {
                 LoggerHolder.get().warn("サウンド通知に失敗しました", e);
             }
         };
+    }
+
+    /**
+     * 音声ファイルが無いときの最終手段として、OS のビープ音を鳴らします。
+     */
+    public static void beep() {
+        Toolkit.getDefaultToolkit().beep();
     }
 }

@@ -15,8 +15,6 @@ import java.util.stream.Stream;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
 
-import javafx.application.Platform;
-import logbook.bean.AppBouyomiConfig;
 import logbook.bean.AppCondition;
 import logbook.bean.AppConfig;
 import logbook.bean.AppExpRecords;
@@ -31,16 +29,15 @@ import logbook.bean.Ship;
 import logbook.bean.ShipCollection;
 import logbook.bean.SlotItem;
 import logbook.bean.SlotItemCollection;
-import logbook.internal.Audios;
 import logbook.internal.BattleEventLogs;
-import logbook.internal.BouyomiChanUtils;
-import logbook.internal.BouyomiChanUtils.Type;
 import logbook.internal.Config;
 import logbook.internal.DestructionBattleSupport;
 import logbook.internal.JsonHelper;
-import logbook.internal.gui.Tools;
 import logbook.internal.log.LogWriter;
 import logbook.internal.log.MaterialLogFormat;
+import logbook.internal.notify.MissionStartWatch;
+import logbook.notify.GimmickAchieved;
+import logbook.notify.Notifications;
 import logbook.proxy.RequestMetaData;
 import logbook.proxy.ResponseMetaData;
 
@@ -89,6 +86,7 @@ public class ApiPortPort implements APIListenerSpi {
             this.apiMaterial(data.getJsonArray("api_material"));
             this.apiCombinedFlag(data);
             BattleLog lastBattle = AppCondition.get().getBattleResultConfirm();
+            this.missionStart();
             this.condition();
             this.akashiTimer();
             this.nosakiTimer();
@@ -167,6 +165,13 @@ public class ApiPortPort implements APIListenerSpi {
                         .map(DeckPort::getShip)
                         .flatMap(List::stream)
                         .collect(Collectors.toCollection(LinkedHashSet::new)));
+    }
+
+    /**
+     * 第二〜第四艦隊の遠征開始を検知する。艦隊の保存より後に呼ぶ。
+     */
+    private void missionStart() {
+        MissionStartWatch.get().accept(DeckPortCollection.get().getDeckPortMap());
     }
 
     /**
@@ -291,17 +296,7 @@ public class ApiPortPort implements APIListenerSpi {
                 int value = JsonHelper.toInteger(eventObject.get("api_m_flag2"));
                 if (value > 0) {
                     BattleEventLogs.writePortGimmick(lastBattle, value);
-                    Platform.runLater(
-                            () -> Tools.Controls.showNotify(null, "ギミック解除", "ギミックの達成を確認しました。",
-                                    javafx.util.Duration.seconds(15)));
-                    // 通知音再生
-                    if (AppConfig.get().isUseSound()) {
-                        Platform.runLater(Audios.playDefaultNotifySound());
-                    }
-                    // 棒読みちゃん連携
-                    if (AppBouyomiConfig.get().isEnable()) {
-                        BouyomiChanUtils.speak(Type.AchievementGimmick2);
-                    }
+                    Notifications.publish(new GimmickAchieved(GimmickAchieved.Kind.ACHIEVED));
                 }
             }
         }

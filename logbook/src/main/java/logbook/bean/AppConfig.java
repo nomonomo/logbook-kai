@@ -2,6 +2,8 @@ package logbook.bean;
 
 import java.io.File;
 import java.io.Serializable;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,7 +33,7 @@ public final class AppConfig implements Serializable, ConfigDefaults {
     /** フォントサイズ */
     private String fontSize = "default";
 
-    /** 遠征・入渠完了時に通知をする */
+    /** 遠征・入渠完了時に通知をする。集合が無い JSON の移行にだけ使う */
     private boolean useNotification = true;
 
     /** 出撃時に大破艦がいる場合に通知をする */
@@ -52,14 +54,79 @@ public final class AppConfig implements Serializable, ConfigDefaults {
     /** 疲労回復予想時刻にトーストを表示 */
     private boolean useCondRecoverToast = false;
 
+    /**
+     * 通知の種別。トーストとサウンドで別々に選ぶ。
+     * サウンドの既定ディレクトリを持つ。
+     */
+    public enum NotifyKind {
+        /** 遠征完了 */
+        MISSION("./sounds/mission/"),
+        /** 入渠完了 */
+        NDOCK("./sounds/ndock/"),
+        /** 遠征条件を満たしていない */
+        MISSION_CONDITION("./sounds/mission-condition/"),
+        /** 母港給糧 */
+        PORT_SUPPLY("./sounds/port-supply/"),
+        /** 疲労回復 */
+        COND("./sounds/cond/"),
+        /** 出撃時の大破 */
+        BADLY_SORTIE("./sounds/alert/"),
+        /** 進撃時の大破 */
+        BADLY_ADVANCE("./sounds/alert/"),
+        /** ギミック */
+        GIMMICK("./sounds/gimmick/");
+
+        /** サウンドの既定ディレクトリ */
+        private final String defaultSoundDir;
+
+        NotifyKind(String defaultSoundDir) {
+            this.defaultSoundDir = defaultSoundDir;
+        }
+
+        /**
+         * サウンドの既定ディレクトリを返します。
+         *
+         * @return 既定ディレクトリ
+         */
+        public String defaultSoundDir() {
+            return this.defaultSoundDir;
+        }
+    }
+
+    /**
+     * トーストで出す通知。
+     * JSON に項目が無い場合は null のままデシリアライズされ、{@link #applyDefaults()} で旧フラグから埋める。
+     * 大破出撃と大破進撃は常に含まれる。
+     */
+    private EnumSet<NotifyKind> toastNotify;
+
+    /**
+     * サウンドで出す通知。
+     * JSON に項目が無い場合は null のままデシリアライズされ、{@link #applyDefaults()} で旧フラグから埋める。
+     * 移行時の疲労回復と母港給糧はオフ。大破出撃と大破進撃は常に含まれる。
+     */
+    private EnumSet<NotifyKind> soundNotify;
+
     /** トーストの位置 (default: BOTTOM_RIGHT) */
     private String toastLocation;
 
-    /** 遠征完了時のリマインド */
+    /** 遠征完了時のリマインド。トーストとサウンドの指定が無い JSON の移行にだけ使う */
     private boolean useRemind = true;
 
-    /** 遠征完了時のリマインド(秒) */
+    /** 遠征完了時のリマインド(秒)。トーストとサウンドで共通 */
     private int remind = 60;
+
+    /**
+     * 遠征完了のトーストを繰り返す。
+     * JSON に項目が無いときは null のままにし、{@link #applyDefaults()} で {@link #useRemind} をコピーする。
+     */
+    private Boolean useToastRemind;
+
+    /**
+     * 遠征完了のサウンドを繰り返す。
+     * JSON に項目が無いときは null のままにし、{@link #applyDefaults()} で {@link #useRemind} をコピーする。
+     */
+    private Boolean useSoundRemind;
 
     /** 戦果ペインの表示 */
     private boolean showAchievement = false;
@@ -173,14 +240,12 @@ public final class AppConfig implements Serializable, ConfigDefaults {
     /** プラグインを有効にする */
     private boolean usePlugin = true;
 
-    /** 遠征通知サウンドディレクトリ */
-    private String missionSoundDir = "./sounds/mission/"; //$NON-NLS-1$
-
-    /** 入渠通知サウンドディレクトリ */
-    private String ndockSoundDir = "./sounds/ndock/"; //$NON-NLS-1$
-
-    /** 警告サウンドディレクトリ */
-    private String alertSoundDir = "./sounds/alert/"; //$NON-NLS-1$
+    /**
+     * 種別ごとのサウンドディレクトリ。
+     * JSON に項目が無い、またはキーが足りないときは {@link #applyDefaults()} で既定を入れる。
+     * すでに書いてあるパスは残す。
+     */
+    private Map<NotifyKind, String> notifySoundDir;
 
     /** デフォルトサウンド */
     private String defaultNotifySound = "C:\\Windows\\media\\Windows Notify System Generic.wav"; //$NON-NLS-1$
@@ -282,6 +347,98 @@ public final class AppConfig implements Serializable, ConfigDefaults {
     @Override
     public void applyDefaults() {
         applyProxySslUseRootCertificateDefault();
+        applyNotifyChannels();
+        applyNotifySoundDirs();
+        applyRemindChannels();
+    }
+
+    /**
+     * トーストでその種別を出すかを返します。
+     *
+     * @param kind 通知の種別
+     * @return 出すなら true
+     */
+    public boolean notifiesByToast(NotifyKind kind) {
+        return this.toastNotify != null && this.toastNotify.contains(kind);
+    }
+
+    /**
+     * サウンドでその種別を出すかを返します。
+     *
+     * @param kind 通知の種別
+     * @return 出すなら true
+     */
+    public boolean notifiesBySound(NotifyKind kind) {
+        return this.soundNotify != null && this.soundNotify.contains(kind);
+    }
+
+    /**
+     * その種別のサウンドディレクトリを返します。空の指定は既定に戻します。
+     *
+     * @param kind 通知の種別
+     * @return サウンドディレクトリ
+     */
+    public String soundDir(NotifyKind kind) {
+        String dir = this.notifySoundDir == null ? null : this.notifySoundDir.get(kind);
+        if (dir == null || dir.isEmpty()) {
+            return kind.defaultSoundDir();
+        }
+        return dir;
+    }
+
+    private void applyRemindChannels() {
+        if (this.useToastRemind == null) {
+            this.useToastRemind = this.useRemind;
+        }
+        if (this.useSoundRemind == null) {
+            this.useSoundRemind = this.useRemind;
+        }
+    }
+
+    private void applyNotifySoundDirs() {
+        if (this.notifySoundDir == null) {
+            this.notifySoundDir = new EnumMap<>(NotifyKind.class);
+        }
+        for (NotifyKind kind : NotifyKind.values()) {
+            String dir = this.notifySoundDir.get(kind);
+            if (dir == null || dir.isEmpty()) {
+                this.notifySoundDir.put(kind, kind.defaultSoundDir());
+            }
+        }
+    }
+
+    private void applyNotifyChannels() {
+        if (this.toastNotify == null) {
+            boolean channel = this.useToast;
+            EnumSet<NotifyKind> toast = EnumSet.noneOf(NotifyKind.class);
+            // 遠征と入渠は、develop では useNotification が両方を見ていた
+            addKind(toast, NotifyKind.MISSION, channel && this.useNotification);
+            addKind(toast, NotifyKind.NDOCK, channel && this.useNotification);
+            addKind(toast, NotifyKind.MISSION_CONDITION, channel);
+            addKind(toast, NotifyKind.PORT_SUPPLY, channel);
+            addKind(toast, NotifyKind.COND, channel && this.useCondRecoverToast);
+            addKind(toast, NotifyKind.GIMMICK, channel);
+            this.toastNotify = toast;
+        }
+        if (this.soundNotify == null) {
+            boolean channel = this.useSound;
+            EnumSet<NotifyKind> sound = EnumSet.noneOf(NotifyKind.class);
+            addKind(sound, NotifyKind.MISSION, channel && this.useNotification);
+            addKind(sound, NotifyKind.NDOCK, channel && this.useNotification);
+            addKind(sound, NotifyKind.MISSION_CONDITION, channel);
+            addKind(sound, NotifyKind.GIMMICK, channel);
+            this.soundNotify = sound;
+        }
+        this.toastNotify.add(NotifyKind.BADLY_SORTIE);
+        this.toastNotify.add(NotifyKind.BADLY_ADVANCE);
+        this.soundNotify.add(NotifyKind.BADLY_SORTIE);
+        this.soundNotify.add(NotifyKind.BADLY_ADVANCE);
+    }
+
+    private static void addKind(EnumSet<NotifyKind> target, NotifyKind kind, boolean enabled) {
+        if (enabled) {
+            target.add(kind);
+        }
     }
 
     private void applyProxySslUseRootCertificateDefault() {

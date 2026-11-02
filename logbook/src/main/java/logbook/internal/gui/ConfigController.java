@@ -1,5 +1,6 @@
 package logbook.internal.gui;
 
+import java.awt.Desktop;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.file.DirectoryStream;
@@ -7,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,8 +42,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import javafx.scene.media.AudioClip;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextFlow;
 import javafx.stage.DirectoryChooser;
@@ -53,6 +56,7 @@ import javafx.util.StringConverter;
 import logbook.bean.AppBouyomiConfig;
 import logbook.bean.AppBouyomiConfig.AppBouyomiText;
 import logbook.bean.AppConfig;
+import logbook.bean.AppConfig.NotifyKind;
 import logbook.bean.WindowLocation;
 import logbook.internal.BouyomiChanUtils;
 import logbook.internal.BouyomiChanUtils.BouyomiDefaultSettings;
@@ -70,15 +74,18 @@ import logbook.internal.Tuple.Pair;
 import logbook.internal.proxy.ProxyHolder;
 import logbook.internal.ssl.CertificateService;
 import logbook.internal.ssl.SslCertificateUtil;
+import logbook.notify.NotificationListener;
 import logbook.plugin.PluginContainer;
 import logbook.plugin.PluginServices;
 import logbook.proxy.ConfigReloadResult;
 import logbook.proxy.ProxyServerSpi;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 設定コントローラー
  *
  */
+@Slf4j
 public class ConfigController extends WindowController {
 
     /** タブペイン */
@@ -115,37 +122,112 @@ public class ConfigController extends WindowController {
     @FXML
     private RadioButton fontSizeLarge2;
 
-    /** 遠征・入渠完了時に通知をする */
+    /** 遠征完了のトースト */
     @FXML
-    private CheckBox useNotification;
+    private CheckBox missionToast;
 
-    /** 疲労回復予想時刻にトースト通知をする */
+    /** 遠征完了のサウンド */
     @FXML
-    private CheckBox useCondRecoverToast;
+    private CheckBox missionSound;
 
-    /** 出撃時に大破艦がいる場合に通知をする */
+    /** 入渠完了のトースト */
     @FXML
-    private CheckBox alertBadlyStart;
+    private CheckBox ndockToast;
 
-    /** 進撃時に大破艦がいる場合に通知をする */
+    /** 入渠完了のサウンド */
     @FXML
-    private CheckBox alertBadlyNext;
+    private CheckBox ndockSound;
+
+    /** 遠征条件を満たしていないときのトースト */
+    @FXML
+    private CheckBox missionConditionToast;
+
+    /** 遠征条件を満たしていないときのサウンド */
+    @FXML
+    private CheckBox missionConditionSound;
+
+    /** 母港給糧のトースト */
+    @FXML
+    private CheckBox portSupplyToast;
+
+    /** 母港給糧のサウンド */
+    @FXML
+    private CheckBox portSupplySound;
+
+    /** 疲労回復のトースト */
+    @FXML
+    private CheckBox condToast;
+
+    /** 疲労回復のサウンド。初期値はオフ */
+    @FXML
+    private CheckBox condSound;
+
+    /** ギミック達成のトースト */
+    @FXML
+    private CheckBox gimmickToast;
+
+    /** ギミック達成のサウンド */
+    @FXML
+    private CheckBox gimmickSound;
+
+    /** 遠征完了のサウンドフォルダ */
+    @FXML
+    private Button missionSoundDirButton;
+
+    /** 入渠完了のサウンドフォルダ */
+    @FXML
+    private Button ndockSoundDirButton;
+
+    /** 遠征条件のサウンドフォルダ */
+    @FXML
+    private Button missionConditionSoundDirButton;
+
+    /** 母港給糧のサウンドフォルダ */
+    @FXML
+    private Button portSupplySoundDirButton;
+
+    /** 疲労回復のサウンドフォルダ */
+    @FXML
+    private Button condSoundDirButton;
+
+    /** 出撃時大破のサウンドフォルダ */
+    @FXML
+    private Button badlyStartSoundDirButton;
+
+    /** 進撃時大破のサウンドフォルダ */
+    @FXML
+    private Button badlyNextSoundDirButton;
+
+    /** ギミック達成のサウンドフォルダ */
+    @FXML
+    private Button gimmickSoundDirButton;
+
+    /** 出撃時に大破艦がいる場合のトースト。チェックは外せない */
+    @FXML
+    private CheckBox badlyStartToast;
+
+    /** 出撃時に大破艦がいる場合のサウンド。チェックは外せない */
+    @FXML
+    private CheckBox badlyStartSound;
+
+    /** 進撃時に大破艦がいる場合のトースト。チェックは外せない */
+    @FXML
+    private CheckBox badlyNextToast;
+
+    /** 進撃時に大破艦がいる場合のサウンド。チェックは外せない */
+    @FXML
+    private CheckBox badlyNextSound;
 
     /** 大破警告から第二艦隊旗艦を除外する */
     @FXML
     private CheckBox ignoreSecondFlagship;
 
-    /** 通知でサウンドを鳴らす */
-    @FXML
-    private CheckBox useSound;
-
     /** デフォルトサウンド */
     @FXML
     private TextField defaultNotifySound;
 
-    /** 通知でトーストを表示 */
-    @FXML
-    private CheckBox useToast;
+    /** デフォルトサウンドの試聴 */
+    private AudioClip defaultNotifyPreview;
 
     /** トーストの位置 */
     @FXML
@@ -167,9 +249,13 @@ public class ConfigController extends WindowController {
     @FXML
     private CheckBox showQuest;
     
-    /** 遠征完了時のリマインド */
+    /** 遠征完了のトーストを繰り返す */
     @FXML
-    private CheckBox useRemind;
+    private CheckBox useToastRemind;
+
+    /** 遠征完了のサウンドを繰り返す */
+    @FXML
+    private CheckBox useSoundRemind;
 
     /** 遠征完了時のリマインド(秒) */
     @FXML
@@ -531,21 +617,22 @@ public class ConfigController extends WindowController {
         this.initializeFontFamily(conf);
         this.fontSizeLarge1.setSelected("large1".equals(conf.getFontSize()));
         this.fontSizeLarge2.setSelected("large2".equals(conf.getFontSize()));
-        this.useNotification.setSelected(conf.isUseNotification());
-        this.useCondRecoverToast.setSelected(conf.isUseCondRecoverToast());
-        this.alertBadlyStart.setSelected(conf.isAlertBadlyStart());
-        this.alertBadlyNext.setSelected(conf.isAlertBadlyNext());
+        this.loadNotifyChannels(conf);
         this.ignoreSecondFlagship.setSelected(conf.isIgnoreSecondFlagship());
-        this.useSound.setSelected(conf.isUseSound());
         this.defaultNotifySound.setText(conf.getDefaultNotifySound());
-        this.useToast.setSelected(conf.isUseToast());
         this.toastLocation.setValue(this.toastLocation.getItems().stream().filter(value -> value.getValue().equals(conf.getToastLocation())).findAny().orElse(this.toastLocation.getItems().get(3)));
         this.showAchievement.setSelected(conf.isShowAchievement());
         this.showMission.setSelected(conf.isShowMission());
         this.showNdock.setSelected(conf.isShowNdock());
         this.showQuest.setSelected(conf.isShowQuest());
-        this.useRemind.setSelected(conf.isUseRemind());
+        this.useToastRemind.setSelected(Boolean.TRUE.equals(conf.getUseToastRemind()));
+        this.useSoundRemind.setSelected(Boolean.TRUE.equals(conf.getUseSoundRemind()));
         this.remind.setText(Integer.toString(conf.getRemind()));
+        var toastRemindActive = this.missionToast.selectedProperty().and(this.useToastRemind.selectedProperty());
+        var soundRemindActive = this.missionSound.selectedProperty().and(this.useSoundRemind.selectedProperty());
+        this.useToastRemind.disableProperty().bind(this.missionToast.selectedProperty().not());
+        this.useSoundRemind.disableProperty().bind(this.missionSound.selectedProperty().not());
+        this.remind.disableProperty().bind(toastRemindActive.or(soundRemindActive).not());
         this.soundLevel.setText(Integer.toString(conf.getSoundLevel()));
         this.materialLogInterval.setText(Integer.toString(conf.getMaterialLogInterval()));
         this.applyBattle.setSelected(conf.isApplyBattle());
@@ -701,21 +788,17 @@ public class ConfigController extends WindowController {
             fontSize = "large2";
         conf.setFontSize(fontSize);
 
-        conf.setUseNotification(this.useNotification.isSelected());
-        conf.setUseCondRecoverToast(this.useCondRecoverToast.isSelected());
-        conf.setAlertBadlyStart(this.alertBadlyStart.isSelected());
-        conf.setAlertBadlyNext(this.alertBadlyNext.isSelected());
+        this.saveNotifyChannels(conf);
         conf.setIgnoreSecondFlagship(this.ignoreSecondFlagship.isSelected());
-        conf.setUseSound(this.useSound.isSelected());
         conf.setDefaultNotifySound(this.defaultNotifySound.getText());
-        conf.setUseToast(this.useToast.isSelected());
         conf.setToastLocation(this.toastLocation.getValue().getValue());
         conf.setShowAchievement(this.showAchievement.isSelected());
         conf.setShowMission(this.showMission.isSelected());
         conf.setShowNdock(this.showNdock.isSelected());
         conf.setShowQuest(this.showQuest.isSelected());
-        conf.setUseRemind(this.useRemind.isSelected());
-        conf.setRemind(Math.max(this.toInt(this.remind.getText()), 10));
+        conf.setUseToastRemind(this.useToastRemind.isSelected());
+        conf.setUseSoundRemind(this.useSoundRemind.isSelected());
+        conf.setRemind(this.remindSeconds(this.remind.getText()));
         conf.setSoundLevel(this.toInt(this.soundLevel.getText()));
         conf.setMaterialLogInterval(this.toInt(this.materialLogInterval.getText()));
         conf.setOnTop(this.onTop.isSelected());
@@ -905,6 +988,89 @@ public class ConfigController extends WindowController {
                 .filter(File::exists)
                 .map(File::getAbsolutePath)
                 .ifPresent(this.defaultNotifySound::setText);
+    }
+
+    /**
+     * 起動フォルダの sounds を開く。無ければ種別ごとのフォルダごと作る。
+     *
+     * @param event ActionEvent
+     */
+    @FXML
+    void openSoundDirectory(ActionEvent event) {
+        try {
+            Path root = Paths.get("./sounds");
+            Files.createDirectories(root);
+            AppConfig conf = AppConfig.get();
+            for (NotifyKind kind : NotifyKind.values()) {
+                Files.createDirectories(Paths.get(conf.soundDir(kind)));
+            }
+            Desktop.getDesktop().open(root.toFile());
+        } catch (Exception e) {
+            log.warn("サウンドフォルダを開けませんでした", e);
+        }
+    }
+
+    /**
+     * 押したボタンの通知種別フォルダを開く。無ければ作る。
+     *
+     * @param event ActionEvent
+     */
+    @FXML
+    void openNotifySoundDirectory(ActionEvent event) {
+        if (!(event.getSource() instanceof Button button) || !(button.getUserData() instanceof String dir)) {
+            return;
+        }
+        this.openDirectory(Paths.get(dir));
+    }
+
+    /**
+     * ボタンに、開くパスを持たせる。表示は「開く」のままにする。
+     *
+     * @param button フォルダボタン
+     * @param kind 通知の種別
+     * @param conf 設定
+     */
+    private void prepareSoundDirButton(Button button, NotifyKind kind, AppConfig conf) {
+        button.setUserData(conf.soundDir(kind));
+    }
+
+    private void openDirectory(Path dir) {
+        try {
+            Files.createDirectories(dir);
+            Desktop.getDesktop().open(dir.toFile());
+        } catch (Exception e) {
+            log.warn("サウンドフォルダを開けませんでした", e);
+        }
+    }
+
+    /**
+     * 指定中のデフォルトサウンドを、音量欄の値で再生する。
+     *
+     * @param event ActionEvent
+     */
+    @FXML
+    void playDefaultNotifySound(ActionEvent event) {
+        String current = this.defaultNotifySound.getText();
+        if (current == null || current.isEmpty()) {
+            return;
+        }
+        try {
+            Path path = Paths.get(current);
+            if (!Files.isRegularFile(path)) {
+                return;
+            }
+            if (this.defaultNotifyPreview != null) {
+                this.defaultNotifyPreview.stop();
+            }
+            AudioClip clip = new AudioClip(path.toUri().toString());
+            String volumeText = this.soundLevel.getText();
+            int level = Math.min(this.toInt(volumeText == null ? "" : volumeText), 100);
+            clip.setVolume(level / 100D);
+            clip.play();
+            this.defaultNotifyPreview = clip;
+        } catch (Exception e) {
+            log.warn("サウンドの再生に失敗しました", e);
+        }
     }
 
     @FXML
@@ -1367,6 +1533,100 @@ public class ConfigController extends WindowController {
             bouyomiText.setText(text);
 
             textMap.put(type.toString(), bouyomiText);
+        }
+    }
+
+    /**
+     * トーストとサウンドの集合を画面へ反映する。大破は外せない。
+     *
+     * @param conf 設定
+     */
+    private void loadNotifyChannels(AppConfig conf) {
+        this.missionToast.setSelected(conf.notifiesByToast(NotifyKind.MISSION));
+        this.missionSound.setSelected(conf.notifiesBySound(NotifyKind.MISSION));
+        this.ndockToast.setSelected(conf.notifiesByToast(NotifyKind.NDOCK));
+        this.ndockSound.setSelected(conf.notifiesBySound(NotifyKind.NDOCK));
+        this.missionConditionToast.setSelected(conf.notifiesByToast(NotifyKind.MISSION_CONDITION));
+        this.missionConditionSound.setSelected(conf.notifiesBySound(NotifyKind.MISSION_CONDITION));
+        this.portSupplyToast.setSelected(conf.notifiesByToast(NotifyKind.PORT_SUPPLY));
+        this.portSupplySound.setSelected(conf.notifiesBySound(NotifyKind.PORT_SUPPLY));
+        this.condToast.setSelected(conf.notifiesByToast(NotifyKind.COND));
+        this.condSound.setSelected(conf.notifiesBySound(NotifyKind.COND));
+        this.gimmickToast.setSelected(conf.notifiesByToast(NotifyKind.GIMMICK));
+        this.gimmickSound.setSelected(conf.notifiesBySound(NotifyKind.GIMMICK));
+        this.prepareSoundDirButton(this.missionSoundDirButton, NotifyKind.MISSION, conf);
+        this.prepareSoundDirButton(this.ndockSoundDirButton, NotifyKind.NDOCK, conf);
+        this.prepareSoundDirButton(this.missionConditionSoundDirButton, NotifyKind.MISSION_CONDITION, conf);
+        this.prepareSoundDirButton(this.portSupplySoundDirButton, NotifyKind.PORT_SUPPLY, conf);
+        this.prepareSoundDirButton(this.condSoundDirButton, NotifyKind.COND, conf);
+        this.prepareSoundDirButton(this.badlyStartSoundDirButton, NotifyKind.BADLY_SORTIE, conf);
+        this.prepareSoundDirButton(this.badlyNextSoundDirButton, NotifyKind.BADLY_ADVANCE, conf);
+        this.prepareSoundDirButton(this.gimmickSoundDirButton, NotifyKind.GIMMICK, conf);
+        this.lockChecked(this.badlyStartToast);
+        this.lockChecked(this.badlyStartSound);
+        this.lockChecked(this.badlyNextToast);
+        this.lockChecked(this.badlyNextSound);
+    }
+
+    /**
+     * 画面のチェックをトーストとサウンドの集合へ保存する。大破は常に含める。
+     *
+     * @param conf 設定
+     */
+    private void saveNotifyChannels(AppConfig conf) {
+        EnumSet<NotifyKind> toast = EnumSet.noneOf(NotifyKind.class);
+        EnumSet<NotifyKind> sound = EnumSet.noneOf(NotifyKind.class);
+        this.addKind(toast, NotifyKind.MISSION, this.missionToast);
+        this.addKind(sound, NotifyKind.MISSION, this.missionSound);
+        this.addKind(toast, NotifyKind.NDOCK, this.ndockToast);
+        this.addKind(sound, NotifyKind.NDOCK, this.ndockSound);
+        this.addKind(toast, NotifyKind.MISSION_CONDITION, this.missionConditionToast);
+        this.addKind(sound, NotifyKind.MISSION_CONDITION, this.missionConditionSound);
+        this.addKind(toast, NotifyKind.PORT_SUPPLY, this.portSupplyToast);
+        this.addKind(sound, NotifyKind.PORT_SUPPLY, this.portSupplySound);
+        this.addKind(toast, NotifyKind.COND, this.condToast);
+        this.addKind(sound, NotifyKind.COND, this.condSound);
+        this.addKind(toast, NotifyKind.GIMMICK, this.gimmickToast);
+        this.addKind(sound, NotifyKind.GIMMICK, this.gimmickSound);
+        toast.add(NotifyKind.BADLY_SORTIE);
+        toast.add(NotifyKind.BADLY_ADVANCE);
+        sound.add(NotifyKind.BADLY_SORTIE);
+        sound.add(NotifyKind.BADLY_ADVANCE);
+        conf.setToastNotify(toast);
+        conf.setSoundNotify(sound);
+    }
+
+    private void addKind(EnumSet<NotifyKind> target, NotifyKind kind, CheckBox box) {
+        if (box.isSelected()) {
+            target.add(kind);
+        }
+    }
+
+    /**
+     * オンのまま無効にし、灰色で動かせない表示にする。
+     *
+     * @param box 固定するチェック
+     */
+    private void lockChecked(CheckBox box) {
+        box.setSelected(true);
+        box.setDisable(true);
+    }
+
+    /**
+     * 遠征リマインド秒を {@value NotificationListener#MISSION_REMIND_MIN_SECONDS} 以上
+     * {@value NotificationListener#MISSION_REMIND_MAX_SECONDS} 以下に収める。
+     * 空欄や数字以外、桁が大きすぎるときは下限にする。
+     *
+     * @param text 入力
+     * @return 保存する秒数
+     */
+    private int remindSeconds(String text) {
+        try {
+            int seconds = this.toInt(text);
+            return Math.min(NotificationListener.MISSION_REMIND_MAX_SECONDS,
+                    Math.max(seconds, NotificationListener.MISSION_REMIND_MIN_SECONDS));
+        } catch (NumberFormatException e) {
+            return NotificationListener.MISSION_REMIND_MIN_SECONDS;
         }
     }
 
