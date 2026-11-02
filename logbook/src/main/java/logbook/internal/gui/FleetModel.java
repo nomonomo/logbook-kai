@@ -14,7 +14,6 @@ import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import logbook.bean.AppCondition;
-import logbook.bean.AppConfig;
 import logbook.internal.FleetStats;
 import logbook.internal.fleet.FleetSnapshot;
 
@@ -155,7 +154,7 @@ public class FleetModel {
         this.trackedCondEpoch = end;
         long now = ZonedDateTime.now(ZoneId.systemDefault()).toEpochSecond();
         boolean inPort = snapshot.getMissionState() == 0 && !AppCondition.get().isMapStart();
-        if (end != FleetSnapshot.NO_COND_RECOVER && end > now && AppConfig.get().isUseCondRecoverToast() && inPort) {
+        if (end != FleetSnapshot.NO_COND_RECOVER && end > now && inPort) {
             this.armedCondEpoch = end;
         } else {
             this.armedCondEpoch = FleetSnapshot.NO_COND_RECOVER;

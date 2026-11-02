@@ -8,22 +8,17 @@ import java.util.stream.Collectors;
 
 import jakarta.json.JsonObject;
 
-import javafx.application.Platform;
-import javafx.util.Duration;
-import logbook.bean.AppBouyomiConfig;
-import logbook.bean.AppConfig;
+import logbook.bean.DeckPort;
 import logbook.bean.DeckPortCollection;
+import logbook.bean.Mission;
 import logbook.bean.MissionCollection;
 import logbook.bean.MissionCondition;
 import logbook.bean.Ship;
 import logbook.bean.ShipCollection;
-import logbook.internal.Audios;
-import logbook.internal.BouyomiChanUtils;
-import logbook.internal.BouyomiChanUtils.Type;
 import logbook.internal.LoggerHolder;
 import logbook.internal.Missions;
-import logbook.internal.Tuple;
-import logbook.internal.gui.Tools;
+import logbook.notify.MissionConditionAlert;
+import logbook.notify.Notifications;
 import logbook.proxy.RequestMetaData;
 import logbook.proxy.ResponseMetaData;
 
@@ -54,14 +49,7 @@ public class ApiReqMissionStart implements APIListenerSpi {
                             .collect(Collectors.toList());
 
                     if (!condition.get().test(fleet)) {
-                        Integer id = missionId;
-                        Platform.runLater(() -> displayAlert(deckId, id));
-                        // 通知音再生
-                        if (AppConfig.get().isUseSound()) {
-                            Platform.runLater(Audios.playDefaultNotifySound());
-                        }
-                        // 棒読みちゃん連携
-                        sendBouyomi(deckId, missionId);
+                        Notifications.publish(missionConditionAlert(deckId, missionId));
                     }
                 }
             } catch (Exception e) {
@@ -70,38 +58,11 @@ public class ApiReqMissionStart implements APIListenerSpi {
         }
     }
 
-    /**
-     * 遠征警告
-     *
-     * @param deckId デッキID
-     * @param missionId 遠征ID
-     */
-    private static void displayAlert(Integer deckId, Integer missionId) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("「")
-                .append(DeckPortCollection.get().getDeckPortMap().get(deckId).getName())
-                .append("」")
-                .append("は")
-                .append("「")
-                .append(MissionCollection.get().getMissionMap().get(missionId).getName())
-                .append("」")
-                .append("の条件を満たしていません");
-
-        Tools.Controls.showNotify(null, "遠征警告", sb.toString(), Duration.seconds(10));
-    }
-
-    /**
-     * 棒読みちゃん連携
-     *
-     * @param deckId デッキID
-     * @param missionId 遠征ID
-     */
-    private static void sendBouyomi(Integer deckId, Integer missionId) {
-        if (AppBouyomiConfig.get().isEnable()) {
-            BouyomiChanUtils.speak(Type.MissionStartAlert,
-                    Tuple.of("${fleetName}", DeckPortCollection.get().getDeckPortMap().get(deckId).getName()),
-                    Tuple.of("${fleetNumber}", String.valueOf(deckId)),
-                    Tuple.of("${missionName}", MissionCollection.get().getMissionMap().get(missionId).getName()));
-        }
+    private static MissionConditionAlert missionConditionAlert(int deckId, int missionId) {
+        DeckPort port = DeckPortCollection.get().getDeckPortMap().get(deckId);
+        String fleetName = port != null && port.getName() != null ? port.getName() : "";
+        Mission mission = MissionCollection.get().getMissionMap().get(missionId);
+        String missionName = mission != null && mission.getName() != null ? mission.getName() : "";
+        return new MissionConditionAlert(deckId, fleetName, missionName);
     }
 }

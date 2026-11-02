@@ -51,6 +51,7 @@ module logbook {
     exports logbook.plugin.gui;
     exports logbook.plugin.lifecycle;
     exports logbook.proxy;
+    exports logbook.notify;
 
     provides logbook.api.APIListenerSpi with
         logbook.api.ApiGetMemberBasic,
@@ -128,6 +129,10 @@ module logbook {
         logbook.internal.ImageListener;
     provides logbook.proxy.ProxyServerSpi with
         logbook.internal.proxy.ProxyServerImpl;
+    provides logbook.notify.NotificationListener with
+        logbook.internal.notify.ToastNotificationListener,
+        logbook.internal.notify.SoundNotificationListener,
+        logbook.internal.notify.BouyomiNotificationListener;
 
     opens logbook;
     opens logbook.api;
@@ -139,6 +144,7 @@ module logbook {
     opens logbook.internal.gui;
     opens logbook.internal.log;
     opens logbook.internal.proxy;
+    opens logbook.internal.notify;
     opens logbook.plugin;
     opens logbook.plugin.gui;
     opens logbook.plugin.lifecycle;
@@ -151,6 +157,7 @@ module logbook {
     opens logbook.quest;
     opens logbook.seaarea;
     opens logbook.supplemental;
+    opens logbook.notify;
     
     
     // コア機能のSPI（実装あり）
@@ -158,6 +165,7 @@ module logbook {
     uses logbook.plugin.lifecycle.StartUp;
     uses logbook.proxy.ContentListenerSpi;
     uses logbook.proxy.ProxyServerSpi;
+    uses logbook.notify.NotificationListener;
 
     // 外部プラグイン用のSPI（実装なし、拡張用）
     uses logbook.plugin.gui.FleetTabRemark;
