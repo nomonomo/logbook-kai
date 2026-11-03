@@ -279,7 +279,7 @@ public final class Config {
      *
      * @param config 差し替える Config（本番では呼ばない）
      */
-    static void setDefaultForTest(Config config) {
+    public static void setDefaultForTest(Config config) {
         DEFAULT = config;
     }
 }

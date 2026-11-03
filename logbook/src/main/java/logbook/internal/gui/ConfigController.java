@@ -30,8 +30,10 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Hyperlink;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.TabPane;
@@ -41,6 +43,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.paint.Color;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -56,6 +59,7 @@ import javafx.util.StringConverter;
 import logbook.bean.AppBouyomiConfig;
 import logbook.bean.AppBouyomiConfig.AppBouyomiText;
 import logbook.bean.AppConfig;
+import logbook.bean.DiscordConfig;
 import logbook.bean.AppConfig.NotifyKind;
 import logbook.bean.WindowLocation;
 import logbook.internal.BouyomiChan;
@@ -69,6 +73,8 @@ import logbook.internal.ShipImageCacheStrategy;
 import logbook.internal.ThreadManager;
 import logbook.internal.gamedata.CheckGameDataUpdate;
 import logbook.internal.capture.ApiCaptureGate;
+import logbook.internal.notify.discord.DiscordFormatter;
+import logbook.internal.notify.discord.DiscordWebhookClient;
 import logbook.internal.ToStringConverter;
 import logbook.internal.Tuple;
 import logbook.internal.Tuple.Pair;
@@ -548,6 +554,22 @@ public class ConfigController extends WindowController {
     @FXML
     private GridPane bouyomiTexts;
 
+    @FXML
+    private CheckBox discordEnable;
+
+    @FXML
+    private TextField discordWebhookUrl;
+
+    @FXML
+    private Button discordTestButton;
+
+    @FXML
+    private GridPane discordNotifies;
+
+    private final EnumMap<DiscordConfig.Kind, CheckBox> discordNotifyBoxes = new EnumMap<>(DiscordConfig.Kind.class);
+
+    private final EnumMap<DiscordConfig.Kind, ColorPicker> discordColorPickers = new EnumMap<>(DiscordConfig.Kind.class);
+
     private ObservableList<DetailPlugin> plugins = FXCollections.observableArrayList();
 
     private EnumMap<BouyomiChanUtils.Type, Supplier<Boolean>> enableBouyomiTextMap = new EnumMap<>(
@@ -567,6 +589,7 @@ public class ConfigController extends WindowController {
      *                 - 4: キャプチャ
      *                 - 5: プラグイン
      *                 - 6: 棒読みちゃん連携
+     *                 - 7: Discord
      */
     public void selectTab(int tabIndex) {
         if (this.tabPane != null) {
@@ -730,6 +753,7 @@ public class ConfigController extends WindowController {
                 (ob, o, n) -> Tools.Controls.showNotify(null, "確認", "この位置に表示されます。", Duration.seconds(5), Pos.valueOf(n.getValue())));
 
         this.bouyomiChanInit();
+        this.discordInit();
 
         // 設定画面を開いたタイミングでゲームデータ更新を確認
         CheckGameDataUpdate.getInstance().runAsyncIfEnabled();
@@ -868,6 +892,7 @@ public class ConfigController extends WindowController {
         conf.setUsePlugin(this.usePlugin.isSelected());
 
         this.bouyomiChanStore();
+        this.discordStore();
 
         Main.refreshMainWindowTitle();
         InternalFXMLLoader.applyToOpenWindows();
@@ -1540,6 +1565,93 @@ public class ConfigController extends WindowController {
 
             textMap.put(type.toString(), bouyomiText);
         }
+    }
+
+    private void discordInit() {
+        DiscordConfig config = DiscordConfig.get();
+        this.discordEnable.setSelected(config.isEnable());
+        this.discordWebhookUrl.setText(config.getIncomingWebhookUrl() == null ? "" : config.getIncomingWebhookUrl());
+        this.discordNotifies.getChildren().clear();
+        this.discordNotifyBoxes.clear();
+        this.discordColorPickers.clear();
+        Label colorHeader = new Label("色");
+        this.discordNotifies.add(colorHeader, 1, 0);
+        int row = 1;
+        for (DiscordConfig.Kind kind : DiscordConfig.Kind.values()) {
+            CheckBox box = new CheckBox(kind.label());
+            box.setMnemonicParsing(false);
+            box.setSelected(config.notifies(kind));
+            ColorPicker picker = new ColorPicker(this.discordColor(config.color(kind)));
+            this.discordNotifies.add(box, 0, row);
+            this.discordNotifies.add(picker, 1, row);
+            this.discordNotifyBoxes.put(kind, box);
+            this.discordColorPickers.put(kind, picker);
+            row++;
+        }
+    }
+
+    private void discordStore() {
+        DiscordConfig config = DiscordConfig.get();
+        config.setEnable(this.discordEnable.isSelected());
+        config.setIncomingWebhookUrl(this.discordWebhookUrl.getText());
+        for (DiscordConfig.Kind kind : DiscordConfig.Kind.values()) {
+            config.setNotifies(kind, this.discordNotifyBoxes.get(kind).isSelected());
+            config.setColor(kind, this.discordRgb(this.discordColorPickers.get(kind).getValue(), kind.defaultColor()));
+        }
+    }
+
+    /**
+     * 画面上の色を各種別の既定色に戻します。チェックと URL は変えず、保存はしません。
+     *
+     * @param event ActionEvent
+     */
+    @FXML
+    void resetDiscordColors(ActionEvent event) {
+        for (DiscordConfig.Kind kind : DiscordConfig.Kind.values()) {
+            ColorPicker picker = this.discordColorPickers.get(kind);
+            if (picker != null) {
+                picker.setValue(this.discordColor(kind.defaultColor()));
+            }
+        }
+    }
+
+    /**
+     * 画面の URL へテスト通知を送ります。保存はしません。
+     *
+     * @param event ActionEvent
+     */
+    @FXML
+    void sendDiscordTest(ActionEvent event) {
+        String url = this.discordWebhookUrl.getText();
+        if (url == null || url.isBlank()) {
+            Tools.Controls.alert(AlertType.WARNING, "Discord", "Webhook URL を入力してください", this.getWindow());
+            return;
+        }
+        this.discordTestButton.setDisable(true);
+        DiscordWebhookClient.shared().send(new DiscordFormatter().formatTest(url.trim()),
+                response -> Platform.runLater(() -> {
+                    this.discordTestButton.setDisable(false);
+                    Tools.Controls.alert(AlertType.INFORMATION, "Discord", "テスト通知を送信しました", this.getWindow());
+                }),
+                error -> Platform.runLater(() -> {
+                    this.discordTestButton.setDisable(false);
+                    log.warn("Discord のテスト通知に失敗しました", error);
+                    Tools.Controls.alert(AlertType.ERROR, "Discord", "テスト通知の送信に失敗しました", this.getWindow());
+                }));
+    }
+
+    private Color discordColor(int rgb) {
+        return Color.rgb((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+    }
+
+    private int discordRgb(Color color, int fallback) {
+        if (color == null) {
+            return fallback;
+        }
+        int red = (int) Math.round(color.getRed() * 255);
+        int green = (int) Math.round(color.getGreen() * 255);
+        int blue = (int) Math.round(color.getBlue() * 255);
+        return (red << 16) | (green << 8) | blue;
     }
 
     /**

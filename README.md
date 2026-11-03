@@ -153,9 +153,7 @@ Windows版とmacOS版（Intel / Apple Silicon）を配布しております
 
 ### [FAQ](faq.md)
 
-#### プラグイン
-* [Pushbullet Plugin](https://github.com/rsky/logbook-kai-plugins)
-  * 遠征・入渠の通知をiPhone/Android端末へプッシュ通知することが可能になります。
+### [Discord のウェブフック URL](how-to-discord.md)
 
 ### スクリーンショット
 
