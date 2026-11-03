@@ -58,6 +58,7 @@ import logbook.bean.AppBouyomiConfig.AppBouyomiText;
 import logbook.bean.AppConfig;
 import logbook.bean.AppConfig.NotifyKind;
 import logbook.bean.WindowLocation;
+import logbook.internal.BouyomiChan;
 import logbook.internal.BouyomiChanUtils;
 import logbook.internal.BouyomiChanUtils.BouyomiDefaultSettings;
 import logbook.internal.BouyomiChanUtils.BouyomiSetting;
@@ -1503,9 +1504,14 @@ public class ConfigController extends WindowController {
                 text.setText(bouyomiConfig.getText());
             }
 
+            Button preview = new Button("読む");
+            preview.setMnemonicParsing(false);
+            preview.setOnAction(ev -> this.previewBouyomi(text.getText()));
+
             this.bouyomiTexts.add(checkBox, 0, row);
             this.bouyomiTexts.add(text, 1, row);
             GridPane.setHgrow(text, Priority.ALWAYS);
+            this.bouyomiTexts.add(preview, 2, row);
             this.bouyomiTexts.add(params, 1, ++row);
             row++;
 
@@ -1534,6 +1540,59 @@ public class ConfigController extends WindowController {
 
             textMap.put(type.toString(), bouyomiText);
         }
+    }
+
+    /**
+     * 画面に出ている文面を、画面のホストとポートへ送って読ませる。
+     * 連携の有効や文言ごとのチェックは見ない。
+     *
+     * @param text 文面
+     */
+    private void previewBouyomi(String text) {
+        String host = this.bouyomiHost.getText() == null ? "" : this.bouyomiHost.getText().trim();
+        int port = this.toInt(this.bouyomiPort.getText() == null ? "" : this.bouyomiPort.getText().trim());
+        if (host.isEmpty() || port < 1 || port > 65535) {
+            Tools.Controls.alert(AlertType.WARNING,
+                    "棒読みちゃんに接続できません",
+                    "ホストとポート番号を確認してください。",
+                    this.getWindow());
+            return;
+        }
+        String spoken = previewBouyomiText(text);
+        if (spoken.isEmpty()) {
+            return;
+        }
+        ThreadManager.getExecutorService().execute(() -> {
+            try {
+                BouyomiChan.create(host, port).speak(spoken);
+            } catch (Exception e) {
+                log.info("棒読みちゃんの試聴に失敗しました", e);
+                Platform.runLater(() -> Tools.Controls.alert(AlertType.ERROR,
+                        "棒読みちゃんに接続できません",
+                        "ホストとポート番号、棒読みちゃんが起動しているかを確認してください。",
+                        this.getWindow()));
+            }
+        });
+    }
+
+    /**
+     * 文面のタグを見本の語へ置き換える。
+     *
+     * @param text 文面
+     * @return 読み上げる文
+     */
+    private static String previewBouyomiText(String text) {
+        if (text == null || text.isEmpty()) {
+            return "";
+        }
+        return text.replace("${hiraganaNames}", "ふぶき、しらゆき")
+                .replace("${kanjiNames}", "吹雪、白雪")
+                .replace("${hiraganaName}", "ふぶき")
+                .replace("${kanjiName}", "吹雪")
+                .replace("${fleetName}", "第一艦隊")
+                .replace("${fleetNumber}", "1")
+                .replace("${missionName}", "練習航海")
+                .trim();
     }
 
     /**
