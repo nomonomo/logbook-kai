@@ -553,6 +553,35 @@
                   </VBox>
                </content>
             </Tab>
+            <Tab closable="false" text="Discord">
+               <content>
+                  <ScrollPane fitToWidth="true">
+                     <content>
+                        <VBox styleClass="configInner">
+                           <children>
+                              <CheckBox fx:id="discordEnable" mnemonicParsing="false" text="Discord通知を使用する" />
+                              <Label styleClass="bold" text="Webhook" />
+                              <Label text="Incoming Webhook URL" />
+                              <TextField fx:id="discordWebhookUrl" />
+                              <Button fx:id="discordTestButton" mnemonicParsing="false" onAction="#sendDiscordTest" text="テスト送信" />
+                              <HBox alignment="CENTER_LEFT" spacing="12.0">
+                                 <children>
+                                    <Label styleClass="bold" text="通知する内容" />
+                                    <Button mnemonicParsing="false" onAction="#resetDiscordColors" text="色を既定に戻す" />
+                                 </children>
+                              </HBox>
+                              <GridPane fx:id="discordNotifies" hgap="12.0" vgap="6.0">
+                                 <columnConstraints>
+                                    <ColumnConstraints />
+                                    <ColumnConstraints />
+                                 </columnConstraints>
+                              </GridPane>
+                           </children>
+                        </VBox>
+                     </content>
+                  </ScrollPane>
+               </content>
+            </Tab>
          </tabs>
       </TabPane>
       <Separator />

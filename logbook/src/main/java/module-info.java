@@ -132,7 +132,8 @@ module logbook {
     provides logbook.notify.NotificationListener with
         logbook.internal.notify.ToastNotificationListener,
         logbook.internal.notify.SoundNotificationListener,
-        logbook.internal.notify.BouyomiNotificationListener;
+        logbook.internal.notify.BouyomiNotificationListener,
+        logbook.internal.notify.DiscordNotificationListener;
 
     opens logbook;
     opens logbook.api;
@@ -145,6 +146,7 @@ module logbook {
     opens logbook.internal.log;
     opens logbook.internal.proxy;
     opens logbook.internal.notify;
+    opens logbook.internal.notify.discord;
     opens logbook.plugin;
     opens logbook.plugin.gui;
     opens logbook.plugin.lifecycle;
