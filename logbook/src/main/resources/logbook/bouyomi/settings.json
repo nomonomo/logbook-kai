@@ -69,6 +69,21 @@
             ]
         },
         {
+            "id": "PortSupplyComplete",
+            "label": "母港給糧",
+            "text": "${fleetName}の給糧完了予想時刻になりました",
+            "params": [
+                {
+                    "tag": "${fleetName}",
+                    "comment": "艦隊名称"
+                },
+                {
+                    "tag": "${fleetNumber}",
+                    "comment": "艦隊番号"
+                }
+            ]
+        },
+        {
             "id": "AchievementGimmick1",
             "label": "ギミック解除\n(ルート追加等)",
             "text": "ギミック解除 海域に変化が確認されました。",
