@@ -20,7 +20,7 @@ import logbook.notify.NotificationListener;
 import logbook.notify.PortSupplyCompleted;
 
 /**
- * 棒読みちゃんへ読み上げを送る。母港給糧と遠征開始は持たない。遠征完了の再通知は読まない。
+ * 棒読みちゃんへ読み上げを送る。遠征開始は持たない。遠征完了の再通知は読まない。
  */
 public final class BouyomiNotificationListener implements NotificationListener {
 
@@ -36,14 +36,13 @@ public final class BouyomiNotificationListener implements NotificationListener {
                 }
             }
             case NdockCompleted e -> speakNdock(e);
+            case PortSupplyCompleted e -> speakPortSupply(e);
             case BadlyDamagedAlert e -> speakBadly(e);
             case MissionConditionAlert e -> speakMissionCondition(e);
             case GimmickAchieved e -> speakGimmick(e);
             case CondRecovered _ -> {
             }
             case MissionStarted _ -> {
-            }
-            case PortSupplyCompleted _ -> {
             }
         }
     }
@@ -59,6 +58,12 @@ public final class BouyomiNotificationListener implements NotificationListener {
         BouyomiChanUtils.speak(Type.NdockComplete,
                 Tuple.of("${hiraganaName}", event.yomi()),
                 Tuple.of("${kanjiName}", event.shipName()));
+    }
+
+    private static void speakPortSupply(PortSupplyCompleted event) {
+        BouyomiChanUtils.speak(Type.PortSupplyComplete,
+                Tuple.of("${fleetName}", event.fleetName()),
+                Tuple.of("${fleetNumber}", String.valueOf(event.fleetId())));
     }
 
     private static void speakBadly(BadlyDamagedAlert event) {

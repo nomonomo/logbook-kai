@@ -21,6 +21,7 @@ public class BouyomiChanUtils {
         MissionStartAlert,
         MissionComplete,
         NdockComplete,
+        PortSupplyComplete,
         AchievementGimmick1,
         AchievementGimmick2;
     }

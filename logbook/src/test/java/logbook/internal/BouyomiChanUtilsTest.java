@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.InputStream;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -55,6 +57,26 @@ class BouyomiChanUtilsTest {
             assertEquals("ギミック解除 ギミックの達成を確認しました。", second.getText());
             assertNotNull(second.getParams());
             assertEquals(0, second.getParams().size());
+        }
+    }
+
+    @Test
+    void settingsJsonIdsMatchType() throws Exception {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream("logbook/bouyomi/settings.json")) {
+            assertNotNull(in, "settings.json が存在すること");
+
+            BouyomiDefaultSettings root = JsonMappers.STRICT_CREATOR_READER
+                    .forType(BouyomiDefaultSettings.class)
+                    .readValue(in);
+            List<String> ids = root.getSettings().stream()
+                    .map(BouyomiSetting::getId)
+                    .toList();
+            Set<String> types = new HashSet<>();
+            for (BouyomiChanUtils.Type type : BouyomiChanUtils.Type.values()) {
+                types.add(type.name());
+            }
+            assertEquals(types, new HashSet<>(ids));
+            assertEquals(types.size(), ids.size());
         }
     }
 }
