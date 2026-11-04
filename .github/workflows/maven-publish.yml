@@ -26,8 +26,9 @@ permissions: {}
 jobs:
   version:
     name: Get Version
-    #Push or Pull_Requestでforkしてない場合
-    if: ( github.event_name == 'push' || ( github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork ) )
+    # 同一リポジトリの push と pull request だけ実行する。
+    # head.repo.fork はリポジトリ自体が fork だと常に true になるため使わない。
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -56,8 +57,9 @@ jobs:
 
   build:
     name: ${{ matrix.os }}
-    #Push or Pull_Requestでforkしてない場合
-    if: ( github.event_name == 'push' || ( github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork ) )
+    # 同一リポジトリの push と pull request だけ実行する。
+    # head.repo.fork はリポジトリ自体が fork だと常に true になるため使わない。
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
