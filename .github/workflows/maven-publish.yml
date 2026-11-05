@@ -9,7 +9,9 @@ on:
       - 'data/**'
       - '**.md'
       - '.github/**'
+  # master 向けだけ。develop 等は push の結果が Checks に付く
   pull_request:
+    branches: [master]
     paths-ignore:
       - 'data/**'
       - '**.md'

@@ -8,7 +8,9 @@ on:
       - 'data/**'
       - 'logbook-data/**'
       - 'logbook/src/test/java/logbook/internal/gamedata/**'
+  # master 向けだけ。develop 等は push の結果が Checks に付く
   pull_request:
+    branches: [master]
     paths:
       - 'data/**'
       - 'logbook-data/**'
