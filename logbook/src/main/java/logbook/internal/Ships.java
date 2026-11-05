@@ -27,6 +27,8 @@ import logbook.Messages;
 import logbook.bean.AppCondition;
 import logbook.bean.Basic;
 import logbook.bean.Chara;
+import logbook.bean.EquipShip;
+import logbook.bean.EquipShipCollection;
 import logbook.bean.DeckPort;
 import logbook.bean.DeckPortCollection;
 import logbook.bean.Ship;
@@ -489,6 +491,33 @@ public class Ships {
                     .get(mst.get().getStype());
         }
         return Optional.ofNullable(stype);
+    }
+
+    /**
+     * 通常スロットに指定した装備カテゴリを装備できるかを返します。
+     * 艦種の {@code api_equip_type} を基準に、{@code api_mst_equip_ship} のキーを重ねます。
+     * 個別マスタにそのカテゴリのキーがあれば装備可です。値は見ません。
+     *
+     * @param mst 艦娘マスタ
+     * @param equipTypeId 装備カテゴリ ID
+     * @return 装備できる場合 true
+     */
+    public static boolean canEquip(ShipMst mst, int equipTypeId) {
+        if (mst == null || mst.getId() == null) {
+            return false;
+        }
+        Map<Integer, EquipShip> equipShipMap = EquipShipCollection.get().getEquipShipMap();
+        EquipShip equipShip = equipShipMap == null ? null : equipShipMap.get(mst.getId());
+        Map<Integer, List<Integer>> override = equipShip == null ? null : equipShip.getEquipType();
+        if (override != null && override.containsKey(equipTypeId)) {
+            return true;
+        }
+        Map<Integer, Integer> stypeEquip = mst.asStype().map(Stype::getEquipType).orElse(null);
+        if (stypeEquip == null) {
+            return false;
+        }
+        Integer flag = stypeEquip.get(equipTypeId);
+        return flag != null && flag == 1;
     }
 
     /**

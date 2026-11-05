@@ -20,6 +20,8 @@ import jakarta.json.JsonWriterFactory;
 import jakarta.json.stream.JsonGenerator;
 
 import logbook.bean.AppConfig;
+import logbook.bean.EquipShip;
+import logbook.bean.EquipShipCollection;
 import logbook.bean.Maparea;
 import logbook.bean.MapareaCollection;
 import logbook.bean.MapinfoMst;
@@ -57,6 +59,7 @@ public class ApiStart2 implements APIListenerSpi {
             "api_mst_shipgraph",
             "api_mst_slotitem_equiptype",
             "api_mst_stype",
+            "api_mst_equip_ship",
             "api_mst_slotitem",
             "api_mst_useitem",
             "api_mst_mission",
@@ -74,7 +77,6 @@ public class ApiStart2 implements APIListenerSpi {
             "api_mst_const",
             "api_mst_shipupgrade",
             "api_mst_bgm",
-            "api_mst_equip_ship",
             "api_mst_furniture");
 
     /** 未知キー報告の対象外（対応済み + 意図的未対応） */
@@ -91,6 +93,7 @@ public class ApiStart2 implements APIListenerSpi {
             this.apiMstShipgraph(data.getJsonArray("api_mst_shipgraph"));
             this.apiMstSlotitemEquiptype(data.getJsonArray("api_mst_slotitem_equiptype"));
             this.apiMstStype(data.getJsonArray("api_mst_stype"));
+            this.apiMstEquipShip(data.getJsonObject("api_mst_equip_ship"));
             this.apiMstSlotitem(data.getJsonArray("api_mst_slotitem"));
             this.apiMstUseitem(data.getJsonArray("api_mst_useitem"));
             this.apiMstMission(data.getJsonArray("api_mst_mission"));
@@ -150,6 +153,16 @@ public class ApiStart2 implements APIListenerSpi {
     private void apiMstStype(JsonArray array) {
         StypeCollection.get()
                 .setStypeMap(JsonHelper.toMap(array, Stype::getId, Stype::toStype));
+    }
+
+    /**
+     * api_data.api_mst_equip_ship
+     *
+     * @param obj api_mst_equip_ship
+     */
+    private void apiMstEquipShip(JsonObject obj) {
+        EquipShipCollection.get()
+                .setEquipShipMap(JsonHelper.toMap(obj, Integer::valueOf, EquipShip::toEquipShip));
     }
 
     /**

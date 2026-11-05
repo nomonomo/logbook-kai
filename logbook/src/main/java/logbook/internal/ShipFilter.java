@@ -136,6 +136,23 @@ public interface ShipFilter extends Predicate<ShipItem> {
     }
 
     @Builder
+    public static class EquipTypeFilter implements ShipFilter {
+
+        /** 装備カテゴリ */
+        private Set<Integer> typeIds;
+
+        @Override
+        public boolean test(ShipItem ship) {
+            if (ship == null || ship.getShip() == null || this.typeIds == null || this.typeIds.isEmpty()) {
+                return false;
+            }
+            return Ships.shipMst(ship.getShip())
+                    .map(mst -> this.typeIds.stream().anyMatch(typeId -> Ships.canEquip(mst, typeId)))
+                    .orElse(false);
+        }
+    }
+
+    @Builder
     public static class MissionFilter implements ShipFilter {
 
         /** 遠征 */

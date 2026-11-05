@@ -62,6 +62,15 @@ public class AppShipTableConfig {
 
         /** 遠征 */
         private boolean missionValue;
+
+        /** 装備可能 */
+        private boolean equipTypeEnabled;
+
+        /** 装備可能種類の展開 */
+        private boolean equipTypeExpanded;
+
+        /** 装備可能カテゴリ ID。null は全選択 */
+        private List<Integer> equipTypeValue;
     }
 
     /**
