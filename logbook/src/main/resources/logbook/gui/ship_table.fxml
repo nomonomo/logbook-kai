@@ -11,7 +11,9 @@
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.TextFlow?>
@@ -23,7 +25,7 @@
          <children>
             <TitledPane fx:id="filter" animated="false" expanded="false" text="フィルター">
                <content>
-                  <VBox>
+                  <VBox spacing="5.0">
                      <children>
                         <FlowPane>
                            <children>
@@ -107,6 +109,25 @@
                               </VBox>
                            </children>
                         </FlowPane>
+                        <HBox alignment="CENTER_LEFT" styleClass="filter-toggle">
+                           <children>
+                              <Label text="装備可能" />
+                              <ToggleSwitch fx:id="equipTypeFilter" prefWidth="0.0" />
+                           </children>
+                        </HBox>
+                        <TitledPane fx:id="equipTypePane" animated="false" expanded="false" text="装備可能種類">
+                           <content>
+                              <GridPane fx:id="equipTypeChecksPane" hgap="20.0" vgap="5.0">
+                                 <columnConstraints>
+                                    <ColumnConstraints fillWidth="false" minWidth="100.0" />
+                                    <ColumnConstraints fillWidth="true" />
+                                 </columnConstraints>
+                                 <children>
+                                    <CheckBox fx:id="allEquipTypes" allowIndeterminate="true" disable="true" mnemonicParsing="false" selected="true" text="すべて" />
+                                 </children>
+                              </GridPane>
+                           </content>
+                        </TitledPane>
                      </children>
                   </VBox>
                </content>

@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -53,6 +54,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextFlow;
@@ -63,6 +65,8 @@ import logbook.bean.AppShipTableConfig;
 import logbook.bean.AppShipTableConfig.AppShipTableTabConfig;
 import logbook.bean.DeckPort;
 import logbook.bean.DeckPortCollection;
+import logbook.bean.EquipShip;
+import logbook.bean.EquipShipCollection;
 import logbook.bean.Ship;
 import logbook.bean.ShipCollection;
 import logbook.bean.ShipLabelCollection;
@@ -70,6 +74,9 @@ import logbook.bean.ShipMst;
 import logbook.bean.ShipMstCollection;
 import logbook.bean.SlotItem;
 import logbook.bean.SlotItemCollection;
+import logbook.bean.SlotitemEquiptype;
+import logbook.bean.Stype;
+import logbook.bean.StypeCollection;
 import logbook.internal.Items;
 import logbook.internal.LoggerHolder;
 import logbook.internal.ShipFilter;
@@ -211,6 +218,28 @@ public class ShipTablePane extends VBox {
     /** 遠征 */
     @FXML
     private CheckBox missionValue;
+
+    /** 装備可能 */
+    @FXML
+    private ToggleSwitch equipTypeFilter;
+
+    /** 装備可能種類 */
+    @FXML
+    private TitledPane equipTypePane;
+
+    /** 装備可能種類のチェック */
+    @FXML
+    private GridPane equipTypeChecksPane;
+
+    /** 装備可能種類をすべて選択 */
+    @FXML
+    private CheckBox allEquipTypes;
+
+    /** 装備カテゴリのチェックボックス */
+    private final Map<Integer, CheckBox> equipTypeChecks = new LinkedHashMap<>();
+
+    /** 装備カテゴリの親チェックボックス */
+    private final List<CheckBox> equipTypeCategories = new ArrayList<>();
 
     /** テーブル */
     @FXML
@@ -469,6 +498,7 @@ public class ShipTablePane extends VBox {
             this.missionFilter.selectedProperty().addListener((ob, ov, nv) -> {
                 this.missionValue.setDisable(!nv);
             });
+            this.initEquipTypeFilter();
 
             this.textFilter.selectedProperty().addListener(this::filterAction);
             this.textValue.textProperty().addListener(this::filterAction);
@@ -481,6 +511,9 @@ public class ShipTablePane extends VBox {
             this.slotExValue.selectedProperty().addListener(this::filterAction);
             this.missionFilter.selectedProperty().addListener(this::filterAction);
             this.missionValue.selectedProperty().addListener(this::filterAction);
+            this.equipTypeFilter.selectedProperty().addListener(this::filterAction);
+            this.equipTypeChecks.values().forEach(c -> c.selectedProperty().addListener(this::filterAction));
+            this.equipTypePane.expandedProperty().addListener((ob, ov, nv) -> this.saveConfig());
 
             // カラムとオブジェクトのバインド
             this.row.setCellFactory(TableTool.getRowCountCellFactory());
@@ -835,6 +868,91 @@ public class ShipTablePane extends VBox {
     }
 
     /**
+     * 装備可能種類のチェックを、艦が装備し得るカテゴリだけ並べる。
+     */
+    private void initEquipTypeFilter() {
+        this.equipTypeFilter.selectedProperty().addListener((ob, ov, nv) -> {
+            this.equipTypeCategories.forEach(category -> category.setDisable(!nv));
+            this.allEquipTypes.setDisable(!nv);
+        });
+        this.equipTypePane.expandedProperty().addListener((ob, ov, nv) -> {
+            this.equipTypePane.requestLayout();
+            if (this.filter.getParent() != null) {
+                this.filter.getParent().requestLayout();
+            }
+        });
+
+        Set<Integer> equippable = this.equippableTypeIds();
+        Map<String, List<SlotitemEquiptype>> categories = Items.getCategories();
+        AtomicInteger row = new AtomicInteger(1);
+        categories.forEach((name, equipTypes) -> {
+            List<CheckBox> types = equipTypes.stream()
+                    .filter(type -> type != null && equippable.contains(type.getId()))
+                    .map(type -> {
+                        CheckBox check = new CheckBox(type.getName());
+                        check.setSelected(true);
+                        check.setDisable(true);
+                        this.equipTypeChecks.put(type.getId(), check);
+                        return check;
+                    })
+                    .collect(Collectors.toList());
+            if (types.isEmpty()) {
+                return;
+            }
+
+            CheckBox category = new CheckBox(name);
+            category.setSelected(true);
+            category.setDisable(true);
+            category.setAllowIndeterminate(true);
+            FlowPane categoryPane = new FlowPane();
+            categoryPane.getChildren().add(category);
+            this.equipTypeChecksPane.add(categoryPane, 0, row.get());
+            this.equipTypeCategories.add(category);
+
+            FlowPane typesPane = new FlowPane(5, 0);
+            typesPane.setPrefWidth(Integer.MAX_VALUE);
+            typesPane.getChildren().addAll(types);
+            this.equipTypeChecksPane.add(typesPane, 1, row.getAndIncrement());
+            Tools.Controls.bindChildCheckBoxes(category, types);
+            category.disabledProperty().addListener((ob, o, n) -> types.forEach(c -> c.setDisable(n)));
+        });
+        if (!this.equipTypeCategories.isEmpty()) {
+            Tools.Controls.bindChildCheckBoxes(this.allEquipTypes, this.equipTypeCategories);
+        }
+    }
+
+    /**
+     * いずれかの艦種が装備できる、または艦個別マスタにキーがある装備カテゴリ ID。
+     *
+     * @return 装備カテゴリ ID
+     */
+    private Set<Integer> equippableTypeIds() {
+        Set<Integer> ids = new HashSet<>();
+        for (Stype stype : StypeCollection.get().getStypeMap().values()) {
+            Map<Integer, Integer> equipType = stype.getEquipType();
+            if (equipType == null) {
+                continue;
+            }
+            equipType.forEach((id, flag) -> {
+                if (flag != null && flag == 1) {
+                    ids.add(id);
+                }
+            });
+        }
+        Map<Integer, EquipShip> equipShipMap = EquipShipCollection.get().getEquipShipMap();
+        if (equipShipMap == null) {
+            return ids;
+        }
+        for (EquipShip equipShip : equipShipMap.values()) {
+            if (equipShip == null || equipShip.getEquipType() == null) {
+                continue;
+            }
+            ids.addAll(equipShip.getEquipType().keySet());
+        }
+        return ids;
+    }
+
+    /**
      * 艦種フィルタのチェックボックス
      * @return 艦種フィルタのチェックボックス
      */
@@ -920,6 +1038,15 @@ public class ShipTablePane extends VBox {
                     .mission(this.missionValue.isSelected())
                     .build());
         }
+        if (this.equipTypeFilter.isSelected()) {
+            Set<Integer> typeIds = this.equipTypeChecks.entrySet().stream()
+                    .filter(entry -> entry.getValue().isSelected())
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toSet());
+            filter = this.filterAnd(filter, ShipFilter.EquipTypeFilter.builder()
+                    .typeIds(typeIds)
+                    .build());
+        }
         return filter;
     }
 
@@ -975,6 +1102,14 @@ public class ShipTablePane extends VBox {
         this.missionFilter.setSelected(config.isMissionEnabled());
         this.missionValue.setSelected(config.isMissionValue());
 
+        // 装備可能。未保存は全選択のまま
+        this.equipTypeFilter.setSelected(config.isEquipTypeEnabled());
+        this.equipTypePane.setExpanded(config.isEquipTypeExpanded());
+        if (config.getEquipTypeValue() != null) {
+            Set<Integer> selected = new HashSet<>(config.getEquipTypeValue());
+            this.equipTypeChecks.forEach((id, check) -> check.setSelected(selected.contains(id)));
+        }
+
         // フィルターの更新再開
         this.disableFilterUpdate = false;
 
@@ -1024,6 +1159,16 @@ public class ShipTablePane extends VBox {
         // 遠征
         config.setMissionEnabled(this.missionFilter.isSelected());
         config.setMissionValue(this.missionValue.isSelected());
+
+        // 装備可能
+        config.setEquipTypeEnabled(this.equipTypeFilter.isSelected());
+        config.setEquipTypeExpanded(this.equipTypePane.isExpanded());
+        if (!this.equipTypeChecks.isEmpty()) {
+            config.setEquipTypeValue(this.equipTypeChecks.entrySet().stream()
+                    .filter(entry -> entry.getValue().isSelected())
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toList()));
+        }
 
         AppShipTableConfig.get()
                 .getTabConfig()
