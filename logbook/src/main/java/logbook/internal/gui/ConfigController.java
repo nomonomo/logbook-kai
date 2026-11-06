@@ -401,6 +401,10 @@ public class ConfigController extends WindowController {
     @FXML
     private CheckBox visiblePoseImageOnFleetTab;
 
+    /** 艦ポップアップに装備可能種類を表示 */
+    @FXML
+    private CheckBox showEquipTypeOnShipPopup;
+
     /** 通信エラーの抑止 */
     @FXML
     private CheckBox connectionClose;
@@ -705,6 +709,7 @@ public class ConfigController extends WindowController {
         this.hideShipImageFromShipTablePane.setSelected(conf.isHideShipImageFromShipTablePane());
         this.hideItemImageFromShipTablePane.setSelected(conf.isHideItemImageFromShipTablePane());
         this.visiblePoseImageOnFleetTab.setSelected(conf.isVisiblePoseImageOnFleetTab());
+        this.showEquipTypeOnShipPopup.setSelected(conf.isShowEquipTypeOnShipPopup());
         this.connectionClose.setSelected(conf.isConnectionClose());
         this.listenPort.setText(Integer.toString(conf.getListenPort()));
         if (Boolean.TRUE.equals(conf.getProxySslUseRootCertificate())) {
@@ -865,6 +870,7 @@ public class ConfigController extends WindowController {
         conf.setHideShipImageFromShipTablePane(this.hideShipImageFromShipTablePane.isSelected());
         conf.setHideItemImageFromShipTablePane(this.hideItemImageFromShipTablePane.isSelected());
         conf.setVisiblePoseImageOnFleetTab(this.visiblePoseImageOnFleetTab.isSelected());
+        conf.setShowEquipTypeOnShipPopup(this.showEquipTypeOnShipPopup.isSelected());
         
         conf.setConnectionClose(this.connectionClose.isSelected());
         conf.setListenPort(this.toInt(this.listenPort.getText()));

@@ -364,6 +364,7 @@
                                       <CheckBox fx:id="hideShipImageFromShipTablePane" mnemonicParsing="false" text="所有艦娘一覧から艦娘の画像を隠す" GridPane.columnIndex="1" GridPane.rowIndex="3" />
                                       <CheckBox fx:id="hideItemImageFromShipTablePane" mnemonicParsing="false" text="所有艦娘一覧から装備の画像を隠す" GridPane.columnIndex="1" GridPane.rowIndex="4" />
                                     <CheckBox fx:id="visiblePoseImageOnFleetTab" mnemonicParsing="false" text="艦隊タブに旗艦の立ち絵を表示" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                                    <CheckBox fx:id="showEquipTypeOnShipPopup" mnemonicParsing="false" selected="true" text="艦ポップアップに装備可能種類を表示" GridPane.columnIndex="1" GridPane.rowIndex="6" />
                                  </children>
                               </GridPane>
                            </children>

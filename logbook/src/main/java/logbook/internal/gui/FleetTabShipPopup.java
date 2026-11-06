@@ -3,6 +3,7 @@ package logbook.internal.gui;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -10,11 +11,13 @@ import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import logbook.bean.AppConfig;
 import logbook.bean.Chara;
 import logbook.bean.Ship;
 import logbook.bean.ShipMst;
 import logbook.bean.SlotItem;
 import logbook.bean.SlotItemCollection;
+import logbook.bean.SlotitemEquiptype;
 import logbook.bean.SlotitemMst;
 import logbook.bean.SlotitemMstCollection;
 import logbook.internal.Items;
@@ -117,6 +120,9 @@ public class FleetTabShipPopup extends VBox {
                 this.getChildren().add(rateLabel);
                 this.getChildren().add(new FleetTabShipPopupRate(barrageRate, "対空噴進弾幕"));
             }
+            if (AppConfig.get().isShowEquipTypeOnShipPopup()) {
+                Ships.shipMst(this.chara).ifPresent(this::addEquipableTypes);
+            }
         } else {
             for (int i = 0; i < this.chara.getSlot().size(); i++) {
                 if (this.chara.getSlot().get(i) > 0) {
@@ -129,6 +135,36 @@ public class FleetTabShipPopup extends VBox {
                     this.getChildren().add(new FleetTabShipPopupItem(this.chara, this.itemMap));
                 }
             }
+        }
+    }
+
+    /**
+     * 装備できる種類を大分類ごとに足す。空の分類は出さない。
+     *
+     * @param mst 艦娘マスタ
+     */
+    private void addEquipableTypes(ShipMst mst) {
+        boolean added = false;
+        for (Map.Entry<String, List<SlotitemEquiptype>> category : Items.getCategories().entrySet()) {
+            String names = category.getValue().stream()
+                    .filter(type -> type != null && type.getId() != null && Ships.canEquip(mst, type.getId()))
+                    .map(SlotitemEquiptype::getName)
+                    .collect(Collectors.joining("、"));
+            if (names.isEmpty()) {
+                continue;
+            }
+            if (!added) {
+                Label title = new Label("装備可能種類");
+                title.getStyleClass().add("title");
+                this.getChildren().add(title);
+                added = true;
+            }
+            Label categoryName = new Label(category.getKey());
+            categoryName.getStyleClass().add("item-title");
+            Label typeNames = new Label(names);
+            typeNames.setWrapText(true);
+            typeNames.setPrefWidth(280);
+            this.getChildren().add(new HBox(categoryName, typeNames));
         }
     }
 

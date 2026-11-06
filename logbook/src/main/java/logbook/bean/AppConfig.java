@@ -325,6 +325,9 @@ public final class AppConfig implements Serializable, ConfigDefaults {
     /** 艦隊タブに旗艦の立ち絵を表示 */
     private boolean visiblePoseImageOnFleetTab = false;
 
+    /** 艦ポップアップに装備可能種類を表示 */
+    private boolean showEquipTypeOnShipPopup = true;
+
     /** store api_start2 */
     private boolean storeApiStart2 = false;
 
