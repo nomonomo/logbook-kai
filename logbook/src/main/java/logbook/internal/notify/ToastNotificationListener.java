@@ -14,6 +14,7 @@ import logbook.bean.ShipCollection;
 import logbook.internal.Ships;
 import logbook.internal.gui.Tools;
 import logbook.notify.BadlyDamagedAlert;
+import logbook.notify.ShipDropped;
 import logbook.notify.BadlyDamagedAlert.ShipNotice;
 import logbook.notify.CondRecovered;
 import logbook.notify.GimmickAchieved;
@@ -60,6 +61,8 @@ public final class ToastNotificationListener implements NotificationListener {
             case GimmickAchieved e -> showGimmick(e);
             case PortSupplyCompleted e -> showPortSupply(e);
             case MissionStarted _ -> {
+            }
+            case ShipDropped _ -> {
             }
         }
     }
