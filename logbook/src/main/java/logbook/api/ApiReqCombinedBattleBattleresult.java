@@ -15,11 +15,10 @@ import logbook.bean.BattleTypes.CombinedType;
 import logbook.bean.Ship;
 import logbook.bean.ShipCollection;
 import logbook.internal.BattleLogs;
+import logbook.internal.notify.BattleResultNotices;
 import logbook.internal.Config;
 import logbook.internal.Logs;
 import logbook.internal.PhaseState;
-import logbook.notify.GimmickAchieved;
-import logbook.notify.Notifications;
 import logbook.internal.log.BattleResultLogFormat;
 import logbook.internal.log.LogWriter;
 import logbook.proxy.RequestMetaData;
@@ -76,12 +75,7 @@ public class ApiReqCombinedBattleBattleresult implements APIListenerSpi {
                 // 戦闘結果更新を通知（結果が設定されたため）
                 // logを引数として渡すことで、battleResultConfirmに設定されたlogをリスナーに渡す
                 AppCondition.get().notifyBattleResultUpdated(log);
-            }
-            if (result.achievementGimmick1()) {
-                Notifications.publish(new GimmickAchieved(GimmickAchieved.Kind.SEA_AREA_CHANGE));
-            }
-            if (result.achievementGimmick2()) {
-                Notifications.publish(new GimmickAchieved(GimmickAchieved.Kind.ACHIEVED));
+                BattleResultNotices.publish(log, req.getHost());
             }
         }
         // 戦闘結果APIの前後は他のAPIが呼ばれることがなくconflictの可能性が低いためデータ保存する

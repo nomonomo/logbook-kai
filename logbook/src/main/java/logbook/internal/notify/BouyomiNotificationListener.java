@@ -8,6 +8,7 @@ import logbook.internal.BouyomiChanUtils;
 import logbook.internal.BouyomiChanUtils.Type;
 import logbook.internal.Tuple;
 import logbook.notify.BadlyDamagedAlert;
+import logbook.notify.ShipDropped;
 import logbook.notify.BadlyDamagedAlert.ShipNotice;
 import logbook.notify.CondRecovered;
 import logbook.notify.GimmickAchieved;
@@ -43,6 +44,8 @@ public final class BouyomiNotificationListener implements NotificationListener {
             case CondRecovered _ -> {
             }
             case MissionStarted _ -> {
+            }
+            case ShipDropped _ -> {
             }
         }
     }

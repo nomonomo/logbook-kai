@@ -5,5 +5,5 @@ package logbook.notify;
  */
 public sealed interface Notification
         permits MissionReturning, NdockCompleted, CondRecovered, BadlyDamagedAlert,
-        MissionConditionAlert, GimmickAchieved, MissionStarted, PortSupplyCompleted {
+        MissionConditionAlert, GimmickAchieved, MissionStarted, PortSupplyCompleted, ShipDropped {
 }

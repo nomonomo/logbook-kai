@@ -93,4 +93,13 @@ public interface RequestMetaData {
      * @return リクエストに含まれるメッセージボディ
      */
     Optional<InputStream> getRequestBody();
+
+    /**
+     * リクエストの Host ヘッダを返します。
+     *
+     * @return Host。不明なら空文字
+     */
+    default String getHost() {
+        return "";
+    }
 }

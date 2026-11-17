@@ -3,6 +3,7 @@ package logbook.internal.notify;
 import logbook.bean.AppConfig;
 import logbook.bean.AppConfig.NotifyKind;
 import logbook.notify.BadlyDamagedAlert;
+import logbook.notify.ShipDropped;
 import logbook.notify.CondRecovered;
 import logbook.notify.GimmickAchieved;
 import logbook.notify.MissionConditionAlert;
@@ -54,6 +55,7 @@ final class NotifyChannels {
                     : NotifyKind.BADLY_ADVANCE;
             case GimmickAchieved _ -> NotifyKind.GIMMICK;
             case MissionStarted _ -> null;
+            case ShipDropped _ -> null;
         };
     }
 }

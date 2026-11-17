@@ -2902,6 +2902,23 @@ public class ReverseConnectHandler extends Handler.Wrapper
         }
 
         @Override
+        public String getHost()
+        {
+            String host = headerIgnoreCase("Host");
+            return host == null ? "" : host;
+        }
+
+        private String headerIgnoreCase(String name)
+        {
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(name)) {
+                    return entry.getValue();
+                }
+            }
+            return null;
+        }
+
+        @Override
         public String getContentType()
         {
             return contentType;
