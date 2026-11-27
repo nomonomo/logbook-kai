@@ -74,7 +74,9 @@ public final class AppConfig implements Serializable, ConfigDefaults {
         /** 進撃時の大破 */
         BADLY_ADVANCE("./sounds/alert/"),
         /** ギミック */
-        GIMMICK("./sounds/gimmick/");
+        GIMMICK("./sounds/gimmick/"),
+        /** ラストダンス */
+        LAST_DANCE("./sounds/last-dance/");
 
         /** サウンドの既定ディレクトリ */
         private final String defaultSoundDir;
@@ -421,6 +423,7 @@ public final class AppConfig implements Serializable, ConfigDefaults {
             addKind(toast, NotifyKind.PORT_SUPPLY, channel);
             addKind(toast, NotifyKind.COND, channel && this.useCondRecoverToast);
             addKind(toast, NotifyKind.GIMMICK, channel);
+            addKind(toast, NotifyKind.LAST_DANCE, channel);
             this.toastNotify = toast;
         }
         if (this.soundNotify == null) {
@@ -430,6 +433,7 @@ public final class AppConfig implements Serializable, ConfigDefaults {
             addKind(sound, NotifyKind.NDOCK, channel && this.useNotification);
             addKind(sound, NotifyKind.MISSION_CONDITION, channel);
             addKind(sound, NotifyKind.GIMMICK, channel);
+            addKind(sound, NotifyKind.LAST_DANCE, channel);
             this.soundNotify = sound;
         }
         this.toastNotify.add(NotifyKind.BADLY_SORTIE);

@@ -36,7 +36,9 @@ public class DiscordConfig implements ConfigDefaults {
         /** 進撃時の大破 */
         BADLY_ADVANCE("進撃時に大破艦がいる場合", false, 0xC0392B),
         /** ギミック */
-        GIMMICK("ギミックの達成", false, 0x8E44AD);
+        GIMMICK("ギミックの達成", false, 0x8E44AD),
+        /** ラストダンス */
+        LAST_DANCE("ラストダンス", false, 0xF39C12);
 
         private final String label;
 

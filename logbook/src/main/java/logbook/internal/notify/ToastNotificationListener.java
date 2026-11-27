@@ -18,6 +18,7 @@ import logbook.notify.ShipDropped;
 import logbook.notify.BadlyDamagedAlert.ShipNotice;
 import logbook.notify.CondRecovered;
 import logbook.notify.GimmickAchieved;
+import logbook.notify.LastDance;
 import logbook.notify.MissionConditionAlert;
 import logbook.notify.MissionReturning;
 import logbook.notify.MissionStarted;
@@ -59,6 +60,7 @@ public final class ToastNotificationListener implements NotificationListener {
             case BadlyDamagedAlert e -> showBadly(e);
             case MissionConditionAlert e -> showMissionCondition(e);
             case GimmickAchieved e -> showGimmick(e);
+            case LastDance e -> showLastDance(e);
             case PortSupplyCompleted e -> showPortSupply(e);
             case MissionStarted _ -> {
             }
@@ -114,6 +116,10 @@ public final class ToastNotificationListener implements NotificationListener {
                 ? "海域に変化が確認されました。"
                 : "ギミックの達成を確認しました。";
         Tools.Controls.showNotify(null, "ギミック解除", message, Duration.seconds(15));
+    }
+
+    private static void showLastDance(LastDance event) {
+        Tools.Controls.showNotify(null, "ラストダンス", event.message(), Duration.seconds(15));
     }
 
     private static Node graphic(int shipId) {

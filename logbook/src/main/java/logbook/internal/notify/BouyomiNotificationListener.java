@@ -12,6 +12,7 @@ import logbook.notify.ShipDropped;
 import logbook.notify.BadlyDamagedAlert.ShipNotice;
 import logbook.notify.CondRecovered;
 import logbook.notify.GimmickAchieved;
+import logbook.notify.LastDance;
 import logbook.notify.MissionConditionAlert;
 import logbook.notify.MissionReturning;
 import logbook.notify.MissionStarted;
@@ -41,6 +42,7 @@ public final class BouyomiNotificationListener implements NotificationListener {
             case BadlyDamagedAlert e -> speakBadly(e);
             case MissionConditionAlert e -> speakMissionCondition(e);
             case GimmickAchieved e -> speakGimmick(e);
+            case LastDance e -> speakLastDance(e);
             case CondRecovered _ -> {
             }
             case MissionStarted _ -> {
@@ -92,6 +94,14 @@ public final class BouyomiNotificationListener implements NotificationListener {
                 Tuple.of("${fleetName}", event.fleetName()),
                 Tuple.of("${fleetNumber}", String.valueOf(event.fleetId())),
                 Tuple.of("${missionName}", event.missionName()));
+    }
+
+    private static void speakLastDance(LastDance event) {
+        String mapName = event.mapName().isEmpty() ? "" : event.mapName() + " ";
+        BouyomiChanUtils.speak(Type.LastDance,
+                Tuple.of("${mapName}", mapName),
+                Tuple.of("${gaugeAfter}", Integer.toString(event.gaugeAfter())),
+                Tuple.of("${bossMaxHp}", Integer.toString(event.bossMaxHp())));
     }
 
     private static void speakGimmick(GimmickAchieved event) {

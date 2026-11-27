@@ -15,7 +15,7 @@ public final class BattleResultNotices {
     }
 
     /**
-     * ドロップ艦と、戦闘結果に付いたギミックを通知します。
+     * ドロップ艦と、戦闘結果に付いたギミックと、ラストダンスを通知します。
      *
      * @param battleLog 結果まで入った戦闘ログ
      * @param host ゲームサーバの Host
@@ -25,6 +25,7 @@ public final class BattleResultNotices {
             return;
         }
         ShipDroppedReport.publish(battleLog, host);
+        LastDanceReport.publish(battleLog);
         BattleResult result = battleLog.getResult();
         if (result == null) {
             return;

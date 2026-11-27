@@ -12,6 +12,7 @@ import logbook.notify.ShipDropped;
 import logbook.notify.BadlyDamagedAlert.ShipNotice;
 import logbook.notify.CondRecovered;
 import logbook.notify.GimmickAchieved;
+import logbook.notify.LastDance;
 import logbook.notify.MissionConditionAlert;
 import logbook.notify.MissionReturning;
 import logbook.notify.MissionStarted;
@@ -61,6 +62,7 @@ public final class DiscordNotificationListener implements NotificationListener {
             case CondRecovered e -> this.formatter.cond(url, e, color);
             case BadlyDamagedAlert e -> this.badly(url, e, color);
             case GimmickAchieved e -> this.formatter.gimmick(url, e, color);
+            case LastDance e -> this.formatter.lastDance(url, e, color);
             case ShipDropped _ -> null;
         };
     }
@@ -81,6 +83,7 @@ public final class DiscordNotificationListener implements NotificationListener {
             case CondRecovered _ -> Kind.COND;
             case BadlyDamagedAlert e -> badlyKind(e);
             case GimmickAchieved e -> e.kind() == null ? null : Kind.GIMMICK;
+            case LastDance _ -> Kind.LAST_DANCE;
             case ShipDropped _ -> null;
         };
     }

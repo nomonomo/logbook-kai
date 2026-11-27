@@ -14,6 +14,7 @@ import logbook.notify.BadlyDamagedAlert;
 import logbook.notify.ShipDropped;
 import logbook.notify.CondRecovered;
 import logbook.notify.GimmickAchieved;
+import logbook.notify.LastDance;
 import logbook.notify.MissionConditionAlert;
 import logbook.notify.MissionReturning;
 import logbook.notify.MissionStarted;
@@ -60,6 +61,7 @@ public final class SoundNotificationListener implements NotificationListener {
             case PortSupplyCompleted _ -> playFolder(AppConfig.get().soundDir(NotifyKind.PORT_SUPPLY));
             case CondRecovered _ -> playFolder(AppConfig.get().soundDir(NotifyKind.COND));
             case GimmickAchieved _ -> playFolder(AppConfig.get().soundDir(NotifyKind.GIMMICK));
+            case LastDance _ -> playFolder(AppConfig.get().soundDir(NotifyKind.LAST_DANCE));
             case BadlyDamagedAlert e -> playAlert(e);
             case MissionStarted _ -> {
             }
