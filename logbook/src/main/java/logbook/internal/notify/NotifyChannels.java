@@ -6,6 +6,7 @@ import logbook.notify.BadlyDamagedAlert;
 import logbook.notify.ShipDropped;
 import logbook.notify.CondRecovered;
 import logbook.notify.GimmickAchieved;
+import logbook.notify.LastDance;
 import logbook.notify.MissionConditionAlert;
 import logbook.notify.MissionReturning;
 import logbook.notify.MissionStarted;
@@ -54,6 +55,7 @@ final class NotifyChannels {
                     ? NotifyKind.BADLY_SORTIE
                     : NotifyKind.BADLY_ADVANCE;
             case GimmickAchieved _ -> NotifyKind.GIMMICK;
+            case LastDance _ -> NotifyKind.LAST_DANCE;
             case MissionStarted _ -> null;
             case ShipDropped _ -> null;
         };

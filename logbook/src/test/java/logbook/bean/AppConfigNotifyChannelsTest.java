@@ -36,6 +36,8 @@ class AppConfigNotifyChannelsTest {
         assertTrue(config.notifiesBySound(NotifyKind.NDOCK));
         assertTrue(config.notifiesBySound(NotifyKind.MISSION_CONDITION));
         assertTrue(config.notifiesBySound(NotifyKind.GIMMICK));
+        assertFalse(config.notifiesByToast(NotifyKind.LAST_DANCE));
+        assertTrue(config.notifiesBySound(NotifyKind.LAST_DANCE));
         assertFalse(config.notifiesBySound(NotifyKind.PORT_SUPPLY));
         assertFalse(config.notifiesBySound(NotifyKind.COND));
         assertTrue(config.notifiesBySound(NotifyKind.BADLY_SORTIE));
@@ -55,6 +57,7 @@ class AppConfigNotifyChannelsTest {
         assertTrue(config.notifiesByToast(NotifyKind.BADLY_SORTIE));
         assertTrue(config.notifiesBySound(NotifyKind.BADLY_ADVANCE));
         assertFalse(config.notifiesBySound(NotifyKind.GIMMICK));
+        assertFalse(config.notifiesByToast(NotifyKind.LAST_DANCE));
     }
 
     @Test

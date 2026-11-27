@@ -177,6 +177,14 @@ public class ConfigController extends WindowController {
     @FXML
     private CheckBox gimmickSound;
 
+    /** ラストダンスのトースト */
+    @FXML
+    private CheckBox lastDanceToast;
+
+    /** ラストダンスのサウンド */
+    @FXML
+    private CheckBox lastDanceSound;
+
     /** 遠征完了のサウンドフォルダ */
     @FXML
     private Button missionSoundDirButton;
@@ -208,6 +216,10 @@ public class ConfigController extends WindowController {
     /** ギミック達成のサウンドフォルダ */
     @FXML
     private Button gimmickSoundDirButton;
+
+    /** ラストダンスのサウンドフォルダ */
+    @FXML
+    private Button lastDanceSoundDirButton;
 
     /** 出撃時に大破艦がいる場合のトースト。チェックは外せない */
     @FXML
@@ -1710,6 +1722,9 @@ public class ConfigController extends WindowController {
                 .replace("${fleetName}", "第一艦隊")
                 .replace("${fleetNumber}", "1")
                 .replace("${missionName}", "練習航海")
+                .replace("${mapName}", "北方海域 ")
+                .replace("${gaugeAfter}", "200")
+                .replace("${bossMaxHp}", "300")
                 .trim();
     }
 
@@ -1731,6 +1746,8 @@ public class ConfigController extends WindowController {
         this.condSound.setSelected(conf.notifiesBySound(NotifyKind.COND));
         this.gimmickToast.setSelected(conf.notifiesByToast(NotifyKind.GIMMICK));
         this.gimmickSound.setSelected(conf.notifiesBySound(NotifyKind.GIMMICK));
+        this.lastDanceToast.setSelected(conf.notifiesByToast(NotifyKind.LAST_DANCE));
+        this.lastDanceSound.setSelected(conf.notifiesBySound(NotifyKind.LAST_DANCE));
         this.prepareSoundDirButton(this.missionSoundDirButton, NotifyKind.MISSION, conf);
         this.prepareSoundDirButton(this.ndockSoundDirButton, NotifyKind.NDOCK, conf);
         this.prepareSoundDirButton(this.missionConditionSoundDirButton, NotifyKind.MISSION_CONDITION, conf);
@@ -1739,6 +1756,7 @@ public class ConfigController extends WindowController {
         this.prepareSoundDirButton(this.badlyStartSoundDirButton, NotifyKind.BADLY_SORTIE, conf);
         this.prepareSoundDirButton(this.badlyNextSoundDirButton, NotifyKind.BADLY_ADVANCE, conf);
         this.prepareSoundDirButton(this.gimmickSoundDirButton, NotifyKind.GIMMICK, conf);
+        this.prepareSoundDirButton(this.lastDanceSoundDirButton, NotifyKind.LAST_DANCE, conf);
         this.lockChecked(this.badlyStartToast);
         this.lockChecked(this.badlyStartSound);
         this.lockChecked(this.badlyNextToast);
@@ -1765,6 +1783,8 @@ public class ConfigController extends WindowController {
         this.addKind(sound, NotifyKind.COND, this.condSound);
         this.addKind(toast, NotifyKind.GIMMICK, this.gimmickToast);
         this.addKind(sound, NotifyKind.GIMMICK, this.gimmickSound);
+        this.addKind(toast, NotifyKind.LAST_DANCE, this.lastDanceToast);
+        this.addKind(sound, NotifyKind.LAST_DANCE, this.lastDanceSound);
         toast.add(NotifyKind.BADLY_SORTIE);
         toast.add(NotifyKind.BADLY_ADVANCE);
         sound.add(NotifyKind.BADLY_SORTIE);

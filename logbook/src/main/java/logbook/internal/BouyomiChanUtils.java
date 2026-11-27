@@ -23,7 +23,8 @@ public class BouyomiChanUtils {
         NdockComplete,
         PortSupplyComplete,
         AchievementGimmick1,
-        AchievementGimmick2;
+        AchievementGimmick2,
+        LastDance;
     }
 
     @SafeVarargs

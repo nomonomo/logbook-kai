@@ -9,6 +9,7 @@ import logbook.internal.notify.discord.DiscordWebhookPayload.EmbedField;
 import logbook.notify.BadlyDamagedAlert.ShipNotice;
 import logbook.notify.CondRecovered;
 import logbook.notify.GimmickAchieved;
+import logbook.notify.LastDance;
 import logbook.notify.MissionConditionAlert;
 import logbook.notify.MissionReturning;
 import logbook.notify.MissionStarted;
@@ -150,6 +151,18 @@ public final class DiscordFormatter {
                 ? "海域に変化が確認されました。"
                 : "ギミックの達成を確認しました。";
         return request(webhookUrl, DiscordWebhookJson.embed("ギミック解除", message, color));
+    }
+
+    /**
+     * ラストダンスの本文を作ります。
+     *
+     * @param webhookUrl Webhook URL
+     * @param event 通知
+     * @param color 色
+     * @return リクエスト
+     */
+    public DiscordWebhookRequest lastDance(String webhookUrl, LastDance event, int color) {
+        return request(webhookUrl, DiscordWebhookJson.embed("ラストダンス", event.message(), color));
     }
 
     /**

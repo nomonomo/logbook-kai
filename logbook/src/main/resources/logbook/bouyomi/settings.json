@@ -94,6 +94,25 @@
             "label": "ギミック解除\n(装甲破砕等)",
             "text": "ギミック解除 ギミックの達成を確認しました。",
             "params": []
+        },
+        {
+            "id": "LastDance",
+            "label": "ラストダンス",
+            "text": "ラストダンスです。${mapName}次の出撃でゲージを割り切れます。残${gaugeAfter}、ボス最大${bossMaxHp}",
+            "params": [
+                {
+                    "tag": "${mapName}",
+                    "comment": "海域名。末尾に空白を付ける。無ければ空"
+                },
+                {
+                    "tag": "${gaugeAfter}",
+                    "comment": "戦闘後のゲージ残量"
+                },
+                {
+                    "tag": "${bossMaxHp}",
+                    "comment": "ボス最大HP"
+                }
+            ]
         }
     ]
 }

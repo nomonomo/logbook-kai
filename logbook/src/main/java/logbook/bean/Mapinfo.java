@@ -52,6 +52,21 @@ public class Mapinfo implements Serializable {
         /** api_air_base_decks */
         private Integer airBaseDecks;
 
+        /** api_gauge_num */
+        private Integer gaugeNum;
+
+        /** api_gauge_type */
+        private Integer gaugeType;
+
+        /** api_gauge_type_e */
+        private Integer gaugeTypeE;
+
+        /** api_required_defeat_count */
+        private Integer requiredDefeatCount;
+
+        /** api_eventmap */
+        private Eventmap eventmap;
+
         /**
          * JsonObjectから{@link MapInfo}を構築します
          *
@@ -67,16 +82,59 @@ public class Mapinfo implements Serializable {
                     .setInteger("api_exboss_flag", bean::setExbossFlag)
                     .setInteger("api_defeat_count", bean::setDefeatCount)
                     .setInteger("api_air_base_decks", bean::setAirBaseDecks)
+                    .setInteger("api_gauge_num", bean::setGaugeNum)
+                    .setInteger("api_gauge_type", bean::setGaugeType)
+                    .setInteger("api_gauge_type_e", bean::setGaugeTypeE)
+                    .setInteger("api_required_defeat_count", bean::setRequiredDefeatCount)
+                    .set("api_eventmap", bean::setEventmap, Eventmap::toEventmap)
                     .ignore(
-                            "api_gauge_num", // ゲージ番号
-                            "api_gauge_type", // ゲージ種別
-                            "api_gauge_type_e", // イベントゲージ種別（api_gauge_type と同系）
-                            "api_required_defeat_count", // 必要撃破数
-                            "api_eventmap", // イベントマップ状態
                             "api_sally_flag", // 出撃フラグ
                             "api_s_no") // 海域内番号等
                     .reportUnknown();
             return bean;
+        }
+
+        /**
+         * api_map_info[].api_eventmap。start / next の {@link MapTypes.Eventmap} とは別の形。
+         */
+        @Data
+        public static class Eventmap implements Serializable {
+
+            private static final long serialVersionUID = -5827364910283746501L;
+
+            /** api_max_maphp */
+            private Integer maxMaphp;
+
+            /** api_now_maphp */
+            private Integer nowMaphp;
+
+            /** api_selected_rank */
+            private Integer selectedRank;
+
+            /** api_state */
+            private Integer state;
+
+            /** api_limit_flag */
+            private Integer limitFlag;
+
+            /**
+             * JsonObjectから{@link Eventmap}を構築します
+             *
+             * @param json JsonObject
+             * @return {@link Eventmap}
+             */
+            public static Eventmap toEventmap(JsonObject json) {
+                Eventmap bean = new Eventmap();
+                JsonHelper.bind(json)
+                        .at("api_data.api_map_info[].api_eventmap")
+                        .setInteger("api_max_maphp", bean::setMaxMaphp)
+                        .setInteger("api_now_maphp", bean::setNowMaphp)
+                        .setInteger("api_selected_rank", bean::setSelectedRank)
+                        .setInteger("api_state", bean::setState)
+                        .setInteger("api_limit_flag", bean::setLimitFlag)
+                        .reportUnknown();
+                return bean;
+            }
         }
     }
 

@@ -136,6 +136,10 @@
                                                       <CheckBox fx:id="gimmickToast" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="9" />
                                                       <CheckBox fx:id="gimmickSound" mnemonicParsing="false" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="9" />
                                                       <Button fx:id="gimmickSoundDirButton" mnemonicParsing="false" onAction="#openNotifySoundDirectory" text="開く" GridPane.columnIndex="3" GridPane.rowIndex="9" />
+                                                      <Label text="ラストダンス" GridPane.rowIndex="10" />
+                                                      <CheckBox fx:id="lastDanceToast" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="10" />
+                                                      <CheckBox fx:id="lastDanceSound" mnemonicParsing="false" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="10" />
+                                                      <Button fx:id="lastDanceSoundDirButton" mnemonicParsing="false" onAction="#openNotifySoundDirectory" text="開く" GridPane.columnIndex="3" GridPane.rowIndex="10" />
                                                    </children>
                                                 </GridPane>
                                              </children>
